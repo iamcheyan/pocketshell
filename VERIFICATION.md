@@ -54,3 +54,28 @@ adb shell 'kill -9 $(pidof pocket-linux-kms)'
 - No visual diff against the previous package beyond the two frames above; font
   slots bake more sizes than the previous build (pak 4.34 MB vs 3.89 MB), which
   changes bytes but not the captured layout.
+
+## Regression found after the deploy (same day)
+
+The rebuilt package renders and takes input, **but the runtime exits by itself**
+after 1,161–6,990 logical ticks (19 s – 4 min) with code 0:
+
+```
+completed 1161 logical ticks; 720x480; rocknix-h700-kms
+2026-10-30T23:44:04 PocketJS exit code=0
+2026-10-30T23:44:09 starting; package=/mnt/sdcard/System/pocketjs/apps/boot.pocket
+```
+
+`frontend-session` respawns it, so the panel flickers back to the same screen. The
+previously installed package (`6ed41612…`, built 2026-10-30) ran 17,530 s (4.8 h)
+without exiting, so this is a regression of *this* build, not of the base OS.
+
+Rolled back the same day: the device runs `6ed41612…` again (rebooted, launcher up,
+APP 画面确认正常), and PJOS-LINUX still ships the approved `d2836f45…` package.
+
+Not yet diagnosed. Next candidates: font-slot/pak differences (9 slots baked here
+vs the shipped 3.89 MB pak), the ROCKNIX package's `patch-build-fonts.py` /
+`patch-runtime.py` steps not being applied in this standalone build, or an SDK
+revision drift between the two artifacts. Reproduce with the SDK commit that
+produced `6ed41612…` before shipping this package again.
+
