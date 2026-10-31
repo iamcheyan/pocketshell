@@ -694,30 +694,6 @@ mount(() => {
   });
 
   onFrame((buttons: number) => {
-    if (buttons === 0) armed = true;
-    const payload = global.__pocketshellOutput ?? "";
-    if (payload) {
-      delete global.__pocketshellOutput;
-      applyRows(payload);
-    }
-
-    // Poll on elapsed time so the visible page remains live at any frame rate.
-    const now = Date.now();
-    if (now - lastHardwarePoll >= 5000) {
-      lastHardwarePoll = now;
-      syncSystemStatus();
-      syncHardwareStatus();
-    }
-
-    // Advance frame-driven toast
-    if (toastFrames > 0) {
-      toastFrames--;
-      if (toastFrames === 0) {
-        safeAnimate(toastNode, "opacity", 0, { dur: 250, easing: "out" });
-        safeAnimate(toastNode, "translateY", 6, { dur: 250, easing: "out" });
-      }
-    }
-
     if (!armed) {
       previousButtons = buttons;
       return;
@@ -1154,6 +1130,7 @@ mount(() => {
       ) : (
         <View class="w-[0px] h-[0px]" />
       )}
+
     </View>
   );
 });
