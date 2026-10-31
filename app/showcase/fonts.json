@@ -1,0 +1,4 @@
+{
+  "characterFiles": ["../launcher-characters.txt"],
+  "fallback": ["../fonts/SymbolsNerdFontMono-Regular.ttf"]
+}
