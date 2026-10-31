@@ -45,8 +45,13 @@ NEW_PID=$(ssh "$JUMP" "adb -s $SERIAL shell 'pidof pocket-linux-kms || true'" | 
 echo "old pid=$OLD_PID new pid=$NEW_PID"
 
 echo "== 5/5 frame"
-ssh "$JUMP" "adb -s $SERIAL exec-out dd if=/dev/fb0 bs=1048576 count=2" > "$REPO/dist/frame-after-deploy.raw"
-python3 "$REPO/scripts/raw-to-png.py" "$REPO/dist/frame-after-deploy.raw" "$REPO/dist/frame-after-deploy.png" 720 480 || true
+# The panel is 32 bpp with a double buffer; dump both pages, pull, keep page 0.
+# Separate invocations on purpose: a dd and a pull in one ssh round trip has produced
+# an empty file on this device.
+ssh "$JUMP" "adb -s $SERIAL shell 'rm -f /tmp/frame.raw; dd if=/dev/fb0 of=/tmp/frame.raw bs=691200 count=4'"
+ssh "$JUMP" "adb -s $SERIAL pull /tmp/frame.raw /tmp/frame.raw >/dev/null"
+scp -q "$JUMP:/tmp/frame.raw" "$REPO/dist/frame-after-deploy.raw"
+python3 "$REPO/scripts/raw-to-png.py" "$REPO/dist/frame-after-deploy.raw" "$REPO/dist/frame-after-deploy.png" 720 480 32 0 || true
 ssh "$JUMP" "adb -s $SERIAL shell 'tail -6 /tmp/pocketjs-frontend.log'"
 
 echo "done. rollback: adb shell 'cp -f $APPS/boot.pocket.bak-$STAMP $APPS/boot.pocket' && kill -9 \$(pidof pocket-linux-kms)"

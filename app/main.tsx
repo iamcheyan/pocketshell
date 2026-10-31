@@ -930,10 +930,11 @@ mount(() => {
                   }}
                 />
 
-                {/* Action Feedback Bar */}
+                {/* Action Feedback Bar: counter only — the pad hints moved out of the
+                    shell, the footer carries the context instead. */}
                 <View class="w-[344px] h-[20px] flex-row items-center justify-between">
                   <Text class="text-xs text-slate-500">
-                    {currentCardIndex() + 1} / {currentApps().length} · 方向键选择 · A 启动
+                    {currentCardIndex() + 1} / {currentApps().length}
                   </Text>
                   <View
                     ref={(node: NodeMirror) => {
