@@ -145,6 +145,9 @@ export function SystemPage(props: SystemPageProps) {
             <Text class="text-xs font-mono" style={{ textColor: MUTED }}>
               DISPLAY {text(snapshot()?.display)} · {text(snapshot()?.runtime)}
             </Text>
+            <Text class="text-xs font-mono" style={{ textColor: MUTED }}>
+              POCKETJS SDK {text(snapshot()?.sdk)} · ABI {text(snapshot()?.abi)} · BUILD {text(snapshot()?.build)}
+            </Text>
           </View>
         ) : null}
 

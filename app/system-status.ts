@@ -17,6 +17,9 @@ export interface SystemSnapshot {
   storagePercent: number | null;
   display: string | null;
   runtime: string | null;
+  sdk: string | null;
+  abi: string | null;
+  build: string | null;
 }
 
 export interface NetworkSnapshot {
@@ -59,6 +62,9 @@ export function parseSystemSnapshot(payload: string): SystemSnapshot | null {
     storageTotal: text("storageTotal"),
     storagePercent: numeric(fields.get("storagePercent")),
     display: text("display"),
+    sdk: text("sdk"),
+    abi: text("abi"),
+    build: text("build"),
     // The runtime label is the PocketJS guest the frontend runs on. Older host
     // bridges report it as "PJOS <version>"; present it as PocketJS either way.
     runtime: (text("runtime") ?? "").replace(/^PJOS\b/, "PocketJS").trim() || "PocketJS",
