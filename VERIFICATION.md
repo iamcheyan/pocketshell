@@ -108,4 +108,17 @@ rather than by the browser harness.
   10 minutes with nothing else touching `/dev/fb0`, and confirm a single uninterrupted
   run before switching the payload over.
 
+## Installed-app switching (device, 2026-10-31)
 
+Runtime rebuilt as musl aarch64 with the BaseOS bridge (`sha256 a3be425f…`, 3,126,048 B) and
+installed on the card. Ten PocketJS ports live in `/storage/apps/*.pocket`.
+
+- `pocket-linux-kms --check` admits both `boot.pocket` and `apps/files.pocket`
+  (`rocknix-h700-kms`).
+- Writing the launch marker and exiting the launcher makes the supervisor start
+  `/mnt/sdcard/apps/files.pocket`; the Files UI renders on the panel — `docs/device/app-files-launch.png`.
+- Killing the child clears the marker and the launcher comes back — `docs/device/returned-to-launcher.png`.
+
+The launcher itself never forks a runtime: it asks the bridge for `LAUNCH <id>` and the
+supervisor (`System/launch_frontend.sh`) owns the display. Contract:
+`docs/WIFI-BRIDGE-CONTRACT.md`.
