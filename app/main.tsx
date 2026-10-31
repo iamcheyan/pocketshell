@@ -900,10 +900,6 @@ mount(() => {
             adbEnabled={adbEnabled()}
             mtpEnabled={mtpEnabled()}
             batteryLevel={batteryLevel()}
-            pageTitle={currentScreen() === 3 ? "SETTINGS" : currentScreen() === 4 ? ["OVERVIEW", "CPU", "MEMORY", "STORAGE", "NETWORK"][systemPageIndex()] : undefined}
-            pageIndex={currentScreen() === 3 ? settingsIndex() : currentScreen() === 4 ? systemPageIndex() : undefined}
-            pageCount={currentScreen() === 3 ? 16 : currentScreen() === 4 ? 5 : undefined}
-            category={currentScreen() === 0 ? categoryLabel(selectedApp()) : undefined}
           />
 
           {/* Animated Page Container */}
@@ -916,23 +912,6 @@ mount(() => {
                     <Text class="text-sm font-bold text-white">
                       {selectedApp()?.name}
                     </Text>
-                    <View
-                      class={
-                        selectedApp()?.kind === "native"
-                          ? "px-1 rounded-sm bg-emerald-950"
-                          : "px-1 rounded-sm bg-sky-950"
-                      }
-                    >
-                      <Text
-                        class={
-                          selectedApp()?.kind === "native"
-                            ? "text-xs font-bold text-emerald-400"
-                            : "text-xs font-bold text-sky-400"
-                        }
-                      >
-                        {selectedApp()?.kind === "native" ? "[ 内置 NATIVE ]" : "[ 终端 VT100 ]"}
-                      </Text>
-                    </View>
                   </View>
                   <Text class="text-xs text-slate-400">
                     {selectedApp()?.description}
@@ -994,16 +973,27 @@ mount(() => {
             )}
           </View>
 
-          {/* Every panel gets the same 20 px footer so the content block above it
-              has one height throughout; only the hints change. */}
+          {/* The footer carries the context that used to sit beside the tabs and the
+              status glyphs: the selected app's category and kind, or the current page
+              and its counter. The key hints are gone — the pad layout is fixed. */}
           <View class="w-[360px] h-[20px] flex-col justify-between" style={{ bgColor: "#06111B" }}>
             <View class="w-[360px] h-[1px]" style={{ bgColor: "#1B3345" }} />
             <View class="w-[360px] h-[19px] flex-row items-center justify-between px-2">
-              <Text class="text-xs" style={{ textColor: "#D8E8FF" }}>
-                {currentScreen() === 0 ? "L/R 切屏 · 方向键选择 · A 启动 · B 返回" : "L/R 切屏 · 方向键调整 · B 返回"}
-              </Text>
               <Text class="text-xs font-bold" style={{ textColor: "#3ECFFF" }}>
-                {currentScreen() === 0 ? "SELECT 输入" : ""}
+                {currentScreen() === 0
+                  ? categoryLabel(selectedApp())
+                  : currentScreen() === 3
+                    ? "SETTINGS"
+                    : ["OVERVIEW", "CPU", "MEMORY", "STORAGE", "NETWORK"][systemPageIndex()]}
+              </Text>
+              <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>
+                {currentScreen() === 0
+                  ? selectedApp()?.kind === "native"
+                    ? "[ 内置 NATIVE ]"
+                    : "[ 终端 VT100 ]"
+                  : currentScreen() === 3
+                    ? `${settingsIndex() + 1}/16`
+                    : `${systemPageIndex() + 1}/5`}
               </Text>
             </View>
           </View>
