@@ -8,6 +8,7 @@ import { animate } from "@pocketjs/framework/animation";
 import {
   LAUNCHER_APPS,
   getAppsForScreen,
+  packageId,
   categoryLabel,
   type LauncherApp,
 } from "./launcher-catalog";
@@ -195,7 +196,20 @@ mount(() => {
     }
   };
 
-  const currentApps = () => getAppsForScreen(currentScreen());
+  // Packages actually present on the card. An older runtime has no APPS arm, so an
+  // empty answer means "unknown" and every catalog entry stays visible.
+  const installedIds = () => {
+    const raw = host?.__launcher?.("APPS\tlist") ?? "";
+    const ids = raw.split("\n").map((line) => line.trim()).filter(Boolean);
+    return ids.length ? new Set(ids) : null;
+  };
+
+  const currentApps = () => {
+    const apps = getAppsForScreen(currentScreen());
+    const have = installedIds();
+    if (!have) return apps;
+    return apps.filter((app) => app.kind !== "native" || have.has(packageId(app)));
+  };
   const currentCardIndex = () => {
     const s = currentScreen();
     if (s === 0) return homeCardIndex();
@@ -445,7 +459,7 @@ mount(() => {
     }
 
     if (app.kind === "native") {
-      const res = host?.__launcher?.(`LAUNCH\t${app.id}`) ?? "Opening application";
+      const res = host?.__launcher?.(`LAUNCH\t${packageId(app)}`) ?? "Opening application";
       return;
     }
 

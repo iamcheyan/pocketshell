@@ -21,7 +21,7 @@ export const LAUNCHER_APPS: readonly LauncherApp[] = [
     tag: "SHELL"
   },
   {
-    id: "disk",
+    id: "files",
     name: "File Manager",
     shortName: "Files",
     description: "Browse files and storage volumes",
@@ -29,6 +29,98 @@ export const LAUNCHER_APPS: readonly LauncherApp[] = [
     category: "home",
     icon: "\uf07b",
     tag: "NATIVE"
+  },
+  // Ported PocketJS programs, launched from /storage/apps/<id>.pocket through the
+  // bridge's LAUNCH arm. They stay hidden until the package is on the card.
+  {
+    id: "galaxy",
+    name: "Pocket Galaxy",
+    shortName: "Galaxy",
+    description: "Cross-device performance probe",
+    kind: "native",
+    category: "games",
+    icon: "\uf135",
+    tag: "GAME"
+  },
+  {
+    id: "gamehub",
+    name: "Pocket GameHub",
+    shortName: "GameHub",
+    description: "Emulator and game launcher",
+    kind: "native",
+    category: "games",
+    icon: "\uf11b",
+    tag: "GAMES"
+  },
+  {
+    id: "music",
+    name: "Pocket Music",
+    shortName: "Music",
+    description: "Local music player",
+    kind: "native",
+    category: "media",
+    icon: "\uf001",
+    tag: "AUDIO"
+  },
+  {
+    id: "video",
+    name: "Pocket Video",
+    shortName: "Video",
+    description: "Offline video player",
+    kind: "native",
+    category: "media",
+    icon: "\uf03d",
+    tag: "VIDEO"
+  },
+  {
+    id: "youtube-video",
+    name: "Pocket YouTube",
+    shortName: "YouTube",
+    description: "Offline YouTube library",
+    kind: "native",
+    category: "media",
+    icon: "\uf167",
+    tag: "VIDEO"
+  },
+  {
+    id: "reader",
+    name: "Pocket Reader",
+    shortName: "Reader",
+    description: "E-book reader",
+    kind: "native",
+    category: "media",
+    icon: "\uf02d",
+    tag: "BOOKS"
+  },
+  {
+    id: "web",
+    name: "Pocket Web",
+    shortName: "Web",
+    description: "Minimal web client",
+    kind: "native",
+    category: "home",
+    icon: "\uf0ac",
+    tag: "WEB"
+  },
+  {
+    id: "settings",
+    name: "Pocket Settings",
+    shortName: "Settings",
+    description: "System settings",
+    kind: "native",
+    category: "home",
+    icon: "\uf013",
+    tag: "SYSTEM"
+  },
+  {
+    id: "terminal-app",
+    name: "Pocket Terminal",
+    shortName: "P-Term",
+    description: "Full-screen VT100 terminal app",
+    kind: "native",
+    category: "home",
+    icon: "\uf120",
+    tag: "SHELL"
   },
   {
     id: "xmplayer",
@@ -207,7 +299,25 @@ export const LAUNCHER_APPS: readonly LauncherApp[] = [
 // pocketshell-games and pocketjs-native-launch are all absent, and the bridge's
 // LAUNCH arm needs systemd-run, which BaseOS does not have. Pressing those
 // entries dropped the user into a terminal instead of the app.
-const RUNNABLE = new Set(["terminal"]);
+const RUNNABLE = new Set([
+  "terminal",
+  "files",
+  "galaxy",
+  "gamehub",
+  "music",
+  "video",
+  "youtube-video",
+  "reader",
+  "web",
+  "settings",
+  "terminal-app"
+]);
+
+// The grid id and the package file name differ for the ported terminal, whose
+// "terminal" id belongs to the built-in shell screen.
+export function packageId(app: LauncherApp): string {
+  return app.id === "terminal-app" ? "terminal" : app.id;
+}
 
 export function getAppsForScreen(screen: number): LauncherApp[] {
   switch (screen) {
