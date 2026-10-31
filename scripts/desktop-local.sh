@@ -33,7 +33,7 @@ cd "$SDK"
 echo "== build host (cargo cache reused)"
 # The build copies the binary over the previous one; a running window keeps it
 # busy (ETXTBSY), so stop it first.
-ps -eo pid,args | grep "[p]ocket-desktop-host" | awk '{print $1}' | while read -r p; do kill "$p" 2>/dev/null || true; done
+ps -eo pid,args | grep "[p]ocket-desktop-host" | awk '{print $1}' | while read -r p; do kill "$p" 2>/dev/null || true; done || true
 sleep 1
 "$BUN" tools/pocket.ts build \
   --config programs/desktop/linux/pocket.runtime-config.ts \
@@ -41,7 +41,7 @@ sleep 1
   --out /tmp/pocketshell-desktop 2>&1 | tail -2
 
 echo "== restart window"
-ps -eo pid,args | grep "[p]ocket-desktop-host" | awk '{print $1}' | while read -r p; do kill "$p" 2>/dev/null || true; done
+ps -eo pid,args | grep "[p]ocket-desktop-host" | awk '{print $1}' | while read -r p; do kill "$p" 2>/dev/null || true; done || true
 sleep 1
 
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
