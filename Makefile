@@ -20,6 +20,9 @@ preview:          ## browser harness for layout/colour work (no device)
 desktop:          ## build + restart the launcher window on the desktop host (HX90)
 	./scripts/desktop-run.sh
 
+desktop-local:    ## same, but run this ON the desktop host (local SDK, no rsync)
+	./scripts/desktop-local.sh
+
 clean:
 	rm -f $(PKG) dist/frame-after-deploy.raw dist/frame-after-deploy.png
 

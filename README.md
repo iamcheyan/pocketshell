@@ -107,6 +107,20 @@ export LD_LIBRARY_PATH=$(nix eval --raw nixpkgs#wayland)/lib:$(nix eval --raw ni
 $(nix eval --raw nixpkgs#libGL)/lib:$(nix eval --raw nixpkgs#vulkan-loader)/lib:$(nix eval --raw nixpkgs#mesa)/lib
 ```
 
+## Working on the desktop host (HX90)
+
+The repository is also cloned on HX90 (`~/development/pocketshell`), which has the
+PocketJS SDK at `~/development/pjs-app-build` and the Hyprland session. Edit there
+and run:
+
+```sh
+make desktop-local     # stage into the local SDK, compile, restart the window, capture dist/desktop.png
+```
+
+From another machine, `make desktop` does the same by rsyncing `app/` to HX90 first.
+Either way the source of truth is this git repository: commit and push from HX90,
+pull elsewhere.
+
 ## Packaging into a BaseOS image
 
 PJOS-LINUX ships the built artifact, not this source tree:
