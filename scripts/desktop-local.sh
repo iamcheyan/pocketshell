@@ -49,10 +49,11 @@ if [ -z "${WAYLAND_DISPLAY:-}" ]; then
 	WAYLAND_DISPLAY=$(basename "$(ls "$XDG_RUNTIME_DIR"/wayland-? 2>/dev/null | head -1)" 2>/dev/null || true)
 	export WAYLAND_DISPLAY
 fi
-# NixOS does not put the desktop libraries on the loader path and winit dlopens them.
-if [ -z "${LD_LIBRARY_PATH:-}" ] && command -v nix >/dev/null 2>&1; then
-	LD_LIBRARY_PATH=$(nix eval --raw nixpkgs#wayland)/lib:$(nix eval --raw nixpkgs#libxkbcommon)/lib:$(nix eval --raw nixpkgs#libGL)/lib:$(nix eval --raw nixpkgs#vulkan-loader)/lib:$(nix eval --raw nixpkgs#mesa)/lib
-	export LD_LIBRARY_PATH
+# NixOS does not put the desktop libraries on the loader path and winit dlopens
+# them; prepend them to whatever LD_LIBRARY_PATH already exists.
+if command -v nix >/dev/null 2>&1; then
+	extra="$(nix eval --raw nixpkgs#wayland)/lib:$(nix eval --raw nixpkgs#libxkbcommon)/lib:$(nix eval --raw nixpkgs#libGL)/lib:$(nix eval --raw nixpkgs#vulkan-loader)/lib:$(nix eval --raw nixpkgs#mesa)/lib"
+	export LD_LIBRARY_PATH="$extra${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 fi
 
 cd /tmp/pocketshell-desktop/program
