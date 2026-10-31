@@ -35,7 +35,7 @@ such as `STATE`, `LEVEL`, `CONTROL`, `SERVICE`, `LAUNCH`, `ROMS`, `ROMSCAN`,
 | path | what |
 |---|---|
 | `app/` | the PocketJS application: `main.tsx`, `card-carousel.tsx`, `pages/`, fonts, `pocket.json` |
-| `app/fonts/` | FusionPixel zh_hans subset (baked), FusionPixel ja + Nerd Font (fallbacks, see `fonts.json`) |
+| `app/fonts/` | Sarasa UI SC Regular/Bold + Symbols Nerd Font Mono (baked into the package, see `fonts.json`); FusionPixel files are the previous face and are currently unused |
 | `config/profile.ts` | the `rocknix-h700-kms` runtime profile (720×480 / 360×240 @2×, 60 Hz, capabilities) |
 | `config/pocket.runtime-config.ts` | runtime config the compiler binds the package to (this hash is what admission checks) |
 | `scripts/build.sh` | stages the app into the PocketJS SDK, compiles, prints sections + sha256 |
@@ -90,8 +90,6 @@ without a handheld:
 
 ```sh
 cd "$POCKETJS_SDK"
-export POCKETJS_FONT_REGULAR=$HOME/development/pocketshell/app/fonts/FusionPixel-12px-monospaced-zh_hans.ttf
-# (same for BOLD and MONO)
 bun tools/pocket.ts compile --runtime-config programs/desktop/linux/pocket.runtime-config.ts \
   --target linux-app --manifest apps/pocketshell/pocket.json --output /tmp/pocketshell-desktop.pocket
 bun tools/pocket.ts build --config programs/desktop/linux/pocket.runtime-config.ts \
