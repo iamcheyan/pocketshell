@@ -154,6 +154,23 @@ The package embeds the profile hash it was built against and the runtime admits
 only that profile. Replace one without the other and every package is refused
 with `Package(Admission(ProfileHashMismatch))`. Rebuild both, or neither.
 
+## Wi-Fi and launching installed apps
+
+The launcher is a PocketJS guest: it cannot execute programs, read files or store
+secrets. Everything it needs goes through `host.__launcher(...)`:
+
+- **Wi-Fi** — `WIFI\tscan`, `WIFI\tstatus`, `WIFI\tconnect\t<ssid>[\t<psk>]`,
+  `WIFI\tdisconnect`, `WIFI\tforget\t<ssid>`, `WIFI\tsaved`, `WIFI\tip`. The PSK is
+  handed to `wpa_supplicant` by the host bridge and never persisted by the launcher.
+- **Installed apps** — `APPS\tlist` returns the ids present in `/storage/apps/*.pocket`;
+  `LAUNCH\t<id>` hands the panel to that package and returns to the launcher when it
+  exits. The supervisor script owns the display, not the launcher, so only one
+  runtime is ever drawing.
+
+The full interface — return values, UI states, key mapping, layout and acceptance
+cases — is `docs/WIFI-BRIDGE-CONTRACT.md`. Change the contract there before changing
+the guest code.
+
 ## Provenance
 
 `app/` was lifted from the ROCKNIX `pocketjs-runtime` launcher baseline
