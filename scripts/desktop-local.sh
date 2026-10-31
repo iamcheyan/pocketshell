@@ -31,6 +31,10 @@ cd "$SDK"
   --output /tmp/pocketshell-desktop.pocket 2>&1 | tail -3
 
 echo "== build host (cargo cache reused)"
+# The build copies the binary over the previous one; a running window keeps it
+# busy (ETXTBSY), so stop it first.
+ps -eo pid,args | grep "[p]ocket-desktop-host" | awk '{print $1}' | while read -r p; do kill "$p" 2>/dev/null || true; done
+sleep 1
 "$BUN" tools/pocket.ts build \
   --config programs/desktop/linux/pocket.runtime-config.ts \
   --target linux-app --pocket /tmp/pocketshell-desktop.pocket \

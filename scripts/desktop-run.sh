@@ -28,6 +28,7 @@ ssh "$HOST" "cd $SDK && export PATH=\$HOME/.bun/bin:\$PATH && \
     --target linux-app --manifest apps/pocketshell/pocket.json --output /tmp/pocketshell-desktop.pocket 2>&1 | tail -3"
 
 echo "== build host (cargo cache reused)"
+ssh "$HOST" 'ps -eo pid,args | grep "[p]ocket-desktop-host" | awk "{print \$1}" | while read p; do kill "$p" 2>/dev/null; done; sleep 1'
 ssh "$HOST" "cd $SDK && export PATH=\$HOME/.bun/bin:\$PATH && \
   bun tools/pocket.ts build --config programs/desktop/linux/pocket.runtime-config.ts \
     --target linux-app --pocket /tmp/pocketshell-desktop.pocket --out /tmp/pocketshell-desktop 2>&1 | tail -2"
