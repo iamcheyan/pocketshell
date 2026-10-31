@@ -32,7 +32,7 @@ hash matches the installed runtime.
 
 | file | what it proves |
 |---|---|
-| `docs/device/device-launcher-tools-720x480.png` | the package that was installed before (TOOLS / Terminal) |
+| `docs/device/device-launcher-tools-720x480.png` | the package that was installed before (TOOLS tab) |
 | `docs/device/device-rebuilt-tools-720x480.png` | the rebuilt package rendering the same screen |
 | `docs/device/device-launcher-settings-720x480.png` | input works: R1 (evdev code 309, `sendkey` on `/dev/input/event1`) switched TOOLS → SETTINGS |
 
@@ -93,7 +93,7 @@ Compiled the same app for the `linux-app` profile and ran it under
 - runtime needed `LD_LIBRARY_PATH` for wayland/xkbcommon/libglvnd/vulkan-loader/mesa
   (NixOS does not put them on the loader path)
 - adapter: `AMD Radeon Graphics (RADV RENOIR)`, surface `Bgra8Unorm`
-- screenshot: `dist/hx90-desktop.png` — APPS tab, Terminal card, status bar, help line
+- screenshot: `dist/hx90-desktop.png` — APPS tab, status bar, help line (pre-PocketFetch build)
 
 This is the same TSX source and the same package plan, rendered by the real runtime
 rather than by the browser harness.
@@ -108,4 +108,80 @@ rather than by the browser harness.
   10 minutes with nothing else touching `/dev/fb0`, and confirm a single uninterrupted
   run before switching the payload over.
 
+## Touch and pointer behavior (current source)
 
+- The `rocknix-h700-kms` build passes `scripts/build.sh` (`pocketshell.pocket`,
+  3,968,520 bytes, SHA-256 `5b1359f409011f656f060f974ea27152854060475a2c67819289f5413ae7aba5`).
+- KMS evdev contacts use PocketJS gestures. The desktop runtime patch forwards
+  mouse clicks and winit touch contacts to that same contact path; app controls
+  do not join the gamepad focus graph. Existing d-pad, A/Circle and B/Cross
+  handlers remain in place, and devices without touch keep physical-button
+  behavior.
+- App cards select on the first tap and open on the next tap; the carousel also
+  has swipe and arrow navigation. Wi-Fi rows connect/open password entry on tap,
+  with explicit back, refresh and list paging controls. Settings rows and the
+  Wi-Fi enable pill are separate tap targets. Brightness/volume preview follows
+  the gesture and sends one bridge command on release; cancelling reads the
+  hardware value back.
+- Wi-Fi password entry no longer uses `TextField`. That field renders the value
+  it edits, which would put the passphrase on the panel in clear; the page now
+  draws `·` for each character and the real text lives in an `createOsk` session
+  owned by `main.tsx`. The keyboard is rendered against the page root (a padded
+  container clipped it by exactly the padding). START commits, ×/B cancels,
+  □ backspaces. This replaced the earlier `TextField` path recorded above.
+
+Desktop input review used the real compiled native host, including the contact
+patch, rather than the HTML preview. Scripted pointer clicks switched tabs,
+opened Wi-Fi, returned, and mixed with one Down button press to move exactly one
+row. System page arrows and PocketFetch return were also exercised. In an
+isolated SDK copy with a synthetic bridge (no real network/settings writes):
+
+- A multi-move brightness drag issued exactly one `CONTROL brightness 85` on
+  release and the UI read back 85%.
+- Ten Wi-Fi rows could advance past the six-row window to select row eight.
+- Tapping a protected network and its password field opened the OSK. Tapping
+  the underlying refresh location while it was open did not rescan. Tapping
+  `q` and the OSK submit key issued one connection request and closed the OSK.
+- With three fixture apps enabled, a swipe selected the next card without
+  launching; a selected card tap issued one native launch request.
+
+`bridge/desktop-contacts.rs` has standalone Rust tests for fast down/up in one
+host batch, cancellation, drag identity/multiple contacts, and the last movement
+before release. The desktop patch is applied automatically by desktop scripts;
+it can also be applied with `python3 scripts/patch-desktop-touch.py SDK_ROOT`.
+Physical touchscreen hardware has not been exercised; native winit touch
+forwarding was compiled and the shared contact/gesture path was exercised with
+scripted mouse input. No handheld deployment was performed for this change.
+
+
+
+## Wi-Fi picker against the system contract (2026-10-31)
+
+The Wi-Fi screen was rewritten against `docs/WIFI-BRIDGE-CONTRACT.md` and
+exercised three ways: the pure protocol model, a headless replay of the real
+bundle, and a device deploy.
+
+**Protocol model** (`app/wifi-model.ts`, `bun app/verify-wifi-model.mjs`):
+duplicate SSIDs keep the strongest sample, hidden/over-long SSIDs are dropped,
+association sorts first then signal, `error:`/`empty` are distinguished,
+`connected:`/`need-psk`/`auth-failed`/`not-found`/`timeout`/`error:` are
+classified, `on:<ssid>` and `wpa_state=` both parse, and the passphrase rule is
+8–63 printable ASCII.
+
+**Headless replay** of the compiled bundle with a synthetic `__launcher`
+(wasm host, no device): opening SETTINGS → Wi-Fi issued `WIFI saved`, `WIFI
+status`, `WIFI scan` in that order once; joining an open network produced
+exactly one `WIFI connect`; a wrong passphrase returned `auth-failed` with the
+keyboard and typed text still up; retyping and submitting produced a second
+connect and then one rescan; `△` on the associated row issued
+`WIFI disconnect` and `△` on a saved row issued `WIFI forget`. Nothing was
+issued twice, and no `setTimeout` is involved — the scan/connect calls are
+dispatched from `onFrame` after the busy frame paints.
+
+**Device**: `make check` admitted the package, `scripts/deploy.sh` installed it
+(`d48d699e…`), the launcher respawned and the captured framebuffer shows the
+new build running. The scan/connect round trip against the real supplicant is
+**not** verified end to end: the runtime on the card predates Wi-Fi 2.0 (no
+`saved`/`forget`/`disconnect` arms), and the deployed bridge kills `udhcpc`
+after 2 s. Both are recorded in `docs/WIFI-BRIDGE-CONTRACT.md` §10.3 for the
+system side; the launcher needs no change for either.

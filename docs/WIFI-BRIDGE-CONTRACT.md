@@ -17,8 +17,8 @@ wpa_supplicant、DHCP、持久化和桥命令；启动器只负责界面、输�
 | 保存网络（`save_config`） | wpa_supplicant，`/storage/.config/wpa_supplicant.conf` | 已有 |
 | 开机自动重连 | 系统 `rcS` 启动 supplicant | 已有 |
 | 状态查询（STATE/SSID/IP） | 系统桥 `wifi_status()` | 已有 |
-| 断开 / 忘记网络 | 系统桥 `WIFI\tdisconnect` / `WIFI\tforget` | **本轮新增** |
-| PSK 不经过命令行参数 | 系统桥 | **本轮改造**（现在 `wpa_cli` argv 里有明文） |
+| 断开 / 忘记网络 | 系统桥 `WIFI\tdisconnect` / `WIFI\tforget` | 已实现 |
+| PSK 不经过命令行参数 | 系统桥（`wpa_cli` 走 stdin） | 已实现 |
 | Wi-Fi 列表页、密码输入、连接中/失败提示 | **启动器 `pages/wifi-page.tsx`** | 需要你做 |
 | 软键盘输入（SELECT 唤起） | 启动器（PocketJS 输入模态） | 已有基础 |
 | i18n 文案（ja/zh/en） | 启动器 | 需要你补 |
@@ -191,3 +191,125 @@ idle ──(打开 Wi-Fi 页)──> scanning ──> list
 5. `/etc/baseos-release` 增加 `PJOS_SDK_VERSION`、`POCKETJS_ABI`，SYSTEM 页显示具体版本（已加）
 
 接口形态**不会**再变；如果实现中发现字段不够用，先在这份文档里加一节再改代码。
+
+---
+
+## 9. 附：安装好的程序怎么启动（同一个桥）
+
+卡片上已经有 10 个移植好的 PocketJS 程序，位置固定：
+
+```
+/storage/apps/<app>.pocket      # app = files, galaxy, gamehub, music, reader,
+                                #       settings, terminal, video, web, youtube-video
+```
+
+启动一条命令即可：
+
+```
+LAUNCH	<app>
+```
+
+返回 `launching:<app>`；如果包不存在返回 `error:missing:<app>`。机制是：桥把 `<app>` 写进
+`System/pocketjs/active`，然后让出画面；`launch_frontend.sh`（supervisor）重启时读到这个标记，
+直接运行该包，退出后清标记并回到启动器。**启动器不需要自己 fork 任何东西。**
+
+所以 APPS 列表建议这么做：
+
+1. 静态表里为每个 app 写 `id`、标题、分类、`kind: "pocket"`；
+2. 只有在 `/storage/apps/<id>.pocket` 存在时才显示（避免空壳卡片）——桥可以加
+   `APPS\tlist` 返回已安装列表，需要的话告诉我，我加；
+3. A 键 → `LAUNCH\t<id>`；返回 `error:missing` 时就地提示"未安装"。
+
+---
+
+## 10. 启动器侧实现情况（本仓库，2026-10-31）
+
+Wi-Fi 页面已按 §2/§3 实现完毕，纯协议解析在 `app/wifi-model.ts`（有
+`app/verify-wifi-model.mjs` 做逐条断言），页面是 `app/pages/wifi-page.tsx`，
+状态机在 `app/main.tsx` 的「Wi-Fi picker」段。
+
+### 10.1 已按契约实现
+
+| 契约条款 | 实现 |
+|---|---|
+| `WIFI\tscan` / `connected:` / `need-psk` / `auth-failed` / `not-found` / `timeout` / `error:` | 逐项分支，`error:` 只显示 detail，不吞也不编造分类 |
+| `WIFI\tdisconnect` / `forget` / `saved` / `ip` | 断开、忘记已实现；`saved` 用于行内「已保存」标记；`ip` 暂未使用（状态栏仍读 `LEVEL ip`） |
+| §3.1 进页面即扫描、可重复扫描 | 进入即扫；`□` 再扫，页脚也有 Rescan |
+| §3.2 已连接置顶、按信号降序、同名去重 | 在 `parseScan` 里做，重复 SSID 取最强样本 |
+| §3.3 显示 SSID、密码掩码 | 输入框只画 `•`，真实文本只在内存 |
+| §3.4 connecting 期间禁止重复确认、用帧计数 | 用 `onFrame` 驱动扫描/连接动画，无 `setTimeout` |
+| §3.5 失败后留在密码框、不踢回顶层 | `auth-failed` / `timeout` / `error` 都停在 `psk` 且保留已输入文本 |
+| §4 密码 8–63、SSID ≤32 字节 | 本地校验后才发桥；超长 SSID 在扫描结果里丢弃 |
+| §6 i18n 三语 | `wifi.*` 键已补齐，含 `auth-failed`/`timeout`/`not-found`/`forget` 等 |
+
+### 10.2 与契约不一致、按实现调整的地方
+
+1. **密码输入改用「掩码字段 + 系统键盘」而不是 `TextField`。** `TextField` 会把它编辑的
+   值原样画在面板上，密码会明文可见；现在输入框只画 `•`，`createOsk` 在
+   `main.tsx` 里持有真实文本，键盘渲染在页面根节点（不是带内边距的内容列，否则会被裁切）。
+   键盘的 `×`/B 关闭即取消，START 提交，`□` 退格。
+2. **`□` 同时被绑定为「重新扫描」，`△` 才是页脚的「断开/忘记」。** §3.1 建议 `□` 扫描，
+   但页脚的触控按钮在没有触摸屏的机型上按不到，所以给了 `△` 一条手柄路径。如果系统侧
+   后续加了触摸，这两条可以保留，互不冲突。
+3. **连接动作延后一帧执行。** `__launcher` 是同步调用，`WIFI connect` 最长 10 秒、
+   `WIFI scan` 最长 6 秒，都会占住渲染线程。现在两者都在 `onFrame` 里、等「扫描中/连接中」
+   那一帧画完再发，否则用户看到的是冻结的画面。**这不改变契约，但契约 §3.4 要求的
+   「connecting 期间显示转圈」在系统侧改成异步之前，最多只能保证「先画出这一帧再卡住」。**
+
+### 10.3 系统侧仍需修的问题（实测，非推测）
+
+以下都在 `origin/main` 的 `src/apply-pocketjs-bridge.py` 和已经刷进设备的运行时上验证过，
+启动器这边无法绕过：
+
+1. **`udhcpc` 被 2 秒超时杀掉，连接永远拿不到 IP。** 桥里所有外部命令都走
+   `run()`，它固定 `timeout 2`（`work/bridge-scripts/pocketshell-launcher.rs:7-19`）。
+   设备上实测：`udhcpc -i wlan0 -b -q -n -t 5 -T 3` 需要 **15.6 s** 才失败，2 s 时收到
+   SIGTERM。于是 `wifi_connect_app()` 在 `wpa_state=COMPLETED` 后调用的那条 `udhcpc`
+   一定被掐断，返回的仍是 `connected:<ssid>`——**界面显示已连接，实际没有 IP**。
+   契约 §2.2 说「已连上并拿到 IP」，这一条目前不成立。
+   建议：给 `udhcpc` 单独的超时（≥20 s），或改成后台起 `udhcpc -b` 并在 `WIFI status`
+   里回报 `ip=`。
+2. **连接后拿不到 IP 的同一件事还有后半段。** DHCP 即使成功，`WIFI status` 的 `ip=` 也来自
+   `wpa_cli status` 的 `ip_address=`，而 supplicant 不负责 DHCP，这个字段不会自己更新；
+   `LEVEL ip` 则依赖 `ip -o -4 addr`。建议连接结果在 DHCP 落定后从 `ip` 命令回填，
+   或者直接让启动器读 `LEVEL ip`（现在它已经这么做了，只是地址还不存在）。
+3. **`auth-failed` 的判定时机太晚。** 桥把「该网络在 `list_networks` 里处于 DISABLED 状态」
+   当作密码错误的判据；实测错误 PSK 时 supplicant 的状态序列是
+   `SCANNING → 4WAY_HANDSHAKE →（约 26 s）SCANNING + TEMP-DISABLED`。桥的等待窗口只有
+   10 s，**在 `TEMP-DISABLED` 出现之前就已经返回 `timeout`**，所以 `auth-failed` 实际上
+   不会出现。两条路都行：把窗口拉到 ≥30 s（用户要多等），或改用
+   `wpa_cli status` 的 `key_mgmt`/失败计数，或直接按「已 `COMPLETED` 则成功，超时则让用户
+   重试」。注意判据要匹配子串 `DISABLED`，`TEMP-DISABLED` 也包含它。
+4. **一次失败的连接最坏要 16 s。** `wifi_connect_app()` 先调 `wifi_scan()`（最多 6 s）判断
+   是否需要密码，再等最多 10 s，所以单次「密码错误」的最坏耗时是 16 s，而这段时间整个面板
+   是冻结的。启动器已经本地拦掉 8–63 之外的密码，但**「已保存网络重连」仍走这条慢路径**；
+   建议系统侧先查 `list_networks`，命中就直接 `select_network`，跳过扫描。
+5. **`STATE wifi` 返回 `on:<ssid>`，不是 `on`。** 启动器已兼容（按 `:` 前缀切分，见
+   `app/setting-bridge.ts` 的 wifi 行），但契约 §1 写的是「状态查询 STATE/SSID/IP 已有」，
+   没有写明这个格式，其他前端会误判成 `unknown`。建议在 §2.3 里补一行。
+6. **`rcS` 里的 supplicant 自启只在 `origin/main`，卡上跑的系统还没有。** 设备
+   `/etc/init.d/rcS` 里 `wpa_supplicant` 出现 0 次，`wifi-slow-radio` 之外没有任何自启；
+   重启后 `WIFI scan` 只能靠桥里按需 `wifi_ensure()` 拉起。契约 §7 用例 6「重启设备自动
+   重连」要等新镜像才能验收。另外 `rcS` 只起 supplicant，**没有开机 `udhcpc`**，
+   所以即使有新镜像，重启后也是「已关联、无 IP」，直到用户再次进 Wi-Fi 页。
+7. **`WIFI\tsaved` 在新运行时之前的实现返回空串而不是 `unknown`。** 启动器已按
+   「空 = 支持但没保存」处理（`parseSaved`）。如果系统侧想让「不支持」可区分，
+   请继续用 `Unknown launcher action`。
+
+### 10.4 契约 §5/§6 里需要更正的表述
+
+- **§5「不要用 `border-*`（PocketJS 不编译该工具类）」不成立。** SDK 的
+  `framework/compiler/tailwind.ts` 明确编译 `border`（`:314`）和 `border-[#...]`（`:448`），
+  设备上的包里也有 `borderWidth`，现有设置页就在用。这句会让 UI 白白放弃一个可用特性，
+  建议删掉。
+- §5 的「一屏 8 行、行高 14」与现有版式不符：198 高的页面里是 5 行 × 19px（加上标题和页脚）。
+  若系统侧希望改成 8 行，需要同步调整整个设置区的高度预算，属于另一轮改动。
+
+### 10.5 端口/路径提醒
+
+`build-pocketjs-runtime-musl.sh` 默认的 `BRIDGE_SCRIPTS` 指向
+`~/development/rocknix/projects/ROCKNIX/packages/apps/pocketjs-runtime/scripts`，那里是
+91 行的旧版；`src/apply-pocketjs-bridge.py` 在新版上第一个锚点就报
+`anchor for settings directory creation appears 0 times` 并 exit 1。重编 runtime 前要把它
+指到带 `run()` 的那份（285 行，`build.ROCKNIX-H700.aarch64/build/pocketjs-runtime-*/scripts/`），
+否则构建直接失败。

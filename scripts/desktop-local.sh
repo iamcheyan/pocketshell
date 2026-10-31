@@ -13,14 +13,35 @@ BUN=${BUN:-$(command -v bun || echo "$HOME/.bun/bin/bun")}
 SHOT=1
 [ "${1:-}" = "--no-shot" ] && SHOT=0
 
+# Leave independent previews and other PocketJS apps running.
+stop_desktop() {
+  python3 - <<'PY'
+import os
+from pathlib import Path
+import signal
+for entry in Path('/proc').glob('[0-9]*'):
+    try:
+        if (entry / 'comm').read_text().strip().startswith('pocket-desktop') and (entry / 'cwd').resolve() == Path('/tmp/pocketshell-desktop/program'):
+            os.kill(int(entry.name), signal.SIGTERM)
+    except (OSError, ValueError):
+        pass
+PY
+}
+
 [ -d "$SDK/contracts" ] || { echo "desktop-local: no PocketJS SDK at $SDK (set POCKETJS_SDK=…)" >&2; exit 1; }
 
 echo "== stage app -> $SDK/apps/pocketshell"
 rsync -a --delete "$REPO/app/" "$SDK/apps/pocketshell/"
 
+# The SDK has no host bridge: the device build gets ui.__launcher from
+# pocketshell-launcher.rs via ROCKNIX's patch-runtime.py. Install this repo's
+# local equivalent every time, or a stale copy silently answers with old data.
+python3 "$REPO/scripts/patch-desktop-bridge.py" "$SDK"
+python3 "$REPO/scripts/patch-desktop-touch.py" "$SDK"
+
 export PATH="$(dirname "$BUN"):$PATH"
-export POCKETJS_FONT_REGULAR="$REPO/app/fonts/FusionPixel-12px-monospaced-zh_hans.ttf"
-export POCKETJS_FONT_BOLD="$POCKETJS_FONT_REGULAR"
+export POCKETJS_FONT_REGULAR="$REPO/app/fonts/SarasaUiSC-Regular.ttf"
+export POCKETJS_FONT_BOLD="$REPO/app/fonts/SarasaUiSC-Bold.ttf"
 export POCKETJS_FONT_MONO="$POCKETJS_FONT_REGULAR"
 
 echo "== compile (linux-app)"
@@ -33,7 +54,7 @@ cd "$SDK"
 echo "== build host (cargo cache reused)"
 # The build copies the binary over the previous one; a running window keeps it
 # busy (ETXTBSY), so stop it first.
-ps -eo pid,args | grep "[p]ocket-desktop-host" | awk '{print $1}' | while read -r p; do kill "$p" 2>/dev/null || true; done || true
+stop_desktop
 sleep 1
 "$BUN" tools/pocket.ts build \
   --config programs/desktop/linux/pocket.runtime-config.ts \
@@ -41,7 +62,7 @@ sleep 1
   --out /tmp/pocketshell-desktop 2>&1 | tail -2
 
 echo "== restart window"
-ps -eo pid,args | grep "[p]ocket-desktop-host" | awk '{print $1}' | while read -r p; do kill "$p" 2>/dev/null || true; done || true
+stop_desktop
 sleep 1
 
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
@@ -56,8 +77,40 @@ if command -v nix >/dev/null 2>&1; then
 	export LD_LIBRARY_PATH="$extra${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 fi
 
+# The window maps focused, which takes the keyboard away from whatever the user
+# was doing. Remember the window that had focus, then hand it back as soon as the
+# preview's own window appears — the steal is a few milliseconds, not the seconds
+# the shader and atlas work take. Clicking the preview focuses it as usual.
+previous=""
+if command -v hyprctl >/dev/null 2>&1; then
+	previous=$(hyprctl -j activewindow 2>/dev/null | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("address") or "")
+except Exception:
+    print("")' 2>/dev/null || true)
+fi
+
 cd /tmp/pocketshell-desktop/program
 setsid nohup ./run > /tmp/pocketshell-desktop.log 2>&1 &
+launched=$!
+
+if [ -n "$previous" ] && [ "$previous" != "0x0" ] && command -v hyprctl >/dev/null 2>&1; then
+	for _ in $(seq 1 120); do
+		if hyprctl -j clients 2>/dev/null | python3 -c "
+import json, os, sys
+wanted = $launched
+for client in json.load(sys.stdin):
+    if client.get('pid') == wanted:
+        sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+			hyprctl dispatch "hl.dsp.focus({ window = \"address:$previous\" })" >/dev/null 2>&1 || true
+			break
+		fi
+		sleep 0.05
+	done
+fi
+
 sleep 8
 tail -2 /tmp/pocketshell-desktop.log
 

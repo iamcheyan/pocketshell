@@ -18,10 +18,14 @@ OUT="$REPO/dist/pocketshell.pocket"
 [ -x "$BUN" ] || { echo "build: bun not found at $BUN (set BUN=...)" >&2; exit 1; }
 [ -d "$SDK/contracts" ] || { echo "build: PocketJS SDK not found at $SDK (set POCKETJS_SDK=...)" >&2; exit 1; }
 
-# Fonts are declared by app/fonts.json (Sarasa UI SC Regular/Bold + Symbols Nerd
-# Font Mono) and baked into the package's pak section as glyph atlases. The
-# POCKETJS_FONT_* variables used by the ROCKNIX recipe are not read by this SDK
-# toolchain, so nothing is exported here on purpose.
+# The package bakes its glyph atlas from these faces: Sarasa UI SC (更纱黑体) for
+# UI and mono slots, with the bold face and the Nerd symbols as fallbacks via
+# fonts.json — keep that identical or the panel loses glyphs.
+FONT="$REPO/app/fonts/SarasaUiSC-Regular.ttf"
+BOLD="$REPO/app/fonts/SarasaUiSC-Bold.ttf"
+export POCKETJS_FONT_REGULAR="$FONT"
+export POCKETJS_FONT_BOLD="$BOLD"
+export POCKETJS_FONT_MONO="$FONT"
 
 mkdir -p "$APP_DIR" "$PROGRAM_DIR" "$REPO/dist"
 rsync -a --delete "$REPO/app/" "$APP_DIR/"

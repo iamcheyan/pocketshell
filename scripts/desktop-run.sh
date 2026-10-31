@@ -18,18 +18,20 @@ SHOT=1
 
 echo "== sync app -> $HOST:$SDK/apps/pocketshell"
 rsync -a --delete "$REPO/app/" "$HOST:$SDK/apps/pocketshell/"
+rsync -a "$REPO/bridge/" "$HOST:$SDK/apps/pocketshell/bridge/"
+rsync -a "$REPO/scripts/patch-desktop-bridge.py" "$REPO/scripts/patch-desktop-touch.py" "$HOST:$SDK/apps/pocketshell/scripts/"
 
 echo "== compile (linux-app)"
 ssh "$HOST" "cd $SDK && export PATH=\$HOME/.bun/bin:\$PATH && \
-  export POCKETJS_FONT_REGULAR=\$PWD/apps/pocketshell/fonts/FusionPixel-12px-monospaced-zh_hans.ttf \
-         POCKETJS_FONT_BOLD=\$PWD/apps/pocketshell/fonts/FusionPixel-12px-monospaced-zh_hans.ttf \
-         POCKETJS_FONT_MONO=\$PWD/apps/pocketshell/fonts/FusionPixel-12px-monospaced-zh_hans.ttf && \
+  export POCKETJS_FONT_REGULAR=\$PWD/apps/pocketshell/fonts/SarasaUiSC-Regular.ttf \
+         POCKETJS_FONT_BOLD=\$PWD/apps/pocketshell/fonts/SarasaUiSC-Bold.ttf \
+         POCKETJS_FONT_MONO=\$PWD/apps/pocketshell/fonts/SarasaUiSC-Regular.ttf && \
   bun tools/pocket.ts compile --runtime-config programs/desktop/linux/pocket.runtime-config.ts \
     --target linux-app --manifest apps/pocketshell/pocket.json --output /tmp/pocketshell-desktop.pocket 2>&1 | tail -3"
 
 echo "== build host (cargo cache reused)"
 ssh "$HOST" 'ps -eo pid,args | grep "[p]ocket-desktop-host" | awk "{print \$1}" | while read p; do kill "$p" 2>/dev/null; done; sleep 1; exit 0'
-ssh "$HOST" "cd $SDK && export PATH=\$HOME/.bun/bin:\$PATH && \
+ssh "$HOST" "cd $SDK && python3 apps/pocketshell/scripts/patch-desktop-bridge.py $SDK && python3 apps/pocketshell/scripts/patch-desktop-touch.py $SDK && export PATH=\$HOME/.bun/bin:\$PATH && \
   bun tools/pocket.ts build --config programs/desktop/linux/pocket.runtime-config.ts \
     --target linux-app --pocket /tmp/pocketshell-desktop.pocket --out /tmp/pocketshell-desktop 2>&1 | tail -2"
 

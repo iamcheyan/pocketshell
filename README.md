@@ -23,19 +23,27 @@ guest: 360×240 logical canvas scaled 2× onto the 720×480 panel, 60 Hz tick,
 capabilities `input.buttons` + `text.glyphs.baked`.
 
 **There is no network, filesystem or database API in the guest.** Every piece of
-data (battery, volume, brightness, services, library rows, launching apps) comes
-through the Rust host bridge compiled into the runtime:
-`host.__launcher("<CMD>\t…")` / `host.__pocketshell(…)` — tab-separated commands
-such as `STATE`, `LEVEL`, `CONTROL`, `SERVICE`, `LAUNCH`, `ROMS`, `ROMSCAN`,
-`LANGUAGE`, `SLEEP`. See `app/main.tsx` for the call sites and the ROCKNIX
-`pocketjs-runtime` package (`scripts/pocketshell-*.rs`) for the host side.
+data (battery, volume, brightness, services, system snapshot, launching apps)
+comes through the Rust host bridge compiled into the runtime:
+`host.__launcher("<CMD>\t…")` — tab-separated commands such as `SYSTEM`, `STATE`,
+`LEVEL`, `STATUS`, `CONTROL`, `SERVICE`, `LAUNCH`, `WIFI`, `LANGUAGE`, `SLEEP`.
+See `app/main.tsx` for the call sites and the ROCKNIX `pocketjs-runtime` package
+(`scripts/pocketshell-launcher.rs`) for the host side.
+
+There are two views, both fed by that bridge:
+
+- the launcher: status bar, one APPS carousel, SETTINGS, SYSTEM.
+- **PocketFetch** (`app/pages/pocket-fetch.tsx`): a full-screen fetch-style TUI —
+  OS, host, kernel, CPU, memory, disk, display, network, battery, runtime — read
+  from the same `SYSTEM` / `LEVEL` polls. A re-polls, B returns. It is a view in
+  this package, not a child process: the guest has no PTY.
 
 ## Layout
 
 | path | what |
 |---|---|
 | `app/` | the PocketJS application: `main.tsx`, `card-carousel.tsx`, `pages/`, fonts, `pocket.json` |
-| `app/fonts/` | Sarasa UI SC Regular/Bold + Symbols Nerd Font Mono (baked into the package, see `fonts.json`); FusionPixel files are the previous face and are currently unused |
+| `app/fonts/` | FusionPixel zh_hans subset (baked), FusionPixel ja + Nerd Font (fallbacks, see `fonts.json`) |
 | `config/profile.ts` | the `rocknix-h700-kms` runtime profile (720×480 / 360×240 @2×, 60 Hz, capabilities) |
 | `config/pocket.runtime-config.ts` | runtime config the compiler binds the package to (this hash is what admission checks) |
 | `scripts/build.sh` | stages the app into the PocketJS SDK, compiles, prints sections + sha256 |
@@ -90,6 +98,9 @@ without a handheld:
 
 ```sh
 cd "$POCKETJS_SDK"
+export POCKETJS_FONT_REGULAR=$HOME/development/pocketshell/app/fonts/SarasaUiSC-Regular.ttf
+export POCKETJS_FONT_BOLD=$HOME/development/pocketshell/app/fonts/SarasaUiSC-Bold.ttf
+export POCKETJS_FONT_MONO=$POCKETJS_FONT_REGULAR
 bun tools/pocket.ts compile --runtime-config programs/desktop/linux/pocket.runtime-config.ts \
   --target linux-app --manifest apps/pocketshell/pocket.json --output /tmp/pocketshell-desktop.pocket
 bun tools/pocket.ts build --config programs/desktop/linux/pocket.runtime-config.ts \
@@ -114,6 +125,11 @@ and run:
 ```sh
 make desktop-local     # stage into the local SDK, compile, restart the window, capture dist/desktop.png
 ```
+
+The preview window maps focused, so the script hands focus back to whatever had
+it as soon as the window appears. `docs/desktop-preview.md` covers that
+mechanism, the local `__launcher` bridge the desktop build needs, and how to
+capture a single panel.
 
 From another machine, `make desktop` does the same by rsyncing `app/` to HX90 first.
 Either way the source of truth is this git repository: commit and push from HX90,
