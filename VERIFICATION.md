@@ -55,27 +55,57 @@ adb shell 'kill -9 $(pidof pocket-linux-kms)'
   slots bake more sizes than the previous build (pak 4.34 MB vs 3.89 MB), which
   changes bytes but not the captured layout.
 
-## Regression found after the deploy (same day)
+## "Self-exit" after the deploy was framebuffer contention, not a regression
 
-The rebuilt package renders and takes input, **but the runtime exits by itself**
-after 1,161–6,990 logical ticks (19 s – 4 min) with code 0:
+The rebuilt package was blamed for exiting after 19 s to 4 min. That diagnosis was
+wrong, and the evidence is on the device:
 
 ```
-completed 1161 logical ticks; 720x480; rocknix-h700-kms
-2026-10-30T23:44:04 PocketJS exit code=0
-2026-10-30T23:44:09 starting; package=/mnt/sdcard/System/pocketjs/apps/boot.pocket
+ps → pocket-linux-kms --package /storage/pjs/pocket-galaxy/app.pocket --fb /dev/fb0 --input /dev/input/event3
+     /bin/sh -c echo SQUARE > /tmp/pocketjs-keys
+     /storage/pjs/uinputd
 ```
 
-`frontend-session` respawns it, so the panel flickers back to the same screen. The
-previously installed package (`6ed41612…`, built 2026-10-30) ran 17,530 s (4.8 h)
-without exiting, so this is a regression of *this* build, not of the base OS.
+A concurrent agent session was deploying and driving **pocket-galaxy** on the same
+handheld: it killed the launcher runtime (which exits gracefully with
+`completed N logical ticks` — the runtime only stops on SIGINT/SIGTERM, there is no
+self-exit path in `programs/linux-kms/src/main.rs`), took `/dev/fb0`, and injected
+keys through a FIFO. The launcher then looked like it "restarted by itself".
 
-Rolled back the same day: the device runs `6ed41612…` again (rebooted, launcher up,
-APP 画面确认正常), and PJOS-LINUX still ships the approved `d2836f45…` package.
+Lessons for this repo:
 
-Not yet diagnosed. Next candidates: font-slot/pak differences (9 slots baked here
-vs the shipped 3.89 MB pak), the ROCKNIX package's `patch-build-fonts.py` /
-`patch-runtime.py` steps not being applied in this standalone build, or an SDK
-revision drift between the two artifacts. Reproduce with the SDK commit that
-produced `6ed41612…` before shipping this package again.
+- `pocket-linux-kms` stopping with `completed N logical ticks` + exit 0 **always**
+  means a signal from outside. Check `ps` for another runtime holding `--fb /dev/fb0`
+  before suspecting the package.
+- The handheld is shared. Serialise device access with a lock (see README,
+  "Serialising device access") before deploying or screenshotting.
+
+No change to the package was needed for stability; it ran correctly whenever it
+owned the framebuffer, including on the HX90 desktop host (below).
+
+## Desktop run on HX90 (same source, real runtime GPU path)
+
+Compiled the same app for the `linux-app` profile and ran it under
+`programs/desktop` (`pocket-desktop-host`, winit + wgpu) on the Hyprland session:
+
+- build: `bun tools/pocket.ts build --config programs/desktop/linux/pocket.runtime-config.ts --target linux-app --pocket … --out …`
+  → `pocket-desktop-host` in 1m25s
+- runtime needed `LD_LIBRARY_PATH` for wayland/xkbcommon/libglvnd/vulkan-loader/mesa
+  (NixOS does not put them on the loader path)
+- adapter: `AMD Radeon Graphics (RADV RENOIR)`, surface `Bgra8Unorm`
+- screenshot: `dist/hx90-desktop.png` — APPS tab, Terminal card, status bar, help line
+
+This is the same TSX source and the same package plan, rendered by the real runtime
+rather than by the browser harness.
+
+## Device state after this session
+
+- `boot.pocket` on the card: restored to `6ed41612…` (the 2026-10-30 build); the
+  approved copy `d2836f45…` was never removed, and PJOS-LINUX still ships it.
+- The rebuilt package is proven rendering + input, but is **not** installed as the
+  boot launcher yet: another agent owns the framebuffer for its own device runs.
+- Next: re-install the rebuilt package once the device is free, leave it idle for
+  10 minutes with nothing else touching `/dev/fb0`, and confirm a single uninterrupted
+  run before switching the payload over.
+
 

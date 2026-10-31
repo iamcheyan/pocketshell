@@ -69,6 +69,44 @@ make deploy    # backs up boot.pocket, installs, restarts, captures a frame
 Rollback is printed at the end of `deploy.sh`; the timestamped
 `boot.pocket.bak-*` stays on the card.
 
+## Serialising device access
+
+The handheld is shared with other agent sessions. `pocket-linux-kms` stops with
+`completed N logical ticks` + exit 0 only when something signals it, so a launcher
+that "restarts by itself" is almost always a second runtime that took
+`/dev/fb0` (`ps | grep 'package /storage/pjs'`). Take the lock before deploying,
+screenshotting or key-injecting:
+
+```sh
+flock /tmp/pocketjs-device.lock -c 'make deploy'
+flock /tmp/pocketjs-device.lock -c ./scripts/check.sh
+```
+
+## Running on a Linux desktop (no device)
+
+The same `app/` compiles for the `linux-app` profile and runs under
+`programs/desktop` (winit + wgpu), which is the fastest way to look at the UI
+without a handheld:
+
+```sh
+cd "$POCKETJS_SDK"
+export POCKETJS_FONT_REGULAR=$HOME/development/pocketshell/app/fonts/FusionPixel-12px-monospaced-zh_hans.ttf
+# (same for BOLD and MONO)
+bun tools/pocket.ts compile --runtime-config programs/desktop/linux/pocket.runtime-config.ts \
+  --target linux-app --manifest apps/pocketshell/pocket.json --output /tmp/pocketshell-desktop.pocket
+bun tools/pocket.ts build --config programs/desktop/linux/pocket.runtime-config.ts \
+  --target linux-app --pocket /tmp/pocketshell-desktop.pocket --out /tmp/pocketshell-desktop
+/tmp/pocketshell-desktop/program/run
+```
+
+On NixOS the host needs the desktop libraries on the loader path — winit dlopens
+Wayland and fails with `The wayland library could not be loaded` otherwise:
+
+```sh
+export LD_LIBRARY_PATH=$(nix eval --raw nixpkgs#wayland)/lib:$(nix eval --raw nixpkgs#libxkbcommon)/lib:\
+$(nix eval --raw nixpkgs#libGL)/lib:$(nix eval --raw nixpkgs#vulkan-loader)/lib:$(nix eval --raw nixpkgs#mesa)/lib
+```
+
 ## Packaging into a BaseOS image
 
 PJOS-LINUX ships the built artifact, not this source tree:
