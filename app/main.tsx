@@ -1,76 +1,82 @@
-import { createSignal, Index, onMount, Show } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { mount } from "@pocketjs/framework/solid";
 import { Text, View, type NodeMirror } from "@pocketjs/framework/solid/components";
 import { BTN, onTextEvent, type TextEvent } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { animate } from "@pocketjs/framework/animation";
+import { createOsk } from "@pocketjs/framework/osk";
 
 import {
-  LAUNCHER_APPS,
-  getAppsForScreen,
+  appDescription,
+  appName,
+  appShortName,
+  appTag,
   categoryLabel,
+  getAppsForScreen,
   type LauncherApp,
 } from "./launcher-catalog";
+import { translator } from "./i18n";
 import { StatusBar } from "./status-bar";
 import { CardCarousel } from "./card-carousel";
+import { TouchTarget } from "./touch-target";
+import { SettingsPage, type SettingsState } from "./pages/settings-page";
+import { SETTING_ROWS, SETTINGS_COUNT, TIMEOUT_OPTIONS, parseToggle } from "./settings-model";
+import { readSetting, writeSetting } from "./setting-bridge";
+import { SYSTEM_PAGES, SystemPage } from "./pages/system-page";
+import { WifiPage, type WifiPhase } from "./pages/wifi-page";
+import { BtPage, type BtPhase } from "./pages/bt-page";
+import { parseBtScan, parseBtStatus, type BtDevice } from "./bluetooth-model";
 import {
-  SettingsPage,
-  SERVICE_KEYS,
-  TIMEOUT_OPTIONS,
-  type SettingsState,
-} from "./pages/settings-page";
-import { SystemPage } from "./pages/system-page";
-import { WifiPage, type WifiRow } from "./pages/wifi-page";
+  parseConnectResult,
+  parseSaved,
+  parseScan,
+  parseStatus,
+  pskIssue,
+  type WifiNetwork,
+} from "./wifi-model";
+import { PocketFetch } from "./pages/pocket-fetch";
+import { PowerMenu, type PowerAction } from "./power-menu";
 import { parseNetworkSnapshot, parseSystemSnapshot, type NetworkSnapshot, type SystemSnapshot } from "./system-status";
 
 type HostUI = {
   __launcher?: (command: string) => string;
-  __pocketshell?: (command: string) => string;
 };
-type Run = { text: string; fg: number; bg: number; flags: number };
-
-
-const abgr = (rgb: number) => {
-  const r = rgb & 0xff;
-  const g = (rgb >> 8) & 0xff;
-  const b = (rgb >> 16) & 0xff;
-  return (((0xff << 24) | (b << 16) | (g << 8) | r) >>> 0);
-};
-
-const emptyRow = (): Run[] => [];
 
 mount(() => {
-  const global = globalThis as typeof globalThis & {
-    ui?: HostUI;
-    __pocketshellOutput?: string;
-  };
-  const host = global.ui;
+  const host = (globalThis as typeof globalThis & { ui?: HostUI }).ui;
 
   // -------------------------------------------------------------------------
   // Launcher State (Switch 5-Screen)
   // -------------------------------------------------------------------------
   const [currentScreen, setCurrentScreen] = createSignal(0);
   const [launcherOpen, setLauncherOpen] = createSignal(true);
+  // Power menu: armed by a long power-key press, then a modal over everything.
+  const [powerMenuOpen, setPowerMenuOpen] = createSignal(false);
+  const [powerChoice, setPowerChoice] = createSignal<PowerAction>("poweroff");
+  const [powerBusy, setPowerBusy] = createSignal(false);
+  // Set when the bridge refuses (no POWER arm, or a preview host). The dialog
+  // stays up and says so instead of closing on a request that never ran.
+  const [powerRefused, setPowerRefused] = createSignal(false);
 
   // Card indexes per screen
   const [homeCardIndex, setHomeCardIndex] = createSignal(0);
-  const [mediaCardIndex, setMediaCardIndex] = createSignal(0);
-  const [gamesCardIndex, setGamesCardIndex] = createSignal(0);
   const [systemPageIndex, setSystemPageIndex] = createSignal(0);
 
   // Settings State
   const [settingsIndex, setSettingsIndex] = createSignal(0);
-  const [brightness, setBrightness] = createSignal(80);
-  const [volume, setVolume] = createSignal(65);
-  const [wifiEnabled, setWifiEnabled] = createSignal(true);
+  const [brightness, setBrightness] = createSignal<number | null>(null);
+  const [volume, setVolume] = createSignal<number | null>(null);
+  const [wifiEnabled, setWifiEnabled] = createSignal<boolean | null>(null);
   const [bluetoothEnabled, setBluetoothEnabled] = createSignal(false);
   const [language, setLanguage] = createSignal("en");
   const [timeoutIndex, setTimeoutIndex] = createSignal(0); // 10s, matches the saved default
-  const [services, setServices] = createSignal<Record<string, boolean>>({ ssh: true, adbusb: true });
+  // Raw bridge answers per settings key; null means "the host did not answer".
+  const [settingValues, setSettingValues] = createSignal<Record<string, string | null>>({});
 
   // Hardware Status State
   const [ipAddress, setIpAddress] = createSignal("--");
   const [batteryLevel, setBatteryLevel] = createSignal(-1);
+  const [batteryStatus, setBatteryStatus] = createSignal<"charging" | "full" | "discharging" | "unknown">("unknown");
   const [sshEnabled, setSshEnabled] = createSignal(false);
   const [adbEnabled, setAdbEnabled] = createSignal(false);
   const [mtpEnabled, setMtpEnabled] = createSignal(false);
@@ -105,85 +111,20 @@ mount(() => {
   };
 
 
-  // -------------------------------------------------------------------------
-  // Terminal rendering and input state.
-  const [lines, setLines] = createSignal<Run[][]>(Array.from({ length: 12 }, emptyRow));
-  const [cursor, setCursor] = createSignal({ row: 0, col: 0, visible: false });
-  const [input, setInput] = createSignal("");
-  const [commandOpen, setCommandOpen] = createSignal(false);
-  const [inputOpen, setInputOpen] = createSignal(false);
-  const [inputLayout, setInputLayout] = createSignal(0);
-  const [inputFunction, setInputFunction] = createSignal(0);
-  const [inputHistory, setInputHistory] = createSignal<string[]>([]);
-  const [inputSelection, setInputSelection] = createSignal(0);
-  const INPUT_TABS = ["Keyboard", "History", "Commands", "Phrases", "Sessions", "Agent"];
-  const INPUT_LAYOUTS = [
-    ["A B C D E F G", "H I J K L M N", "O P Q R S T U", "V W X Y Z"],
-    ["1 2 3 4 5", "6 7 8 9 0", ". , : ;", "/ - _ @"],
-    ["! ? # $ %", "& * + =", "( ) [ ]", "{ } < >", "| \\ ~ ^"],
-    ["/ ~ . .. - _ : @", "root home storage roms", "mnt tmp config logs", "usr bin"],
-  ];
-  const INPUT_ENTRIES: string[][][] = [
-    [],
-    [],
-    [
-      ["Open Shell", ""],
-      ["Connect NAS", "ssh nas"],
-      ["Restart WiFi", "sudo systemctl restart NetworkManager"],
-      ["Mount USB", "udisksctl mount -b"],
-      ["Check Logs", "journalctl -f"],
-      ["Update ROMs", "/usr/bin/rocknix-roms-update"],
-      ["Shutdown", "sudo poweroff"],
-      ["Reboot", "sudo reboot"],
-      ["System Info", "uname -a"],
-    ],
-    [
-      ["SSH", "ssh user@host"],
-      ["Git Clone", "git clone"],
-      ["Git Pull", "git pull"],
-      ["Rsync", "rsync -av"],
-      ["Journal", "journalctl -f"],
-      ["tmux", "tmux attach"],
-    ],
-    [
-      ["PVE", "ssh pve"],
-      ["DEVBOX", "ssh devbox"],
-      ["NAS", "ssh nas"],
-      ["CLAUDE", "tmux attach -t claude"],
-      ["AIDER", "tmux attach -t aider"],
-      ["CODEX", "tmux attach -t codex"],
-      ["Remote Agent", "ssh agent"],
-    ],
-    ["查看日志", "查看异常", "分析系统状态", "检查存储空间", "检查网络连接", "更新 ROM 库", "生成 SSH 配置", "管理 Workspace", "生成脚本", "生成命令"].map(
-      (label) => [label, `请${label}，检查当前系统并给出结论。`]
-    ),
-  ];
-
-  const inputEntries = () =>
-    inputFunction() === 1
-      ? inputHistory().map((value) => [value, value])
-      : INPUT_ENTRIES[inputFunction()];
-
-  const moveInputSelection = (direction: number) => {
-    const count =
-      inputFunction() === 0
-        ? INPUT_LAYOUTS[inputLayout()].flatMap((row) => row.split(" ")).length + 3
-        : inputEntries().length;
-    setInputSelection((index) => (count ? (index + direction + count) % count : 0));
-  };
-  const inputListStart = () => Math.max(0, inputSelection() - 7);
-
   let armed = false;
   let previousButtons = 0;
   let lastHardwarePoll = 0;
-
-  const send = (command: string) => host?.__pocketshell?.(command) ?? "";
-  const log = (entry: string) =>
-    send(`LOG\t${entry.replace(/[\t\r\n]/g, " ").slice(0, 120)}`);
+  // The power request is a 4 Hz poll: fast enough to feel immediate, cheap
+  // enough to leave the render thread alone.
+  let lastPowerPoll = 0;
 
   // -------------------------------------------------------------------------
   // Toast & Animation Helpers
   // -------------------------------------------------------------------------
+  // Every visible string goes through this dictionary; `language` is a signal,
+  // so a LANGUAGE change re-renders the whole panel without reloading.
+  const t = (key: string, vars?: Record<string, string | number>) => translator(language())(key, vars);
+
   const showToast = (message: string) => {
     try {
       setToastMessage(message);
@@ -196,13 +137,7 @@ mount(() => {
   };
 
   const currentApps = () => getAppsForScreen(currentScreen());
-  const currentCardIndex = () => {
-    const s = currentScreen();
-    if (s === 0) return homeCardIndex();
-    if (s === 1) return mediaCardIndex();
-    if (s === 2) return gamesCardIndex();
-    return 0;
-  };
+  const currentCardIndex = () => (currentScreen() === 0 ? homeCardIndex() : 0);
 
   const updateCardPosition = (idx: number, smooth = true) => {
     try {
@@ -260,9 +195,7 @@ mount(() => {
       // ignore
     }
 
-    if (s === 0) setHomeCardIndex(next);
-    else if (s === 1) setMediaCardIndex(next);
-    else if (s === 2) setGamesCardIndex(next);
+    setHomeCardIndex(next);
 
     updateCardPosition(next, true);
   };
@@ -270,171 +203,499 @@ mount(() => {
   // -------------------------------------------------------------------------
   // Host Bridge Actions
   // -------------------------------------------------------------------------
-  const syncHardwareLevels = () => {
-    if (!host?.__launcher) return;
-    const b = Number(host.__launcher("LEVEL\tbrightness"));
-    if (Number.isFinite(b) && b >= 0 && b <= 100) setBrightness(b);
-    const v = Number(host.__launcher("LEVEL\tvolume"));
-    if (Number.isFinite(v) && v >= 0 && v <= 100) setVolume(v);
-  };
-
   // Real hardware status for the top bar: battery %, Wi-Fi association and the
   // live IPv4 address. Falls back to "--" / -1 when the bridge cannot answer,
   // never to a made-up number.
   const syncHardwareStatus = () => {
     if (!host?.__launcher) return;
-    const battery = Number(host.__launcher("LEVEL\tbattery"));
+    const batteryText = host.__launcher("LEVEL\tbattery").trim();
+    const battery = /^\d+$/.test(batteryText) ? Number(batteryText) : -1;
     setBatteryLevel(Number.isFinite(battery) && battery >= 0 && battery <= 100 ? battery : -1);
+    const power = host.__launcher("LEVEL\tbattery-status").trim();
+    setBatteryStatus(["charging", "full", "discharging"].includes(power) ? power as "charging" | "full" | "discharging" : "unknown");
     const network = parseNetworkSnapshot(host.__launcher("LEVEL\tip") ?? "", host.__launcher("LEVEL\twifi") ?? "");
     setNetworkSnapshot(network);
-    setWifiEnabled(network.connected);
+    const wifiState = host.__launcher("STATE\twifi").trim().toLowerCase();
+    if (["1", "true", "on", "enabled", "yes"].includes(wifiState)) setWifiEnabled(true);
+    else if (["0", "false", "off", "disabled", "no"].includes(wifiState)) setWifiEnabled(false);
+    const bluetoothState = host.__launcher("STATE\tbluetooth").trim().toLowerCase();
+    if (["1", "true", "on", "enabled", "yes"].includes(bluetoothState)) setBluetoothEnabled(true);
+    else if (["0", "false", "off", "disabled", "no"].includes(bluetoothState)) setBluetoothEnabled(false);
     setIpAddress(network.address ?? "--");
-    setSshEnabled(host.__launcher("STATUS\tssh") === "true");
-    setAdbEnabled(host.__launcher("STATUS\tadb") === "true");
+    // settings row and SYSTEM page must agree, so both read the same source:
+    // the service state the settings toggle writes and re-reads.
+    const flag = (value: string) => ["1", "true", "on", "enabled", "yes"].includes(value.trim().toLowerCase());
+    setSshEnabled(flag(host.__launcher("STATUS\tssh")) || flag(host.__launcher("STATE\tssh")));
+    setAdbEnabled(flag(host.__launcher("STATUS\tadb")) || flag(host.__launcher("STATE\tadbusb")));
     setMtpEnabled(host.__launcher("STATUS\tusb").trim() === "file_transfer");
   };
+  const operationSucceeded = (result: string | undefined) => !!result?.trim() && !/(failed|error|invalid|unable|unsupported)/i.test(result);
   const syncSystemStatus = () => {
     setSystemSnapshot(parseSystemSnapshot(host?.__launcher?.("SYSTEM") ?? ""));
   };
 
-  const changeBrightness = (delta: number) => {
-    const next = Math.max(5, Math.min(100, brightness() + delta));
-    setBrightness(next);
-    const res = host?.__launcher?.(`CONTROL\tbrightness\t${next}`) ?? "OK";
-    showToast(`Brightness: ${next}%`);
+  // Every settings row reads and writes through the bridge map: the unified
+  // SETTING protocol first, the device runtime's per-key commands as fallback.
+  const readRow = (key: string) => readSetting(host, key);
+
+  const syncSettings = () => {
+    const next: Record<string, string | null> = {};
+    for (const row of SETTING_ROWS) next[row.key] = readRow(row.key);
+    setSettingValues(next);
+    const lang = next["language"];
+    if (lang && ["en", "zh", "ja"].includes(lang)) setLanguage(lang);
+    const savedTimeout = next["timeout"];
+    const timeoutAt = TIMEOUT_OPTIONS.findIndex((option) => option.value === savedTimeout);
+    if (timeoutAt >= 0) setTimeoutIndex(timeoutAt);
+    const level = (raw: string | null | undefined) => {
+      const value = Number(raw);
+      return raw !== null && raw !== undefined && Number.isFinite(value) && value >= 0 && value <= 100 ? Math.round(value) : null;
+    };
+    setBrightness(level(next["brightness"]));
+    setVolume(level(next["volume"]));
+    setWifiEnabled(parseToggle(next["wifi"] ?? undefined));
+    setBluetoothEnabled(parseToggle(next["bluetooth"] ?? undefined) ?? false);
   };
 
-  const changeVolume = (delta: number) => {
-    const next = Math.max(0, Math.min(100, volume() + delta));
-    setVolume(next);
-    const res = host?.__launcher?.(`CONTROL\tvolume\t${next}`) ?? "OK";
-    showToast(`Volume: ${next}%`);
+  const changeLevel = (key: "brightness" | "volume", delta: number) => {
+    const current = key === "brightness" ? brightness() : volume();
+    if (current === null) {
+      showToast(t("common.failed"));
+      return;
+    }
+    const floor = key === "brightness" ? 5 : 0;
+    const next = Math.max(floor, Math.min(100, current + delta));
+    const saved = writeSetting(host, key, String(next));
+    syncSettings();
+    if (saved === null) showToast(t("common.failed"));
+    else showToast(t(key === "brightness" ? "toast.brightness" : "toast.volume", { value: saved }));
   };
 
-  const toggleWifi = () => {
-    const next = !wifiEnabled();
-    setWifiEnabled(next);
-    host?.__launcher?.(`CONTROL\twifi\t${next ? "on" : "off"}`);
-    showToast(`Wi-Fi: ${next ? "ON 开启" : "OFF 关闭"}`);
+  const setLevel = (key: "brightness" | "volume", rawValue: number) => {
+    const value = Math.max(key === "brightness" ? 5 : 0, Math.min(100, Math.round(rawValue)));
+    const saved = writeSetting(host, key, String(value));
+    syncSettings();
+    if (saved === null) showToast(t("common.failed"));
+    else showToast(t(key === "brightness" ? "toast.brightness" : "toast.volume", { value: saved }));
+  };
+
+  const toggleRow = (key: string) => {
+    const current = parseToggle(settingValues()[key] ?? undefined);
+    // An unreadable row must not flip: there is no state to invert.
+    if (current === null) {
+      showToast(t("common.failed"));
+      return;
+    }
+    const saved = writeSetting(host, key, current ? "off" : "on");
+    syncSettings();
+    showToast(saved === null
+      ? t("common.failed")
+      : t("toast.service", { name: t(`settings.${key}`), state: t(parseToggle(saved) ? "common.on" : "common.off") }));
   };
 
   // -------------------------------------------------------------------------
-  // Wi-Fi picker (scan → choose → passphrase)
+  // Wi-Fi picker (scan → choose → passphrase → connect)
+  //
+  // The bridge owns supplicant, credentials and DHCP; this screen owns the
+  // state machine and nothing else. Every answer is parsed by wifi-model.ts so
+  // the awkward cases (pre-2.0 prose, hidden SSIDs, `error:` prefixes) are
+  // decided in one tested place.
   // -------------------------------------------------------------------------
   const [wifiOpen, setWifiOpen] = createSignal(false);
-  const [wifiRows, setWifiRows] = createSignal<WifiRow[]>([]);
+  const [wifiRows, setWifiRows] = createSignal<WifiNetwork[]>([]);
   const [wifiIndex, setWifiIndex] = createSignal(0);
   const [wifiStatus, setWifiStatus] = createSignal("");
   const [wifiPskFor, setWifiPskFor] = createSignal("");
   const [wifiPsk, setWifiPsk] = createSignal("");
-  const [wifiBusy, setWifiBusy] = createSignal(false);
+  const [wifiPhase, setWifiPhase] = createSignal<WifiPhase>("scanning");
 
-  const openWifiPanel = () => {
-    setWifiOpen(true);
+  // The passphrase keyboard. Created here rather than in the page so its buffer
+  // survives the page unmounting mid-connect; a masked field in the page shows
+  // the dots and calls open().
+  const wifiOsk = createOsk({
+    value: () => wifiPsk(),
+    setValue: (value) => setWifiPsk(value),
+    onCommit: () => submitWifiPsk(),
+    maxLength: 63,
+    // The panel closes itself on commit by default, which would dismiss the
+    // keyboard before the bridge answers. A rejected passphrase must leave it
+    // up, so the close happens only on success (see runWifiConnect).
+    closeOnCommit: false,
+    // B/× on the keyboard cancels the prompt outright, matching the hint.
+    onClose: () => {
+      setWifiPskFor("");
+      setWifiPsk("");
+      setWifiStatus("");
+      setWifiPhase("list");
+    },
+  });
+  // `WIFI saved` does not exist before Wi-Fi 2.0; the parser reports that, and
+  // the flag keeps a scan on an older runtime from re-asking every time.
+  let wifiSavedSupported = true;
+
+  // `WIFI scan` blocks its caller for up to six seconds, and `__launcher` runs
+  // on the render thread. The frame loop starts the call only after the
+  // scanning frame has painted, so the panel is never frozen on a blank page.
+  let scanRequested = false;
+
+  const readWifiSaved = (): string[] => {
+    // One probe per session: a runtime does not gain Wi-Fi 2.0 mid-boot, and
+    // each of these is a round trip on the render thread.
+    if (!wifiSavedSupported) return [];
+    const parsed = parseSaved(host?.__launcher?.("WIFI\tsaved") ?? "");
+    wifiSavedSupported = parsed.supported;
+    return parsed.ssids;
+  };
+
+  const readWifiStatus = () => parseStatus(host?.__launcher?.("WIFI\tstatus") ?? "");
+
+
+  const scanWifi = () => {
     setWifiRows([]);
     setWifiIndex(0);
     setWifiPskFor("");
     setWifiPsk("");
-    setWifiStatus("扫描中…");
-    setWifiBusy(true);
-    const raw = host?.__launcher?.("WIFI\tscan") ?? "";
-    setWifiBusy(false);
-    if (raw.startsWith("error")) {
-      setWifiStatus(raw.includes("supplicant") ? "无法启动 Wi-Fi" : "扫描失败");
-      return;
-    }
-    if (raw.trim() === "empty") {
-      setWifiStatus("未发现网络");
-      return;
-    }
-    const rows: WifiRow[] = raw
-      .split("\n")
-      .filter((line) => line.trim().length > 0)
-      .map((line) => {
-        const [ssid, signal, sec] = line.split("\t");
-        return { ssid: ssid ?? "", signal: signal ?? "", sec: sec ?? "wpa" };
-      })
-      .filter((row) => row.ssid.length > 0);
-    setWifiRows(rows);
-    setWifiStatus(rows.length ? "" : "未发现网络");
+    setWifiStatus("");
+    setWifiPhase("scanning");
+    scanRequested = true;
   };
+
+  const runWifiScan = () => {
+    scanRequested = false;
+    const selectedSsid = wifiRows()[wifiIndex()]?.ssid;
+    const saved = readWifiSaved();
+    const { ssid } = readWifiStatus();
+    const result = parseScan(host?.__launcher?.("WIFI\tscan") ?? "", saved, ssid);
+    if (!result.ok) {
+      setWifiStatus(t(result.reason === "supplicant" ? "wifi.noSupplicant" : "wifi.scanFailed"));
+      setWifiPhase("list");
+      return;
+    }
+    setWifiRows(result.networks);
+    // Sorting moves rows whenever association or signal changes, so the
+    // selection follows the SSID it was on rather than the row number.
+    const keep = selectedSsid ? result.networks.findIndex((row) => row.ssid === selectedSsid) : -1;
+    setWifiIndex(keep >= 0 ? keep : 0);
+    setWifiStatus(result.networks.length ? "" : t("wifi.empty"));
+    setWifiPhase("list");
+  };
+
+  const openWifiPanel = () => {
+    setWifiOpen(true);
+    scanWifi();
+  };
+
+  // `WIFI connect` blocks for up to ten seconds inside the bridge, on the same
+  // thread that renders. Like the scan, it is requested here and issued from the
+  // frame loop, so the "connecting" panel is on screen before the call starts.
+  let connectRequest: { ssid: string; psk: string } | null = null;
 
   const connectWifi = (ssid: string, psk: string) => {
-    setWifiBusy(true);
-    setWifiStatus(`连接 ${ssid} …`);
-    const res = host?.__launcher?.(`WIFI\tconnect\t${ssid}\t${psk}`) ?? "";
-    setWifiBusy(false);
-    setWifiPskFor("");
-    setWifiPsk("");
-    if (res.startsWith("connected")) {
-      setWifiStatus(`已连接 ${ssid}`);
-      setWifiEnabled(true);
-    } else {
-      setWifiStatus(res || "连接失败");
+    if (!host?.__launcher) {
+      setWifiStatus(t("wifi.noBridge"));
+      return;
     }
+    setWifiPhase("connecting");
+    setWifiStatus(t("wifi.connecting"));
+    connectRequest = { ssid, psk };
   };
 
-  const activateWifiRow = () => {
-    const row = wifiRows()[wifiIndex()];
-    if (!row) return;
-    if (row.sec === "open") connectWifi(row.ssid, "");
-    else {
-      setWifiPskFor(row.ssid);
-      setWifiPsk("");
-      setWifiStatus("");
+  const runWifiConnect = () => {
+    const request = connectRequest;
+    connectRequest = null;
+    if (!request || !host?.__launcher) return;
+    const { ssid, psk } = request;
+    const outcome = parseConnectResult(host.__launcher(`WIFI\tconnect\t${ssid}\t${psk}`));
+    switch (outcome.kind) {
+      case "connected": {
+        setWifiPskFor("");
+        setWifiPsk("");
+        setWifiStatus(t("wifi.connected", { ssid: outcome.ssid || ssid }));
+        setWifiEnabled(true);
+        wifiOsk.close();
+        syncHardwareStatus();
+        runWifiScan();
+        return;
+      }
+      case "need-psk":
+        setWifiPskFor(ssid);
+        setWifiStatus(t("wifi.needPsk"));
+        setWifiPhase("psk");
+        wifiOsk.open();
+        return;
+      case "auth-failed":
+        setWifiStatus(t("wifi.authFailed"));
+        break;
+      case "not-found":
+        setWifiStatus(t("wifi.notFound"));
+        break;
+      case "timeout":
+        setWifiStatus(t("wifi.timeout"));
+        break;
+      default:
+        setWifiStatus(outcome.detail);
     }
+    // A failed attempt keeps the passphrase prompt and its text, so a typo is
+    // one edit away, and leaves the keyboard up: it is still the field being
+    // edited, so closing it here would undo the retry.
+    if (wifiPskFor()) setWifiPhase("psk");
+    else setWifiPhase("list");
+  };
+
+  const activateWifiRow = (index = wifiIndex()) => {
+    const row = wifiRows()[index];
+    if (!row) return;
+    // Already associated: selecting it is not a request to reconnect, and the
+    // supplicant would spend ten seconds re-running a handshake it already has.
+    if (row.active) return;
+    if (row.security === "open") {
+      connectWifi(row.ssid, "");
+      return;
+    }
+    setWifiPskFor(row.ssid);
+    setWifiPsk("");
+    setWifiStatus("");
+    setWifiPhase("psk");
+    wifiOsk.open();
+  };
+
+  const submitWifiPsk = () => {
+    const ssid = wifiPskFor();
+    if (!ssid) return;
+    const issue = pskIssue(wifiPsk());
+    if (issue) {
+      // Refusing locally saves a 10-second bridge round trip and keeps the
+      // supplicant from logging a failed handshake for a typo.
+      setWifiStatus(t(issue === "empty" ? "wifi.needPsk" : issue === "short" ? "wifi.pskShort" : issue === "long" ? "wifi.pskLong" : "wifi.pskAscii"));
+      return;
+    }
+    connectWifi(ssid, wifiPsk());
+  };
+
+  const forgetWifi = (ssid: string) => {
+    const raw = host?.__launcher?.(`WIFI\tforget\t${ssid}`) ?? "";
+    if (!raw.startsWith("ok")) {
+      setWifiStatus(t("common.failed"));
+      return;
+    }
+    setWifiStatus(t("wifi.forgot", { ssid }));
+    runWifiScan();
+  };
+
+  const disconnectWifi = () => {
+    const raw = host?.__launcher?.("WIFI\tdisconnect") ?? "";
+    if (!raw.startsWith("ok")) {
+      setWifiStatus(t("common.failed"));
+      return;
+    }
+    setWifiStatus(t("wifi.disconnected"));
+    syncHardwareStatus();
+    runWifiScan();
   };
 
   // Returns true when the open Wi-Fi panel consumed the input.
   const wifiKey = (dir: number | 0, action: "up" | "down" | "ok" | "back") => {
     if (!wifiOpen()) return false;
-    if (wifiPskFor()) {
-      if (action === "back") {
-        setWifiPskFor("");
-        setWifiStatus("");
-      }
-      return true;   // the TextField owns typing
+    if (wifiPhase() === "psk") {
+      // The keyboard owns typing. B cancels the prompt outright (the same path
+      // as its own ×), A commits, and both leave the list underneath intact.
+      if (action === "back") wifiOsk.cancel();
+      else if (action === "ok") submitWifiPsk();
+      return true;
     }
+    if (action === "back") {
+      setWifiOpen(false);
+      return true;
+    }
+    if (wifiPhase() === "scanning" || wifiPhase() === "connecting") return true;
     if (action === "up") setWifiIndex((p) => Math.max(0, p - 1));
     else if (action === "down") setWifiIndex((p) => Math.min(Math.max(0, wifiRows().length - 1), p + 1));
     else if (action === "ok") activateWifiRow();
-    else if (action === "back") setWifiOpen(false);
     return true;
   };
 
-  const toggleBluetooth = () => {
-    const next = !bluetoothEnabled();
-    setBluetoothEnabled(next);
-    host?.__launcher?.(`CONTROL\tbluetooth\t${next ? "on" : "off"}`);
-    showToast(`Bluetooth: ${next ? "ON 开启" : "OFF 关闭"}`);
+  // -------------------------------------------------------------------------
+  // Bluetooth picker (scan → pair/connect → forget)
+  //
+  // Same shape as the Wi-Fi panel: the bridge owns BlueZ, this file owns the
+  // phase, and every answer is parsed by bluetooth-model.ts.
+  // -------------------------------------------------------------------------
+  const [btOpen, setBtOpen] = createSignal(false);
+  const [btDevices, setBtDevices] = createSignal<BtDevice[]>([]);
+  const [btIndex, setBtIndex] = createSignal(0);
+  const [btStatus, setBtStatus] = createSignal("");
+  const [btPhase, setBtPhase] = createSignal<BtPhase>("scanning");
+  const [btPowered, setBtPowered] = createSignal<boolean | null>(null);
+  let btScanRequested = false;
+
+  const scanBluetooth = () => {
+    setBtDevices([]);
+    setBtIndex(0);
+    setBtStatus("");
+    setBtPhase("scanning");
+    btScanRequested = true;
   };
 
-  const cycleLanguage = () => {
+  const runBluetoothScan = () => {
+    btScanRequested = false;
+    const status = parseBtStatus(host?.__launcher?.("BT\tstatus") ?? "");
+    setBtPowered(status.powered);
+    if (status.powered === false) {
+      setBtPhase("list");
+      setBtStatus(t("bt.off"));
+      return;
+    }
+    const result = parseBtScan(host?.__launcher?.("BT\tscan") ?? "");
+    if (!result.ok) {
+      setBtStatus(t(result.reason === "bluez" ? "bt.off" : "common.failed"));
+      setBtPhase("list");
+      return;
+    }
+    setBtDevices(result.devices);
+    setBtStatus(result.devices.length ? "" : t("bt.empty"));
+    setBtPhase("list");
+  };
+
+  const openBluetoothPanel = () => {
+    setBtOpen(true);
+    scanBluetooth();
+  };
+
+  const activateBtDevice = (index = btIndex()) => {
+    const device = btDevices()[index];
+    if (!device) return;
+    setBtPhase("connecting");
+    setBtStatus(t("bt.connecting"));
+    const answer = host?.__launcher?.(`BT\tconnect\t${device.address}`) ?? "";
+    if (answer.startsWith("connected")) {
+      setBtStatus(t("bt.connected", { name: device.name }));
+      setBluetoothEnabled(true);
+    } else {
+      setBtStatus(t("bt.connectFailed"));
+    }
+    runBluetoothScan();
+  };
+
+  const forgetBtDevice = (address: string) => {
+    const answer = host?.__launcher?.(`BT\tforget\t${address}`) ?? "";
+    setBtStatus(answer.startsWith("ok") ? "" : t("common.failed"));
+    runBluetoothScan();
+  };
+
+  const disconnectBtDevice = (address: string) => {
+    const answer = host?.__launcher?.(`BT\tdisconnect\t${address}`) ?? "";
+    setBtStatus(answer.startsWith("ok") ? "" : t("common.failed"));
+    runBluetoothScan();
+  };
+
+  const btKey = (action: "up" | "down" | "ok" | "back") => {
+    // Back is never gated: a picker the user cannot leave is a trap, even while
+    // a scan is still running (its answer is discarded when the panel closes).
+    if (action === "back") {
+      setBtOpen(false);
+      return;
+    }
+    if (btPhase() === "scanning" || btPhase() === "connecting") return;
+    if (action === "up") setBtIndex((p) => Math.max(0, p - 1));
+    else if (action === "down") setBtIndex((p) => Math.min(Math.max(0, btDevices().length - 1), p + 1));
+    else if (action === "ok") activateBtDevice();
+  };
+
+  const toggleBluetooth = () => {
+    setBluetoothEnabled(!bluetoothEnabled());
+    syncSettings();
+  };
+
+  const cycleLanguage = (direction: -1 | 1) => {
     const order = ["en", "zh", "ja"];
-    const next = order[(order.indexOf(language()) + 1) % order.length];
-    setLanguage(next);
-    host?.__launcher?.(`LANGUAGE\t${next}`);
-    showToast(`Language: ${next.toUpperCase()}`);
+    const next = order[(order.indexOf(language()) + direction + order.length) % order.length];
+    const saved = writeSetting(host, "language", next);
+    if (saved && order.includes(saved)) setLanguage(saved);
+    syncSettings();
   };
 
   const cycleTimeout = (delta: number) => {
     const nextIdx = (timeoutIndex() + delta + TIMEOUT_OPTIONS.length) % TIMEOUT_OPTIONS.length;
-    setTimeoutIndex(nextIdx);
-    const opt = TIMEOUT_OPTIONS[nextIdx];
-    const res = host?.__launcher?.(`SLEEP\t${opt.value}`) ?? `Screen timeout set to ${opt.value}`;
-    showToast(`Screen Timeout: ${opt.label}`);
+    const saved = writeSetting(host, "timeout", TIMEOUT_OPTIONS[nextIdx].value);
+    if (saved) {
+      const readback = TIMEOUT_OPTIONS.findIndex((option) => option.value === saved);
+      if (readback >= 0) setTimeoutIndex(readback);
+    }
+    syncSettings();
   };
 
-  const toggleService = (key: string) => {
-    const current = !!services()[key];
-    const next = !current;
-    setServices((prev) => ({ ...prev, [key]: next }));
-    const res = host?.__launcher?.(`SERVICE\t${key}.enabled`) ?? "Toggled";
-    showToast(`${key}: ${next ? "ENABLED 开启" : "DISABLED 关闭"}`);
+  const adjustSetting = (index: number, direction: -1 | 1) => {
+    const row = SETTING_ROWS[index];
+    if (!row) return;
+    if (row.kind === "level") changeLevel(row.key === "brightness" ? "brightness" : "volume", direction * 5);
+    else if (row.kind === "toggle") toggleRow(row.key);
+    else if (row.kind === "enum") {
+      if (row.key === "language") cycleLanguage(direction);
+      else if (row.key === "timeout") cycleTimeout(direction);
+    }
   };
+
+  const activateSetting = (index: number) => {
+    const row = SETTING_ROWS[index];
+    if (!row) return;
+    if (row.kind === "level") changeLevel(row.key === "brightness" ? "brightness" : "volume", 5);
+    else if (row.kind === "toggle") {
+      // Wi-Fi and Bluetooth open their pickers (choose a network / device);
+      // every other toggle flips in place.
+      if (row.key === "wifi") openWifiPanel();
+      else if (row.key === "bluetooth") openBluetoothPanel();
+      else toggleRow(row.key);
+    } else if (row.kind === "enum") {
+      if (row.key === "language") cycleLanguage(1);
+      else if (row.key === "timeout") cycleTimeout(1);
+    } else if (row.kind === "action") {
+      // The only action row is the power dialog; it is a view, not a bridge call.
+      openPowerMenu();
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // Power menu (long press on the power key)
+  // -------------------------------------------------------------------------
+  const POWER_COMMANDS: Record<PowerAction, string> = { poweroff: "poweroff", reboot: "reboot" };
+
+  const openPowerMenu = () => {
+    setPowerChoice("poweroff");
+    setPowerBusy(false);
+    setPowerRefused(false);
+    setPowerMenuOpen(true);
+  };
+
+  // The guest cannot shut the machine down: it asks the bridge and keeps the
+  // dialog up while the request runs, so a refused request never looks done.
+  const runPowerAction = (action: PowerAction) => {
+    const answer = host?.__launcher?.(`POWER\t${POWER_COMMANDS[action]}`) ?? "";
+    // The bridge spawns BaseOS's own wrapper and answers "ok:<action>" before the
+    // machine goes down, so the dialog can show progress instead of vanishing.
+    if (answer.trim() !== `ok:${POWER_COMMANDS[action]}`) {
+      setPowerBusy(false);
+      setPowerRefused(true);
+      return;
+    }
+    setPowerRefused(false);
+    setPowerBusy(true);
+  };
+
+  const powerMenuKey = (action: "left" | "right" | "ok" | "back") => {
+    if (powerBusy()) return;
+    if (action === "left") setPowerChoice("poweroff");
+    else if (action === "right") setPowerChoice("reboot");
+    else if (action === "ok") runPowerAction(powerChoice());
+    else setPowerMenuOpen(false);
+  };
+
+  // The list scrolls inside a fixed six-row window, so selection moves freely
+  // across every row instead of clamping to what is on screen.
+  const moveSettingsSelection = (delta: -1 | 1) =>
+    setSettingsIndex((index) => Math.max(0, Math.min(SETTINGS_COUNT - 1, index + delta)));
 
   const launchApp = (app: LauncherApp) => {
-    showToast(`启动: ${app.shortName || app.name}...`);
+    showToast(t("toast.launch", { name: appShortName(t, app) }));
     try {
       const entry = cardNodes.get(currentCardIndex());
       if (entry && entry.screen === currentScreen()) {
@@ -445,17 +706,16 @@ mount(() => {
     }
 
     if (app.kind === "native") {
-      const res = host?.__launcher?.(`LAUNCH\t${app.id}`) ?? "Opening application";
+      host?.__launcher?.(`LAUNCH\t${app.id}`);
       return;
     }
 
-    // Terminal-backed entries are gone with the audit: every one of them shelled
-    // out to /usr/bin/heya-tool or evtest, which BaseOS does not ship, so they
-    // dropped the user into a bare prompt instead of an app. The only runnable
-    // entry left is the shell itself.
+    // PocketFetch is this program's own screen, not a child process: closing the
+    // launcher opens it and re-polls the bridge, so nothing is handed to the host.
     setLauncherOpen(false);
-    if (app.id === "terminal") return;
-    send("RESET\t0");
+    syncSettings();
+    syncHardwareStatus();
+    syncSystemStatus();
   };
 
 
@@ -467,125 +727,46 @@ mount(() => {
       if (app) launchApp(app);
       return;
     }
-    if (s === 3) {
-      // Settings Page
-      const sel = settingsIndex();
-      if (sel === 0) changeBrightness(5);
-      else if (sel === 1) changeVolume(5);
-      else if (sel === 2) openWifiPanel();
-      else if (sel === 3) cycleLanguage();
-      else if (sel === 4) cycleTimeout(1);
-      else if (sel >= 5 && sel < 5 + SERVICE_KEYS.length) {
-        toggleService(SERVICE_KEYS[sel - 5].key);
-      } else if (sel === 5 + SERVICE_KEYS.length) {
-        // Legacy settings
-        showToast("打开设置...");
-        setLauncherOpen(false);
-        send("RESET\t0");
-        send("0\tTEXT /usr/libexec/pocketjs-legacy-settings");
-        send("0\tKEY ENTER");
-      }
-      return;
-    }
   };
 
-  // -------------------------------------------------------------------------
-  // Terminal Logic (Preserved)
-  // -------------------------------------------------------------------------
-  const applyRows = (payload: string) => {
-    if (!payload) return;
-    const changed = new Map<number, Run[]>();
-    let nextCursor: { row: number; col: number; visible: boolean } | null = null;
-    for (const record of payload.split("\n")) {
-      if (!record) continue;
-      const fields = record.split("\t");
-      if (fields[0] === "C") {
-        nextCursor = {
-          row: Number(fields[1]) || 0,
-          col: Number(fields[2]) || 0,
-          visible: fields[3] === "1",
-        };
-        continue;
-      }
-      if (fields[0] !== "L") continue;
-      const row = Number(fields[1]);
-      if (!Number.isInteger(row) || row < 0 || row >= 12) continue;
-      const runs: Run[] = [];
-      for (const field of fields.slice(2)) {
-        const parts = field.split(":");
-        if (parts.length < 4) continue;
-        const fg = parseInt(parts[0], 16);
-        const bg = parseInt(parts[1], 16);
-        const flags = Number(parts[2]) || 0;
-        const text = parts
-          .slice(3)
-          .join(":")
-          .replace(/\\t/g, "    ")
-          .replace(/\\n/g, "")
-          .replace(/\\\\/g, "\\");
-        if (!text) continue;
-        runs.push({ text, fg, bg, flags });
-      }
-      changed.set(row, runs);
-    }
-    if (changed.size > 0) {
-      setLines((old) => old.map((runs, index) => changed.get(index) ?? runs));
-    }
-    if (nextCursor) setCursor(nextCursor);
+  const refreshPocketFetch = () => {
+    syncSettings();
+    syncHardwareStatus();
+    syncSystemStatus();
   };
 
-  const sendKey = (key: string) => send(`0\tKEY ${key}`);
-  const submitInput = () => {
-    const value = input().trim();
-    if (value)
-      setInputHistory((items) => [value, ...items.filter((item) => item !== value)]);
-    if (value) {
-      send(`0\tTEXT ${value}`);
-      send("0\tKEY ENTER");
-    }
-    setInput("");
-    setInputOpen(false);
+  const confirmCurrent = () => {
+    if (btOpen()) { btKey("ok"); return; }
+    if (wifiOpen()) { wifiKey(0, "ok"); return; }
+    if (!launcherOpen()) { refreshPocketFetch(); return; }
+    if (currentScreen() === 3) activateSetting(settingsIndex());
+    else activateCurrent();
   };
 
-  const selectInputEntry = (index: number) => {
-    if (inputFunction() === 0) {
-      const chars = [
-        ...INPUT_LAYOUTS[inputLayout()].flatMap((line) => line.split(" ")),
-        "SPACE",
-        "BACKSPACE",
-        "ENTER",
-      ];
-      const value = chars[index];
-      if (value === "SPACE") setInput((text) => text + " ");
-      else if (value === "BACKSPACE") setInput((text) => text.slice(0, -1));
-      else if (value === "ENTER") submitInput();
-      else if (value) setInput((text) => text + value);
-      return;
-    }
-    const entries =
-      inputFunction() === 1
-        ? inputHistory().map((value) => [value, value])
-        : INPUT_ENTRIES[inputFunction()];
-    if (inputFunction() === 2 && index >= 6) return;
-    if (entries[index]) setInput(entries[index][1]);
-  };
 
   onMount(() => {
-    send("RESIZE\t12x46");
-    send("0\tSTART");
-    log("Terminal Started");
-    const savedTimeout = (host?.__launcher?.("STATE\ttimeout") ?? "").trim();
-    const savedIndex = TIMEOUT_OPTIONS.findIndex((option) => option.value === savedTimeout);
-    if (savedIndex >= 0) setTimeoutIndex(savedIndex);
-
-    const lang = host?.__launcher?.("LANGUAGE") ?? "en";
-    if (["en", "zh", "ja"].includes(lang.trim())) setLanguage(lang.trim());
-    syncHardwareLevels();
+    // One pass fills every settings row, the language and the screen timeout —
+    // they all come from the same bridge map.
+    syncSettings();
     syncHardwareStatus();
     syncSystemStatus();
     lastHardwarePoll = Date.now();
 
     onTextEvent((event: TextEvent) => {
+      if (powerMenuOpen() && event.kind === "key" && event.pressed) {
+        if (event.key === "ArrowLeft") powerMenuKey("left");
+        else if (event.key === "ArrowRight") powerMenuKey("right");
+        else if (event.key === "Enter" || event.key === " ") powerMenuKey("ok");
+        else if (event.key === "Escape") powerMenuKey("back");
+        return true;
+      }
+      if (btOpen() && event.kind === "key" && event.pressed) {
+        if (event.key === "Escape") btKey("back");
+        else if (event.key === "ArrowUp") btKey("up");
+        else if (event.key === "ArrowDown") btKey("down");
+        else if (event.key === "Enter" || event.key === " ") btKey("ok");
+        return true;
+      }
       if (wifiOpen() && event.kind === "key" && event.pressed) {
         const action =
           event.key === "ArrowUp" ? "up" :
@@ -601,36 +782,24 @@ mount(() => {
         if (event.kind === "key" && event.pressed) {
           if (event.key === "ArrowLeft") {
             if (currentScreen() === 0) moveCard(-1);
-            else if (currentScreen() === 3) {
-              const sel = settingsIndex();
-              if (sel === 0) changeBrightness(-5);
-              else if (sel === 1) changeVolume(-5);
-              else if (sel === 2) openWifiPanel();
-              else if (sel === 3) cycleLanguage();
-              else if (sel === 4) cycleTimeout(-1);
-            } else if (currentScreen() === 4) {
-              setSystemPageIndex((p) => (p + 4) % 5);
+            else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
+            else if (currentScreen() === 4) {
+              setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
             }
           } else if (event.key === "ArrowRight") {
             if (currentScreen() === 0) moveCard(1);
-            else if (currentScreen() === 3) {
-              const sel = settingsIndex();
-              if (sel === 0) changeBrightness(5);
-              else if (sel === 1) changeVolume(5);
-              else if (sel === 2) openWifiPanel();
-              else if (sel === 3) cycleLanguage();
-              else if (sel === 4) cycleTimeout(1);
-            } else if (currentScreen() === 4) {
-              setSystemPageIndex((p) => (p + 1) % 5);
+            else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
+            else if (currentScreen() === 4) {
+              setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
             }
           } else if (event.key === "ArrowUp") {
-            if (currentScreen() === 3) setSettingsIndex((p) => Math.max(0, p - 1));
-            else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 4) % 5);
+            if (currentScreen() === 3) moveSettingsSelection(-1);
+            else if (currentScreen() === 4) setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
           } else if (event.key === "ArrowDown") {
-            if (currentScreen() === 3) setSettingsIndex((p) => Math.min(15, p + 1));
-            else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % 5);
+            if (currentScreen() === 3) moveSettingsSelection(1);
+            else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
           } else if (event.key === "Enter") {
-            activateCurrent();
+            confirmCurrent();
           } else if (event.key === "Escape") {
             if (currentScreen() !== 0) switchScreen(0, -1);
           } else if (event.key === "PageUp") {
@@ -642,58 +811,48 @@ mount(() => {
         return true;
       }
 
-      if (event.kind === "commit") {
-        if (inputOpen()) setInput((value) => value + event.text);
-        else if (commandOpen()) setInput((value) => value + event.text);
-        else send(`0\tTEXT ${event.text}`);
-        return true;
-      }
-      if (event.kind !== "key" || !event.pressed) return false;
-      if (inputOpen()) {
-        if (event.key === "Escape") setInputOpen(false);
-        else if (event.key === "Backspace") setInput((value) => value.slice(0, -1));
-        else if (event.key === "Enter") submitInput();
-        return true;
-      }
-      if (commandOpen()) {
-        if (event.key === "Escape") {
-          setCommandOpen(false);
-          setInput("");
-        } else if (event.key === "Backspace") setInput((value) => value.slice(0, -1));
-        else if (event.key === "Enter") {
-          const value = input();
-          setInput("");
-          setCommandOpen(false);
-          if (value) send(`0\tTEXT ${value}`);
-          send("0\tKEY ENTER");
-          log("Process Input");
-        }
-        return true;
-      }
-      const key = event.key.replace(/^Control\+/, "CTRL_").toUpperCase();
-      if (
-        [
-          "ENTER",
-          "BACKSPACE",
-          "ARROWUP",
-          "ARROWDOWN",
-          "ARROWLEFT",
-          "ARROWRIGHT",
-          "TAB",
-          "ESC",
-          "CTRL_C",
-          "CTRL_D",
-          "CTRL_L",
-          "HOME",
-          "END",
-        ].includes(key)
-      )
-        sendKey(key.replace("ARROW", ""));
+      // The keyboard escape key is a back action on PocketFetch.
+      if (event.kind !== "key" || !event.pressed) return true;
+      if (event.key === "Escape") setLauncherOpen(true);
       return true;
     });
   });
 
   onFrame((buttons: number) => {
+    if (buttons === 0) armed = true;
+
+    // A bridge scan blocks its own thread, so it runs after the scanning frame
+    // has been painted instead of inside the key handler. A connect is deferred
+    // the same way: its "connecting" panel must be on screen before the call.
+    if (scanRequested) runWifiScan();
+    // A BlueZ scan also blocks, so it runs after the scanning frame too.
+    if (btScanRequested) runBluetoothScan();
+    if (connectRequest) runWifiConnect();
+
+    // Poll on elapsed time so the visible page remains live at any frame rate.
+    const now = Date.now();
+    // Long power press: baseos-hotkeys writes /run/power-menu.request instead of
+    // cutting power. The bridge consumes the marker, so one press = one dialog.
+    if (now - lastPowerPoll >= 250 && !powerMenuOpen() && !powerBusy()) {
+      lastPowerPoll = now;
+      if ((host?.__launcher?.("POWER\tmenu") ?? "").trim() === "menu") openPowerMenu();
+    }
+
+    if (now - lastHardwarePoll >= 5000) {
+      lastHardwarePoll = now;
+      syncSystemStatus();
+      syncHardwareStatus();
+    }
+
+    // Advance frame-driven toast
+    if (toastFrames > 0) {
+      toastFrames--;
+      if (toastFrames === 0) {
+        safeAnimate(toastNode, "opacity", 0, { dur: 250, easing: "out" });
+        safeAnimate(toastNode, "translateY", 6, { dur: 250, easing: "out" });
+      }
+    }
+
     if (!armed) {
       previousButtons = buttons;
       return;
@@ -705,11 +864,49 @@ mount(() => {
     // Native Switch Launcher Input Mode
     // -------------------------------------------------------------------------
 
+    if (powerMenuOpen()) {
+      // The dialog is modal: it takes the pad before any page sees it.
+      if (pressed & BTN.LEFT) powerMenuKey("left");
+      else if (pressed & BTN.RIGHT) powerMenuKey("right");
+      else if (pressed & BTN.CIRCLE) powerMenuKey("ok");
+      else if (pressed & BTN.CROSS) powerMenuKey("back");
+      return;
+    }
     if (wifiOpen()) {
+      // While the passphrase keyboard is up it owns every button (START commits,
+      // × cancels, □ backspaces), so the page must not also react to them.
+      if (wifiOsk.isOpen()) return;
       if (pressed & BTN.UP) wifiKey(0, "up");
       else if (pressed & BTN.DOWN) wifiKey(0, "down");
       else if (pressed & BTN.CIRCLE) wifiKey(0, "ok");
       else if (pressed & BTN.CROSS) wifiKey(0, "back");
+      // □ rescan, △ acts on the selected row (disconnect / forget). The panel
+      // has no touch controller, so the footer's touch targets need a pad path.
+      else if (pressed & BTN.SQUARE) scanWifi();
+      else if (pressed & BTN.TRIANGLE) {
+        const row = wifiRows()[wifiIndex()];
+        if (wifiPhase() !== "list" || !row) return;
+        if (row.active) disconnectWifi();
+        else if (row.saved) forgetWifi(row.ssid);
+      }
+      return;
+    }
+    if (btOpen()) {
+      // The picker owns the pad while it is up: B always closes it (even mid
+      // scan), □ rescans, △ forgets/disconnects the selected device.
+      if (pressed & BTN.CROSS) {
+        btKey("back");
+        return;
+      }
+      if (pressed & BTN.UP) btKey("up");
+      else if (pressed & BTN.DOWN) btKey("down");
+      else if (pressed & BTN.CIRCLE) btKey("ok");
+      else if (pressed & BTN.SQUARE) scanBluetooth();
+      else if (pressed & BTN.TRIANGLE) {
+        const device = btDevices()[btIndex()];
+        if (btPhase() !== "list" || !device || !device.paired) return;
+        forgetBtDevice(device.address);
+      }
       return;
     }
     if (launcherOpen()) {
@@ -721,128 +918,44 @@ mount(() => {
         switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 2) % 3], -1);
         return;
       }
-      if (pressed & BTN.SELECT) {
-        setInput("");
-        setInputOpen(true);
-        setInputFunction(0);
-        return;
-      }
       if (pressed & BTN.LEFT) {
         if (currentScreen() === 0) moveCard(-1);
-        else if (currentScreen() === 3) {
-          const sel = settingsIndex();
-          if (sel === 0) changeBrightness(-5);
-          else if (sel === 1) changeVolume(-5);
-          else if (sel === 2) openWifiPanel();
-          else if (sel === 3) cycleLanguage();
-          else if (sel === 4) cycleTimeout(-1);
-        } else if (currentScreen() === 4) {
-          setSystemPageIndex((p) => (p + 4) % 5);
+        else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
+        else if (currentScreen() === 4) {
+          setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
         }
       }
       if (pressed & BTN.RIGHT) {
         if (currentScreen() === 0) moveCard(1);
-        else if (currentScreen() === 3) {
-          const sel = settingsIndex();
-          if (sel === 0) changeBrightness(5);
-          else if (sel === 1) changeVolume(5);
-          else if (sel === 2) openWifiPanel();
-          else if (sel === 3) cycleLanguage();
-          else if (sel === 4) cycleTimeout(1);
-        } else if (currentScreen() === 4) {
-          setSystemPageIndex((p) => (p + 1) % 5);
+        else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
+        else if (currentScreen() === 4) {
+          setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
         }
       }
       if (pressed & BTN.UP) {
-        if (currentScreen() === 3) setSettingsIndex((p) => Math.max(0, p - 1));
-        else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 4) % 5);
+        if (currentScreen() === 3) moveSettingsSelection(-1);
+        else if (currentScreen() === 4) setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
       }
       if (pressed & BTN.DOWN) {
-        if (currentScreen() === 3) setSettingsIndex((p) => Math.min(15, p + 1));
-        else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % 5);
+        if (currentScreen() === 3) moveSettingsSelection(1);
+        else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
       }
-      if (pressed & BTN.CIRCLE) activateCurrent();
+      if (pressed & BTN.CIRCLE) {
+        confirmCurrent();
+      }
       if (pressed & BTN.CROSS && currentScreen() !== 0) switchScreen(0, -1);
       return;
     }
 
     // -----------------------------------------------------------------------
-    // Virtual Keyboard / Input Workspace Input Mode
+    // PocketFetch Mode: A re-polls the bridge, B goes back.
     // -----------------------------------------------------------------------
-    if (inputOpen()) {
-      const entries =
-        inputFunction() === 1
-          ? inputHistory().map((value) => [value, value])
-          : INPUT_ENTRIES[inputFunction()];
-      const selectionCount =
-        inputFunction() === 0
-          ? INPUT_LAYOUTS[inputLayout()].flatMap((line) => line.split(" ")).length + 3
-          : entries.length;
-      if (pressed & BTN.LEFT) setInputLayout((inputLayout() + 3) % 4);
-      if (pressed & BTN.RIGHT) setInputLayout((inputLayout() + 1) % 4);
-      if (pressed & BTN.LTRIGGER) setInputFunction((inputFunction() + 5) % 6);
-      if (pressed & BTN.RTRIGGER) setInputFunction((inputFunction() + 1) % 6);
-      if (pressed & BTN.UP)
-        setInputSelection((inputSelection() + Math.max(1, selectionCount) - 1) % Math.max(1, selectionCount));
-      if (pressed & BTN.DOWN)
-        setInputSelection((inputSelection() + 1) % Math.max(1, selectionCount));
-      if (pressed & BTN.CIRCLE) selectInputEntry(inputSelection());
-      if (pressed & BTN.CROSS) setInputOpen(false);
-      if (pressed & BTN.START) setInputFunction((inputFunction() + 1) % 6);
-      if (pressed & BTN.SELECT) submitInput();
+    if (pressed & BTN.CIRCLE) {
+      confirmCurrent();
       return;
     }
-
-    // -----------------------------------------------------------------------
-    // Terminal Mode Controller Input
-    // -----------------------------------------------------------------------
-    if (pressed & BTN.LTRIGGER) sendKey("PGUP");
-    if (pressed & BTN.RTRIGGER) sendKey("PGDN");
-    if (pressed & BTN.LEFT) sendKey("LEFT");
-    if (pressed & BTN.RIGHT) sendKey("RIGHT");
-    if (pressed & BTN.UP) sendKey("UP");
-    if (pressed & BTN.DOWN) sendKey("DOWN");
-    if (pressed & BTN.CIRCLE) {
-      sendKey("ENTER");
-      log("Process Input");
-    }
-    if (pressed & BTN.CROSS) {
-      sendKey("ESC");
-      setLauncherOpen(true);
-    }
-    if (pressed & BTN.SELECT) {
-      setInput("");
-      setInputOpen(true);
-      setInputFunction(0);
-    }
+    if (pressed & BTN.CROSS) setLauncherOpen(true);
   });
-  const runColor = (run: Run) =>
-    (run.flags & 2) !== 0
-      ? { textColor: abgr(run.bg), bgColor: abgr(run.fg) }
-      : { textColor: abgr(run.fg), bgColor: abgr(run.bg) };
-
-  const withCursor = (runs: Run[], row: number): Run[] => {
-    const c = cursor();
-    if (!c.visible || c.row !== row) return runs;
-    const out: Run[] = [];
-    let col = 0;
-    for (const run of runs) {
-      const chars = [...run.text];
-      const start = col;
-      const end = col + chars.length;
-      col = end;
-      if (c.col < start || c.col >= end) {
-        out.push(run);
-        continue;
-      }
-      const offset = c.col - start;
-      if (offset > 0) out.push({ ...run, text: chars.slice(0, offset).join("") });
-      out.push({ ...run, text: chars[offset], flags: run.flags ^ 2 });
-      if (offset + 1 < chars.length) out.push({ ...run, text: chars.slice(offset + 1).join("") });
-    }
-    if (c.col >= col) out.push({ text: " ", fg: 0xe5e5e5, bg: 0xe5e5e5, flags: 0 });
-    return out;
-  };
 
   const selectedApp = () => {
     const apps = currentApps();
@@ -851,33 +964,32 @@ mount(() => {
 
   const settingsState = (): SettingsState => ({
     selectedIndex: settingsIndex(),
-    brightness: brightness(),
-    volume: volume(),
-    wifi: wifiEnabled(),
     language: language(),
-    timeoutIndex: timeoutIndex(),
-    services: services(),
+    values: settingValues(),
+    wifiConnected: networkSnapshot().connected,
   });
 
   return (
     <View class="w-[360px] h-[240px] bg-[#0c131a] relative flex-col justify-between overflow-hidden">
-      {/* ------------------------------------------------------------------- */}
-      {/* View Branch A: Switch Native 5-Screen UI (active === 0 && launcherOpen) */}
-      {/* ------------------------------------------------------------------- */}
-      {launcherOpen() ? (
-        <View class="w-[360px] h-[240px] flex-col justify-between">
-          {/* Persistent Top Status Bar */}
-          <StatusBar
-            currentScreen={currentScreen()}
-            wifiConnected={wifiEnabled()}
-            ipAddress={ipAddress()}
-            bluetoothOn={bluetoothEnabled()}
-            sshEnabled={sshEnabled()}
-            adbEnabled={adbEnabled()}
-            mtpEnabled={mtpEnabled()}
-            batteryLevel={batteryLevel()}
-          />
+      {/* The status bar belongs to the program, not to a screen: the launcher and
+          PocketFetch are two views of the same device state and share it. */}
+      <StatusBar
+        currentScreen={currentScreen()}
+        language={language()}
+        wifiConnected={networkSnapshot().connected}
+        ipAddress={ipAddress()}
+        bluetoothOn={bluetoothEnabled()}
+        sshEnabled={sshEnabled()}
+        adbEnabled={adbEnabled()}
+        mtpEnabled={mtpEnabled()}
+        onSelectTab={(screen) => switchScreen(screen, screen > currentScreen() ? 1 : -1)}
+        title={launcherOpen() ? undefined : t("app.systemInfo")}
+        batteryLevel={batteryLevel()}
+        batteryStatus={batteryStatus()}
+      />
 
+      {launcherOpen() ? (
+        <View class="w-[360px] h-[218px] flex-col justify-between">
           {/* Animated Page Container */}
           <View class="w-[360px] flex-1 flex-col justify-between overflow-hidden relative">
             {currentScreen() === 0 ? (
@@ -886,16 +998,17 @@ mount(() => {
                 <View class="w-[344px] h-[34px] flex-col justify-between">
                   <View class="flex-row items-center justify-between">
                     <Text class="text-sm font-bold text-white">
-                      {selectedApp()?.name}
+                      {appName(t, selectedApp())}
                     </Text>
                   </View>
                   <Text class="text-xs text-slate-400">
-                    {selectedApp()?.description}
+                    {appDescription(t, selectedApp())}
                   </Text>
                 </View>
 
                 {/* Horizontal Card Carousel */}
                 <CardCarousel
+                  t={t}
                   apps={currentApps()}
                   selectedIndex={currentCardIndex()}
                   onMountCarousel={(node) => {
@@ -904,13 +1017,22 @@ mount(() => {
                   onMountCard={(idx, node) => {
                     cardNodes.set(idx, { node, screen: currentScreen() });
                   }}
+                  onCardPress={(idx) => {
+                    if (idx !== currentCardIndex()) {
+                      setHomeCardIndex(idx);
+                      updateCardPosition(idx, true);
+                    } else {
+                      const app = currentApps()[idx];
+                      if (app) launchApp(app);
+                    }
+                  }}
+                  onMove={(delta) => moveCard(delta)}
                 />
 
-                {/* Action Feedback Bar: counter only — the pad hints moved out of the
-                    shell, the footer carries the context instead. */}
+                {/* Action Feedback Bar */}
                 <View class="w-[344px] h-[20px] flex-row items-center justify-between">
                   <Text class="text-xs text-slate-500">
-                    {currentCardIndex() + 1} / {currentApps().length}
+                    {currentCardIndex() + 1} / {currentApps().length} · {t("hint.select")}
                   </Text>
                   <View
                     ref={(node: NodeMirror) => {
@@ -926,19 +1048,49 @@ mount(() => {
               </View>
             ) : currentScreen() === 3 ? (
               /* Screen 3: Settings Page (Wi-Fi picker takes over while open) */
-              wifiOpen() ? (
+              btOpen() ? (
+                <BtPage
+                  devices={btDevices()}
+                  index={btIndex()}
+                  status={btStatus()}
+                  phase={btPhase()}
+                  powered={btPowered()}
+                  language={language()}
+                  onSelect={setBtIndex}
+                  onActivate={activateBtDevice}
+                  onRescan={scanBluetooth}
+                  onForget={forgetBtDevice}
+                  onDisconnect={disconnectBtDevice}
+                  onBack={() => setBtOpen(false)}
+                />
+              ) : wifiOpen() ? (
                 <WifiPage
                   rows={wifiRows()}
                   index={wifiIndex()}
                   status={wifiStatus()}
                   pskFor={wifiPskFor()}
                   psk={wifiPsk()}
-                  connecting={wifiBusy()}
-                  onInput={setWifiPsk}
-                  onSubmit={() => connectWifi(wifiPskFor(), wifiPsk())}
+                  phase={wifiPhase()}
+                  language={language()}
+                  osk={wifiOsk}
+                  onSelect={setWifiIndex}
+                  onActivate={activateWifiRow}
+                  onRescan={scanWifi}
+                  onForget={forgetWifi}
+                  onDisconnect={disconnectWifi}
+                  onBack={() => setWifiOpen(false)}
                 />
               ) : (
-                <SettingsPage state={settingsState()} />
+                <SettingsPage state={settingsState()}
+                  onSelect={(idx) => setSettingsIndex(idx)}
+                  onActivate={activateSetting}
+                  onLevelPreview={(key, value) => {
+                    setSettingsIndex(key === "brightness" ? 0 : 1);
+                    if (key === "brightness") setBrightness(value); else setVolume(value);
+                  }}
+                  onLevelCommit={(key, value) => setLevel(key, value)}
+                  onLevelCancel={syncSettings}
+                  onAdjust={adjustSetting} />
               )
             ) : (
               /* Screen 4: System Information Page */
@@ -946,6 +1098,15 @@ mount(() => {
                 pageIndex={systemPageIndex()}
                 network={networkSnapshot()}
                 snapshot={systemSnapshot()}
+                status={{
+                  ssh: sshEnabled(),
+                  adb: adbEnabled(),
+                  mtp: mtpEnabled(),
+                  battery: batteryLevel(),
+                  brightness: brightness(),
+                  volume: volume(),
+                  language: language(),
+                }}
               />
             )}
           </View>
@@ -956,181 +1117,45 @@ mount(() => {
           <View class="w-[360px] h-[20px] flex-col justify-between" style={{ bgColor: "#06111B" }}>
             <View class="w-[360px] h-[1px]" style={{ bgColor: "#1B3345" }} />
             <View class="w-[360px] h-[19px] flex-row items-center justify-between px-2">
-              <Text class="text-xs font-bold" style={{ textColor: "#3ECFFF" }}>
-                {currentScreen() === 0
-                  ? categoryLabel(selectedApp())
-                  : currentScreen() === 3
-                    ? "SETTINGS"
-                    : ["OVERVIEW", "CPU", "MEMORY", "STORAGE", "NETWORK"][systemPageIndex()]}
-              </Text>
-              <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>
-                {currentScreen() === 0
-                  ? selectedApp()?.kind === "native"
-                    ? "[ 内置 NATIVE ]"
-                    : "[ 终端 VT100 ]"
-                  : currentScreen() === 3
-                    ? `${settingsIndex() + 1}/16`
-                    : `${systemPageIndex() + 1}/5`}
-              </Text>
-            </View>
-          </View>
-        </View>
-      ) : (
-        /* Terminal output view */
-        <View class="w-[360px] h-[240px] bg-slate-950 flex-col">
-          <View class="absolute left-[10px] top-[1px] w-[340px] h-[24px] items-center">
-            <Text class="text-2xl font-bold text-emerald-300">
-              ◀ TERMINAL
-            </Text>
-            <View class="absolute left-[326px] top-[4px] w-[24px] h-[16px] items-center">
-              <Text class="text-base text-emerald-300">{"\uf240"}</Text>
-            </View>
-          </View>
-
-          <View class="absolute left-[10px] top-[28px] w-[340px] h-[192px] flex-col">
-            <Index each={lines()}>
-              {(runs, rowIndex) => (
-                <View class="w-[340px] h-[16px] flex-row">
-                  <Index each={withCursor(runs(), rowIndex)}>
-                    {(run) => {
-                      const c = runColor(run());
-                      return (
-                        <Text
-                          class="text-xs font-mono"
-                          style={{ textColor: c.textColor, bgColor: c.bgColor }}
-                        >
-                          {run().text}
-                        </Text>
-                      );
-                    }}
-                  </Index>
-                </View>
-              )}
-            </Index>
-            {commandOpen() ? (
-              <View class="absolute left-0 top-[176px] w-[340px] h-[16px] bg-slate-800">
-                <Text class="text-xs font-mono text-white">: {input()}█</Text>
-              </View>
-            ) : (
-              <View class="w-[0px] h-[0px]" />
-            )}
-          </View>
-
-        </View>
-      )}
-
-      {/* ------------------------------------------------------------------- */}
-      {/* Modal Overlay: Virtual Keyboard / Input Workspace (Preserved)      */}
-      {/* ------------------------------------------------------------------- */}
-      {inputOpen() ? (
-        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-slate-950 flex-col">
-          <View class="absolute left-[10px] top-[1px] w-[340px] h-[24px] items-center">
-            <Text class="text-2xl font-bold text-emerald-300">INPUT</Text>
-          </View>
-          <View class="absolute left-[10px] top-[28px] w-[340px] h-[16px] bg-slate-800">
-            <Text class="text-xs font-mono text-white">{">"} {input()}█</Text>
-          </View>
-          <View class="absolute left-[10px] top-[48px] w-[340px] h-[152px] flex-col">
-            {inputFunction() === 0 ? (
-              <>
-                <View class="w-[340px] h-[16px] flex-row">
-                  <Index each={["ABC", "123", "SYM", "PATH"]}>
-                    {(label, i) => (
-                      <Text
-                        class={
-                          inputLayout() === i
-                            ? "text-xs font-mono text-slate-950 bg-emerald-300"
-                            : "text-xs font-mono text-slate-300 bg-slate-800"
-                        }
-                      >
-                        {label()}
-                      </Text>
-                    )}
-                  </Index>
-                </View>
-                <Index each={INPUT_LAYOUTS[inputLayout()]}>
-                  {(line, row) => (
-                    <View class="w-[340px] h-[22px] flex-row">
-                      <Index each={line().split(" ")}>
-                        {(key, col) => (
-                          <Text
-                            class={
-                              inputSelection() ===
-                              INPUT_LAYOUTS[inputLayout()]
-                                .slice(0, row)
-                                .reduce((count, line) => count + line.split(" ").length, 0) +
-                                col
-                                ? "text-xs font-mono text-slate-950 bg-emerald-300"
-                                : "text-xs font-mono text-slate-100 bg-slate-800"
-                            }
-                          >
-                            {key()}
-                          </Text>
-                        )}
-                      </Index>
-                    </View>
-                  )}
-                </Index>
-                <View class="w-[340px] h-[20px] flex-row">
-                  <Index each={["SPACE", "BACKSPACE", "ENTER"]}>
-                    {(label, i) => (
-                      <Text
-                        class={
-                          inputSelection() ===
-                          INPUT_LAYOUTS[inputLayout()].flatMap((line) => line.split(" ")).length + i
-                            ? "text-xs font-mono text-slate-950 bg-emerald-300"
-                            : "text-xs font-mono text-slate-100 bg-slate-800"
-                        }
-                      >
-                        {label()}　
-                      </Text>
-                    )}
-                  </Index>
-                </View>
-              </>
-            ) : (
-              <Index
-                each={inputEntries().slice(inputListStart(), inputListStart() + 8)}
-              >
-                {(entry, i) => (
-                  <View
-                    class={
-                      inputSelection() === i + inputListStart()
-                        ? "w-[340px] h-[18px] bg-emerald-300"
-                        : "w-[340px] h-[18px] bg-slate-800"
-                    }
-                  >
-                    <Text class="text-xs font-mono text-white">{entry()[0]}</Text>
-                  </View>
-                )}
-              </Index>
-            )}
-          </View>
-          <View class="absolute left-[5px] top-[202px] w-[350px] h-[16px] flex-row">
-            <Index each={INPUT_TABS}>
-              {(tab, i) => (
-                <Text
-                  class={
-                    inputFunction() === i
-                      ? "text-xs font-mono text-slate-950 bg-emerald-300"
-                      : "text-xs font-mono text-slate-300 bg-slate-800"
-                  }
-                >
-                  {tab()}
+              {currentScreen() === 4 ? (
+                <Text class="text-xs font-bold" style={{ textColor: "#3ECFFF" }}>{t(`system.page.${SYSTEM_PAGES[systemPageIndex()]}`)}</Text>
+              ) : (
+                <Text class="text-xs font-bold" style={{ textColor: "#3ECFFF" }}>
+                  {currentScreen() === 0 ? categoryLabel(t, selectedApp()) : t("settings.title")}
                 </Text>
               )}
-            </Index>
-          </View>
-          <View class="absolute left-[10px] top-[220px] w-[340px] h-[16px]">
-            <Text class="text-xs text-slate-500">
-              L/R布局 · L1/R1功能 · A选择 · B退出
-            </Text>
+              {currentScreen() === 4 ? (
+                <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>{`${systemPageIndex() + 1}/${SYSTEM_PAGES.length}`}</Text>
+              ) : (
+                <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>
+                  {currentScreen() === 0 ? `[ ${t("catalog.builtin")} ${appTag(t, selectedApp())} ]` : `${settingsIndex() + 1}/${SETTINGS_COUNT}`}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
       ) : (
-        <View class="w-[0px] h-[0px]" />
+        <PocketFetch
+          snapshot={systemSnapshot()}
+          network={networkSnapshot()}
+          battery={batteryLevel()}
+          language={language()}
+          onRefresh={refreshPocketFetch}
+          onBack={() => setLauncherOpen(true)}
+        />
       )}
 
+      {powerMenuOpen() ? (
+        <PowerMenu
+          language={language()}
+          selected={powerChoice()}
+          busy={powerBusy()}
+          refused={powerRefused()}
+          onSelect={setPowerChoice}
+          onConfirm={runPowerAction}
+          onCancel={() => setPowerMenuOpen(false)}
+        />
+      ) : null}
     </View>
   );
 });

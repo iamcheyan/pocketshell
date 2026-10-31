@@ -1,4 +1,6 @@
 export interface SystemSnapshot {
+  user: string | null;
+  hostname: string | null;
   model: string | null;
   hardware: string | null;
   cpu: string | null;
@@ -17,9 +19,6 @@ export interface SystemSnapshot {
   storagePercent: number | null;
   display: string | null;
   runtime: string | null;
-  sdk: string | null;
-  abi: string | null;
-  build: string | null;
 }
 
 export interface NetworkSnapshot {
@@ -45,6 +44,8 @@ export function parseSystemSnapshot(payload: string): SystemSnapshot | null {
   const text = (key: string) => fields.get(key)?.trim() || null;
   const cpuUsagePercent = numeric(fields.get("cpuUsagePercent"));
   return {
+    user: text("user"),
+    hostname: text("hostname"),
     model: text("model"),
     hardware: text("hardware"),
     cpu: text("cpu"),
@@ -62,12 +63,7 @@ export function parseSystemSnapshot(payload: string): SystemSnapshot | null {
     storageTotal: text("storageTotal"),
     storagePercent: numeric(fields.get("storagePercent")),
     display: text("display"),
-    sdk: text("sdk"),
-    abi: text("abi"),
-    build: text("build"),
-    // The runtime label is the PocketJS guest the frontend runs on. Older host
-    // bridges report it as "PJOS <version>"; present it as PocketJS either way.
-    runtime: (text("runtime") ?? "").replace(/^PJOS\b/, "PocketJS").trim() || "PocketJS",
+    runtime: text("runtime"),
   };
 }
 
@@ -79,6 +75,18 @@ export function parseNetworkSnapshot(ipPayload: string, wifiPayload: string): Ne
     address: validAddress,
     connected: wifiPayload.trim() === "on",
   };
+}
+
+// `/sys/class/graphics/fb0/virtual_size` reports the whole double-buffered
+// surface ("720,960" for the 720x480 panel), so the raw pair would read as a
+// portrait screen. Halve a stacked pair once and print the panel size.
+export function displaySize(reported: string | null | undefined): string | null {
+  const value = reported?.trim();
+  if (!value) return null;
+  const [width, height] = value.split(",").map((part) => Number(part.trim()));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return value;
+  const stacked = height > width && height % 2 === 0;
+  return `${width}×${stacked ? height / 2 : height}`;
 }
 
 export function ramUsage(snapshot: SystemSnapshot | null) {
