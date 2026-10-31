@@ -17,8 +17,8 @@ wpa_supplicant、DHCP、持久化和桥命令；启动器只负责界面、输�
 | 保存网络（`save_config`） | wpa_supplicant，`/storage/.config/wpa_supplicant.conf` | 已有 |
 | 开机自动重连 | 系统 `rcS` 启动 supplicant | 已有 |
 | 状态查询（STATE/SSID/IP） | 系统桥 `wifi_status()` | 已有 |
-| 断开 / 忘记网络 | 系统桥 `WIFI\tdisconnect` / `WIFI\tforget` | **本轮新增** |
-| PSK 不经过命令行参数 | 系统桥 | **本轮改造**（现在 `wpa_cli` argv 里有明文） |
+| 断开 / 忘记网络 | 系统桥 `WIFI\tdisconnect` / `WIFI\tforget` | 已实现 |
+| PSK 不经过命令行参数 | 系统桥（`wpa_cli` 走 stdin） | 已实现 |
 | Wi-Fi 列表页、密码输入、连接中/失败提示 | **启动器 `pages/wifi-page.tsx`** | 需要你做 |
 | 软键盘输入（SELECT 唤起） | 启动器（PocketJS 输入模态） | 已有基础 |
 | i18n 文案（ja/zh/en） | 启动器 | 需要你补 |
@@ -191,3 +191,31 @@ idle ──(打开 Wi-Fi 页)──> scanning ──> list
 5. `/etc/baseos-release` 增加 `PJOS_SDK_VERSION`、`POCKETJS_ABI`，SYSTEM 页显示具体版本（已加）
 
 接口形态**不会**再变；如果实现中发现字段不够用，先在这份文档里加一节再改代码。
+
+---
+
+## 9. 附：安装好的程序怎么启动（同一个桥）
+
+卡片上已经有 10 个移植好的 PocketJS 程序，位置固定：
+
+```
+/storage/apps/<app>.pocket      # app = files, galaxy, gamehub, music, reader,
+                                #       settings, terminal, video, web, youtube-video
+```
+
+启动一条命令即可：
+
+```
+LAUNCH	<app>
+```
+
+返回 `launching:<app>`；如果包不存在返回 `error:missing:<app>`。机制是：桥把 `<app>` 写进
+`System/pocketjs/active`，然后让出画面；`launch_frontend.sh`（supervisor）重启时读到这个标记，
+直接运行该包，退出后清标记并回到启动器。**启动器不需要自己 fork 任何东西。**
+
+所以 APPS 列表建议这么做：
+
+1. 静态表里为每个 app 写 `id`、标题、分类、`kind: "pocket"`；
+2. 只有在 `/storage/apps/<id>.pocket` 存在时才显示（避免空壳卡片）——桥可以加
+   `APPS\tlist` 返回已安装列表，需要的话告诉我，我加；
+3. A 键 → `LAUNCH\t<id>`；返回 `error:missing` 时就地提示"未安装"。
