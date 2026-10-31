@@ -709,7 +709,11 @@ mount(() => {
 
   onFrame((buttons: number) => {
     if (!armed) {
+      // Arm on the first frame with nothing held. This was never set after the
+      // sleep overlay was removed, so the launcher painted but ignored every
+      // button press: the panel looked alive and nothing responded.
       previousButtons = buttons;
+      if (buttons === 0) armed = true;
       return;
     }
     const pressed = buttons & ~previousButtons;
