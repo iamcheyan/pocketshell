@@ -20,7 +20,7 @@ import { StatusBar } from "./status-bar";
 import { CardCarousel } from "./card-carousel";
 import { TouchTarget } from "./touch-target";
 import { SettingsPage, type SettingsState } from "./pages/settings-page";
-import { SETTING_ROWS, SETTINGS_COUNT, TIMEOUT_OPTIONS, parseToggle } from "./settings-model";
+import { SETTING_ROWS, SETTINGS_COUNT, TIMEOUT_OPTIONS, AUTO_POWEROFF_OPTIONS, parseToggle } from "./settings-model";
 import { readSetting, writeSetting } from "./setting-bridge";
 import { SYSTEM_PAGES, SystemPage } from "./pages/system-page";
 import { WifiPage, type WifiPhase } from "./pages/wifi-page";
@@ -70,6 +70,7 @@ mount(() => {
   const [bluetoothEnabled, setBluetoothEnabled] = createSignal(false);
   const [language, setLanguage] = createSignal("en");
   const [timeoutIndex, setTimeoutIndex] = createSignal(0); // 10s, matches the saved default
+  const [autoPoweroffIndex, setAutoPoweroffIndex] = createSignal(0); // never
   // Raw bridge answers per settings key; null means "the host did not answer".
   const [settingValues, setSettingValues] = createSignal<Record<string, string | null>>({});
 
@@ -260,6 +261,9 @@ mount(() => {
     const savedTimeout = next["timeout"];
     const timeoutAt = TIMEOUT_OPTIONS.findIndex((option) => option.value === savedTimeout);
     if (timeoutAt >= 0) setTimeoutIndex(timeoutAt);
+    const savedPower = next["autoPoweroff"];
+    const powerAt = AUTO_POWEROFF_OPTIONS.findIndex((option) => option.value === savedPower);
+    if (powerAt >= 0) setAutoPoweroffIndex(powerAt);
     const level = (raw: string | null | undefined) => {
       const value = Number(raw);
       return raw !== null && raw !== undefined && Number.isFinite(value) && value >= 0 && value <= 100 ? Math.round(value) : null;
@@ -642,6 +646,16 @@ mount(() => {
     syncSettings();
   };
 
+  const cycleAutoPoweroff = (delta: number) => {
+    const nextIdx = (autoPoweroffIndex() + delta + AUTO_POWEROFF_OPTIONS.length) % AUTO_POWEROFF_OPTIONS.length;
+    const saved = writeSetting(host, "autoPoweroff", AUTO_POWEROFF_OPTIONS[nextIdx].value);
+    if (saved) {
+      const readback = AUTO_POWEROFF_OPTIONS.findIndex((option) => option.value === saved);
+      if (readback >= 0) setAutoPoweroffIndex(readback);
+    }
+    syncSettings();
+  };
+
   const adjustSetting = (index: number, direction: -1 | 1) => {
     const row = SETTING_ROWS[index];
     if (!row) return;
@@ -650,6 +664,7 @@ mount(() => {
     else if (row.kind === "enum") {
       if (row.key === "language") cycleLanguage(direction);
       else if (row.key === "timeout") cycleTimeout(direction);
+      else if (row.key === "autoPoweroff") cycleAutoPoweroff(direction);
     }
   };
 
@@ -666,6 +681,7 @@ mount(() => {
     } else if (row.kind === "enum") {
       if (row.key === "language") cycleLanguage(1);
       else if (row.key === "timeout") cycleTimeout(1);
+      else if (row.key === "autoPoweroff") cycleAutoPoweroff(1);
     } else if (row.kind === "action") {
       // The only action row is the power dialog; it is a view, not a bridge call.
       openPowerMenu();

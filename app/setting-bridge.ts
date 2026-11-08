@@ -99,6 +99,11 @@ export const SETTING_BRIDGE: Record<string, SettingBridge> = {
     write: (value) => `SLEEP\t${value}`,
     parse: (raw) => raw.trim() || null,
   },
+  autoPoweroff: {
+    read: "STATE\tpower_timeout",
+    write: (value) => `POWER\t${value}`,
+    parse: (raw) => raw.trim() || null,
+  },
   // No device arm yet: these stay "--" until the runtime learns the key.
   btAudio: {},
   headphoneFix: {},

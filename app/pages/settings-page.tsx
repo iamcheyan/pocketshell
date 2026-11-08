@@ -7,11 +7,12 @@ import {
   SETTING_ROWS,
   SETTINGS_COUNT,
   TIMEOUT_OPTIONS,
+  AUTO_POWEROFF_OPTIONS,
   parseToggle,
   type SettingRow,
 } from "../settings-model";
 
-export { SETTING_ROWS, SETTINGS_COUNT, TIMEOUT_OPTIONS };
+export { SETTING_ROWS, SETTINGS_COUNT, TIMEOUT_OPTIONS, AUTO_POWEROFF_OPTIONS };
 
 export interface SettingsState {
   selectedIndex: number;
@@ -157,6 +158,10 @@ export function SettingsPage(props: SettingsPageProps) {
     }
     if (row.kind === "enum") {
       if (row.key === "language") return enumPill(props.state.language.toUpperCase());
+      if (row.key === "autoPoweroff") {
+        const index = AUTO_POWEROFF_OPTIONS.findIndex((option) => option.value === raw);
+        return enumPill(index >= 0 ? AUTO_POWEROFF_OPTIONS[index].label : (raw ?? t("common.unknown")));
+      }
       const index = TIMEOUT_OPTIONS.findIndex((option) => option.value === raw);
       return enumPill(index >= 0 ? TIMEOUT_OPTIONS[index].label : (raw ?? t("common.unknown")));
     }

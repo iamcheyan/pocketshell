@@ -32,6 +32,7 @@ export const SETTING_ROWS: readonly SettingRow[] = [
   { key: "headphoneFix", label: "headphoneFix", kind: "toggle", group: "system" },
   { key: "language", label: "language", kind: "enum", group: "system", values: ["en", "zh", "ja"] },
   { key: "timeout", label: "timeout", kind: "enum", group: "system" },
+  { key: "autoPoweroff", label: "autoPoweroff", kind: "enum", group: "system" },
   { key: "hostname", label: "hostname", kind: "text", group: "system" },
   { key: "ntp", label: "ntp", kind: "toggle", group: "system" },
   // Not a setting: the row opens the power dialog the long power press opens.
@@ -50,6 +51,17 @@ export const TIMEOUT_OPTIONS = [
   { label: "30m", value: "30m" },
   { label: "1h", value: "1h" },
   { label: "Never", value: "never" },
+];
+
+export const AUTO_POWEROFF_OPTIONS = [
+  { label: "Never", value: "never" },
+  { label: "1m", value: "1m" },
+  { label: "5m", value: "5m" },
+  { label: "10m", value: "10m" },
+  { label: "15m", value: "15m" },
+  { label: "30m", value: "30m" },
+  { label: "1h", value: "1h" },
+  { label: "2h", value: "2h" },
 ];
 
 /** The one shared parser for toggle values across every bridge call. */
