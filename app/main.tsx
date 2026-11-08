@@ -117,6 +117,9 @@ mount(() => {
   // The power request is a 4 Hz poll: fast enough to feel immediate, cheap
   // enough to leave the render thread alone.
   let lastPowerPoll = 0;
+  // The volume wheel changes the mixer behind the app's back, so the settings
+  // rows are re-read while that page is visible.
+  let lastSettingsPoll = 0;
 
   // -------------------------------------------------------------------------
   // Toast & Animation Helpers
@@ -851,6 +854,11 @@ mount(() => {
     if (now - lastPowerPoll >= 250 && !powerMenuOpen() && !powerBusy()) {
       lastPowerPoll = now;
       if ((host?.__launcher?.("POWER\tmenu") ?? "").trim() === "menu") openPowerMenu();
+    }
+
+    if (currentScreen() === 3 && now - lastSettingsPoll >= 400) {
+      lastSettingsPoll = now;
+      syncSettings();
     }
 
     if (now - lastHardwarePoll >= 5000) {
