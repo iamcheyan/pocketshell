@@ -125,10 +125,7 @@ export function PocketFetch(props: PocketFetchProps) {
         </View>
       </View>
 
-      <View class="w-[360px] h-[18px] flex-row items-center justify-between px-2">
-        <TouchTarget onPress={props.onBack ?? (() => {})} class="h-[18px] px-2 flex-row items-center bg-[#202b34]">
-          <Text class="text-xs font-bold" style={{ textColor: PALE }}>{t()("fetch.exit")}</Text>
-        </TouchTarget>
+      <View class="w-[360px] h-[18px] flex-row items-center justify-end px-2">
         <TouchTarget onPress={props.onRefresh ?? (() => {})} class="h-[18px] min-w-[24px] px-2 items-center justify-center"><Text class="text-xs font-mono" style={{ textColor: GREEN }}>
           ↻
         </Text></TouchTarget>

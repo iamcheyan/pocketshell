@@ -241,10 +241,20 @@ mount(() => {
   // SETTING protocol first, the device runtime's per-key commands as fallback.
   const readRow = (key: string) => readSetting(host, key);
 
+  // The codec reports its maximum for ~100ms while a tone is streaming, so a
+  // poll taken mid-beep looked like a jump to 100%. A level that spikes to 100
+  // from well below is that transient, not a user gesture: keep the previous
+  // value. Real 100% arrives one 5% step at a time and is accepted normally.
+  const settleLevel = (key: "brightness" | "volume", value: number | null) => {
+    if (value !== 100) return value;
+    const previous = key === "volume" ? volume() : brightness();
+    if (previous !== null && previous < 80) return previous;
+    return value;
+  };
+
   const syncSettings = () => {
     const next: Record<string, string | null> = {};
     for (const row of SETTING_ROWS) next[row.key] = readRow(row.key);
-    setSettingValues(next);
     const lang = next["language"];
     if (lang && ["en", "zh", "ja"].includes(lang)) setLanguage(lang);
     const savedTimeout = next["timeout"];
@@ -254,8 +264,13 @@ mount(() => {
       const value = Number(raw);
       return raw !== null && raw !== undefined && Number.isFinite(value) && value >= 0 && value <= 100 ? Math.round(value) : null;
     };
-    setBrightness(level(next["brightness"]));
-    setVolume(level(next["volume"]));
+    const brightness = settleLevel("brightness", level(next["brightness"]));
+    const volumeLevel = settleLevel("volume", level(next["volume"]));
+    if (brightness !== null) next["brightness"] = String(brightness);
+    if (volumeLevel !== null) next["volume"] = String(volumeLevel);
+    setSettingValues(next);
+    setBrightness(brightness);
+    setVolume(volumeLevel);
     setWifiEnabled(parseToggle(next["wifi"] ?? undefined));
     setBluetoothEnabled(parseToggle(next["bluetooth"] ?? undefined) ?? false);
   };
