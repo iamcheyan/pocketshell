@@ -865,6 +865,10 @@ mount(() => {
       lastHardwarePoll = now;
       syncSystemStatus();
       syncHardwareStatus();
+      // Volume is a system-wide value: the wheel, the settings row and any
+      // future hotkey all move the same mixer, so the cached signal has to
+      // follow it even while another page is visible.
+      syncSettings();
     }
 
     // Advance frame-driven toast
