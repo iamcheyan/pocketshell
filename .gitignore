@@ -2,3 +2,6 @@ dist/
 *.raw
 node_modules/
 .DS_Store
+
+# Compiler scratch output (build.sh regenerates it)
+app/dist-src/

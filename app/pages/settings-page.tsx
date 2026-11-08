@@ -19,6 +19,8 @@ export interface SettingsState {
   /** Raw bridge value per row key; null means the bridge did not answer. */
   values: Record<string, string | null>;
   wifiConnected: boolean;
+  /** Live IPv4 address; shown instead of the generic "connected" label. */
+  ipAddress: string;
 }
 
 export interface SettingsPageProps {
@@ -141,7 +143,11 @@ export function SettingsPage(props: SettingsPageProps) {
         return (
           <View class="flex-row items-center gap-1">
             <Text class="text-xs font-mono" style={{ textColor: "#5a6b7a" }}>
-              {props.state.wifiConnected ? t("settings.connected") : t("settings.disconnected")}
+              {props.state.wifiConnected
+                ? props.state.ipAddress && props.state.ipAddress !== "--"
+                  ? props.state.ipAddress
+                  : t("settings.connected")
+                : t("settings.disconnected")}
             </Text>
             {togglePill(raw, () => props.onActivate?.(props.state.selectedIndex))}
           </View>

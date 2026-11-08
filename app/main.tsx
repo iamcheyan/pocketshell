@@ -136,7 +136,7 @@ mount(() => {
     }
   };
 
-  const currentApps = () => getAppsForScreen(currentScreen());
+  const currentApps = () => getAppsForScreen(currentScreen(), host);
   const currentCardIndex = () => (currentScreen() === 0 ? homeCardIndex() : 0);
 
   const updateCardPosition = (idx: number, smooth = true) => {
@@ -706,7 +706,22 @@ mount(() => {
     }
 
     if (app.kind === "native") {
-      host?.__launcher?.(`LAUNCH\t${app.id}`);
+      // A games entry names a ROM, not a package: ask the bridge to hand that
+      // file to the supervisor, which owns the panel. Falls back to the package
+      // arm on a bridge that predates ROM support.
+      const rom = app.romPath;
+      if (rom) {
+        // The device bridge launches a ROM through the supervisor, which owns
+        // the panel: it writes the game-active marker, exits, and the frontend
+        // respawns into the player. Older bridges used a three-field "ROM"
+        // action, so fall back to it when the reply does not name a launch.
+        const answer = host?.__launcher?.(`ROMLAUNCH\t${rom}`) ?? "";
+        if (!/^(Starting game|launching:)/.test(answer)) {
+          host?.__launcher?.(`ROM\tlaunch\t${rom}`);
+        }
+      } else {
+        host?.__launcher?.(`LAUNCH\t${app.id}`);
+      }
       return;
     }
 
@@ -967,6 +982,7 @@ mount(() => {
     language: language(),
     values: settingValues(),
     wifiConnected: networkSnapshot().connected,
+    ipAddress: ipAddress(),
   });
 
   return (

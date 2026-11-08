@@ -1,6 +1,10 @@
 {
-  "characterFiles": ["launcher-characters.txt"],
+  "characterFiles": [
+    "launcher-characters.txt"
+  ],
   "fallback": [
+    "fonts/SarasaUiSC-Regular.ttf",
+    "fonts/SarasaUiSC-Bold.ttf",
     "fonts/SymbolsNerdFontMono-Regular.ttf"
   ]
 }
