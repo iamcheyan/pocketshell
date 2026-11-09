@@ -82,7 +82,9 @@ const OFF_COLOR = "#5a6b7a";
 const UNKNOWN_COLOR = "#3a4a58";
 
 export function SettingsPage(props: SettingsPageProps) {
-  const t = translator(props.state.language);
+  // Resolve at call time: the language signal lives on the parent, and a
+  // captured translator would keep the old strings until the page was rebuilt.
+  const t = (key: string, vars?: Record<string, string | number>) => translator(props.state.language)(key, vars);
   const value = (key: string) => props.state.values[key] ?? null;
   const rowLabel = (row: SettingRow) => t(`settings.${row.label}`);
   const visibleWindow = () => {
