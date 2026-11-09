@@ -243,14 +243,25 @@ mount(() => {
   const readRow = (key: string) => readSetting(host, key);
 
   // The codec reports its maximum for ~100ms while a tone is streaming, so a
-  // poll taken mid-beep looked like a jump to 100%. A level that spikes to 100
-  // from well below is that transient, not a user gesture: keep the previous
-  // value. Real 100% arrives one 5% step at a time and is accepted normally.
+  // poll taken mid-beep looked like a jump to 100% (both when raising and when
+  // lowering the level). A real adjustment moves 5% per detent, so any single
+  // poll that jumps by more than three detents is a transient: hold the
+  // previous value until the same number is read twice.
+  let pendingLevel: { key: "brightness" | "volume"; value: number } | null = null;
   const settleLevel = (key: "brightness" | "volume", value: number | null) => {
-    if (value !== 100) return value;
+    if (value === null) return null;
     const previous = key === "volume" ? volume() : brightness();
-    if (previous !== null && previous < 80) return previous;
-    return value;
+    if (previous === null) return value;
+    if (Math.abs(value - previous) <= 30) {
+      pendingLevel = null;
+      return value;
+    }
+    if (pendingLevel && pendingLevel.key === key && pendingLevel.value === value) {
+      pendingLevel = null;
+      return value;
+    }
+    pendingLevel = { key, value };
+    return previous;
   };
 
   const syncSettings = () => {
