@@ -119,17 +119,19 @@ const isUnknownArm = (raw: string): boolean => /unknown launcher action/i.test(r
 
 export const readSetting = (host: LauncherHost | undefined, key: string): string | null => {
   const unified = host?.__launcher?.(`SETTING\t${key}`)?.trim() ?? "";
-  if (unified && !isUnknownArm(unified)) return unified;
+  if (unified && !isUnknownArm(unified) && !/^error:/i.test(unified)) return unified;
   const bridge = SETTING_BRIDGE[key];
   if (!bridge?.read) return null;
   const raw = host?.__launcher?.(bridge.read)?.trim();
-  if (!raw) return null;
+  if (!raw || isUnknownArm(raw) || /^error:/i.test(raw)) return null;
   return bridge.parse ? bridge.parse(raw) : raw;
 };
 
 /** Returns the value the host reports afterwards, or null when it refused. */
 export const writeSetting = (host: LauncherHost | undefined, key: string, value: string): string | null => {
   const unified = host?.__launcher?.(`SETTING\t${key}\t${value}`)?.trim() ?? "";
+  if (unified === "error:reboot-required") return "reboot-required";
+  if (unified === "error:starting") return "starting";
   if (unified && !isUnknownArm(unified) && !/error/i.test(unified)) return readSetting(host, key);
   const bridge = SETTING_BRIDGE[key];
   if (!bridge?.write) return null;

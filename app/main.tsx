@@ -321,7 +321,11 @@ mount(() => {
     }
     const saved = writeSetting(host, key, current ? "off" : "on");
     syncSettings();
-    showToast(saved === null
+    showToast(saved === "starting"
+      ? t("toast.bluetoothStarting")
+      : saved === "reboot-required"
+      ? t("toast.rebootRequired")
+      : saved === null
       ? t("common.failed")
       : t("toast.service", { name: t(`settings.${key}`), state: t(parseToggle(saved) ? "common.on" : "common.off") }));
   };
@@ -751,21 +755,21 @@ mount(() => {
     }
 
     if (app.kind === "native") {
-      // A games entry names a ROM, not a package: ask the bridge to hand that
-      // file to the supervisor, which owns the panel. Falls back to the package
-      // arm on a bridge that predates ROM support.
       const rom = app.romPath;
       if (rom) {
-        // The device bridge launches a ROM through the supervisor, which owns
-        // the panel: it writes the game-active marker, exits, and the frontend
-        // respawns into the player. Older bridges used a three-field "ROM"
-        // action, so fall back to it when the reply does not name a launch.
         const answer = host?.__launcher?.(`ROMLAUNCH\t${rom}`) ?? "";
         if (!/^(Starting game|launching:)/.test(answer)) {
           host?.__launcher?.(`ROM\tlaunch\t${rom}`);
         }
       } else {
-        host?.__launcher?.(`LAUNCH\t${app.id}`);
+        // LAUNCH is the native hand-off arm: the bridge writes the app id into
+        // System/pocketjs/active, stops the launcher, and launch_frontend.sh
+        // respawns into the package. Bridges that predate that arm only answer
+        // on the ROM arm, so fall back there to keep the restart path working.
+        const answer = host?.__launcher?.(`LAUNCH\t${app.id}`) ?? "";
+        if (!answer || answer.includes("error") || answer.includes("Unknown") || answer === "") {
+          host?.__launcher?.(`ROM\tlaunch\t/storage/apps/${app.id}.gb`);
+        }
       }
       return;
     }

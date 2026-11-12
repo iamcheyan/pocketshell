@@ -17,9 +17,10 @@ export const LAUNCHER_APPS: readonly LauncherApp[] = [
   { id: "pocketfetch", nameKey: "app.systemInfo", shortKey: "app.systemInfo.short", descKey: "app.systemInfo.desc", tagKey: "catalog.fetch", kind: "fetch", category: "home", icon: "\uf120" },
   { id: "disk", nameKey: "app.files", shortKey: "app.files.short", descKey: "app.files.desc", tagKey: "catalog.native", kind: "native", category: "home", icon: "\uf07b" },
   { id: "xmplayer", nameKey: "app.player", shortKey: "app.player", descKey: "app.player.desc", tagKey: "catalog.native", kind: "native", category: "media", icon: "\uf001" },
+  { id: "kanade", nameKey: "app.kanade", shortKey: "app.kanade", descKey: "app.kanade.desc", tagKey: "catalog.native", kind: "native", category: "media", icon: "\uf03d" },
 ] as const;
 
-const RUNNABLE: Record<string, true> = { pocketfetch: true };
+const RUNNABLE: Record<string, true> = { pocketfetch: true, kanade: true };
 type Host = { __launcher?: (cmd: string) => string };
 
 function fileTitle(path: string): string {
