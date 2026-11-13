@@ -17,6 +17,9 @@ OUT="$REPO/dist/pocketshell.pocket"
 
 [ -x "$BUN" ] || { echo "build: bun not found at $BUN (set BUN=...)" >&2; exit 1; }
 [ -d "$SDK/contracts" ] || { echo "build: PocketJS SDK not found at $SDK (set POCKETJS_SDK=...)" >&2; exit 1; }
+OSK_THEME_PATCH=${PJOS_OSK_THEME_PATCH:-"$REPO/../PJOS-LINUX/src/apply-pocketjs-pjos-osk-theme.py"}
+[ -f "$OSK_THEME_PATCH" ] || { echo "build: PJOS OSK theme patch not found at $OSK_THEME_PATCH" >&2; exit 1; }
+python3 "$OSK_THEME_PATCH" "$SDK/framework/src/osk.tsx"
 
 # The package bakes its glyph atlas from these faces: Sarasa UI SC (更纱黑体) for
 # UI and mono slots, with the bold face and the Nerd symbols as fallbacks via
@@ -29,6 +32,7 @@ export POCKETJS_FONT_MONO="$FONT"
 
 mkdir -p "$APP_DIR" "$PROGRAM_DIR" "$REPO/dist"
 rsync -a --delete "$REPO/app/" "$APP_DIR/"
+"$BUN" "$REPO/scripts/stage-library-glyphs.ts" "$APP_DIR"
 cp "$REPO/config/profile.ts" "$PROGRAM_DIR/profile.ts"
 cp "$REPO/config/pocket.runtime-config.ts" "$PROGRAM_DIR/pocket.runtime-config.ts"
 

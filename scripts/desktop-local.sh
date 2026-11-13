@@ -32,16 +32,19 @@ PY
 
 echo "== stage app -> $SDK/apps/pocketshell"
 rsync -a --delete "$REPO/app/" "$SDK/apps/pocketshell/"
+"$BUN" "$REPO/scripts/stage-library-glyphs.ts" "$SDK/apps/pocketshell"
+"$BUN" -e 'const path = process.argv[1]; const fs = require("node:fs"); const manifest = JSON.parse(fs.readFileSync(path, "utf8")); manifest.app.viewport.fixed.presentation = "native"; fs.writeFileSync(path, JSON.stringify(manifest, null, 2));' "$SDK/apps/pocketshell/pocket.json"
 
 # The SDK has no host bridge: the device build gets ui.__launcher from
 # pocketshell-launcher.rs via ROCKNIX's patch-runtime.py. Install this repo's
 # local equivalent every time, or a stale copy silently answers with old data.
 python3 "$REPO/scripts/patch-desktop-bridge.py" "$SDK"
 python3 "$REPO/scripts/patch-desktop-touch.py" "$SDK"
+(cd "$SDK" && cargo metadata --offline --no-deps --format-version 1 >/dev/null)
 
 export PATH="$(dirname "$BUN"):$PATH"
-export POCKETJS_FONT_REGULAR="$REPO/app/fonts/SarasaUiSC-Regular.ttf"
-export POCKETJS_FONT_BOLD="$REPO/app/fonts/SarasaUiSC-Bold.ttf"
+export POCKETJS_FONT_REGULAR="$REPO/app/fonts/FusionPixel-12px-monospaced-zh_hans.ttf"
+export POCKETJS_FONT_BOLD="$POCKETJS_FONT_REGULAR"
 export POCKETJS_FONT_MONO="$POCKETJS_FONT_REGULAR"
 
 echo "== compile (linux-app)"
@@ -66,7 +69,7 @@ stop_desktop
 sleep 1
 
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "${WINIT_UNIX_BACKEND:-}" != x11 ]; then
 	WAYLAND_DISPLAY=$(basename "$(ls "$XDG_RUNTIME_DIR"/wayland-? 2>/dev/null | head -1)" 2>/dev/null || true)
 	export WAYLAND_DISPLAY
 fi
