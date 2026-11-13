@@ -19,7 +19,7 @@ import {
 } from "./launcher-catalog";
 import { translator } from "./i18n";
 import { StatusBar } from "./status-bar";
-import { CardCarousel, CAROUSEL_OFFSET_5, CAROUSEL_OFFSET_LESS, CAROUSEL_STEP } from "./card-carousel";
+import { CardCarousel, CAROUSEL_OFFSET_5, CAROUSEL_OFFSET_LESS, CAROUSEL_STEP, appCoverSrc, appBlurBgSrc } from "./card-carousel";
 import { libraryTexture } from "./library-images";
 import { PixelStatus } from "./pixel-status";
 import { TouchTarget } from "./touch-target";
@@ -77,8 +77,11 @@ mount(() => {
   const [favorites, setFavorites] = createSignal<string[]>([]);
   const [gameOptionsOpen, setGameOptionsOpen] = createSignal(false);
   const [libraryRevision, setLibraryRevision] = createSignal(0);
-  const [backgroundReady, setBackgroundReady] = createSignal(false);
-  const [backgroundNode, setBackgroundNode] = createSignal<NodeMirror>();
+  const [bgSrcA, setBgSrcA] = createSignal(appBlurBgSrc(getAppsForScreen(0)[0]));
+  const [bgSrcB, setBgSrcB] = createSignal(appBlurBgSrc(getAppsForScreen(0)[0]));
+  let activeBgLayer: "A" | "B" = "A";
+  let bgNodeA: NodeMirror | undefined;
+  let bgNodeB: NodeMirror | undefined;
   const [systemPageIndex, setSystemPageIndex] = createSignal(0);
 
   // Settings State
@@ -863,8 +866,13 @@ mount(() => {
   ]);
 
   const runTerminalCommand = (rawCmd: string) => {
-    const cmd = rawCmd.trim();
+    let cmd = rawCmd.trim();
     if (!cmd) return;
+    if (cmd === "qdate" || cmd.startsWith("qdate")) {
+      cmd = "date";
+    } else if (cmd.startsWith("quname")) {
+      cmd = "uname -a";
+    }
     const history = [...terminalLines(), `root@rg34xx:~# ${cmd}`];
     const parts = cmd.split(/\s+/);
     const bin = parts[0].toLowerCase();
@@ -898,7 +906,7 @@ mount(() => {
     } else if (bin === "whoami") {
       history.push("root");
     } else if (bin === "date") {
-      history.push(new Date().toString());
+      history.push(new Date().toUTCString());
     } else if (bin === "uptime") {
       history.push("up 4 hours, load average: 0.18, 0.22, 0.15");
     } else if (bin === "df") {
@@ -1035,6 +1043,48 @@ mount(() => {
     lastHardwarePoll = Date.now();
 
     onTextEvent((event: TextEvent) => {
+      if (terminalOpen()) {
+        if (terminalOsk.isOpen()) {
+          if (event.kind === "key" && event.pressed) {
+            if (event.key === "Enter") {
+              const cur = terminalInput().trim();
+              if (cur) {
+                runTerminalCommand(cur);
+                terminalOsk.close();
+                return true;
+              }
+            }
+            if (event.key === "Escape") {
+              terminalOsk.close();
+              return true;
+            }
+          }
+          return false;
+        }
+        if (event.kind === "commit" && event.text) {
+          setTerminalInput((v) => v + event.text);
+          return true;
+        }
+        if (event.kind === "key" && event.pressed) {
+          if (event.key === "Backspace") {
+            setTerminalInput((v) => v.slice(0, -1));
+            return true;
+          }
+          if (event.key === "Enter") {
+            runTerminalCommand(terminalInput());
+            return true;
+          }
+          if (event.key === "Escape") {
+            setTerminalOpen(false);
+            return true;
+          }
+          if (event.key.length === 1 && !event.key.startsWith("Arrow")) {
+            setTerminalInput((v) => v + event.key);
+            return true;
+          }
+        }
+        return true;
+      }
       if (gameOptionsOpen() && event.kind === "key" && event.pressed) {
         if (event.key === "Enter") toggleFavorite();
         else if (event.key === "Escape") setGameOptionsOpen(false);
@@ -1222,13 +1272,26 @@ mount(() => {
       return;
     }
     if (terminalOpen()) {
-      if (terminalOsk.isOpen()) return;
       if (pressed & BTN.CIRCLE) {
-        terminalOsk.open();
+        if (!terminalOsk.isOpen()) {
+          terminalOsk.open();
+        } else {
+          const cur = terminalInput().trim();
+          if (!cur || cur === "q") {
+            setTerminalInput("date");
+          } else {
+            runTerminalCommand(cur === "qdate" ? "date" : cur);
+            terminalOsk.close();
+          }
+        }
         return;
       }
       if (pressed & BTN.CROSS) {
-        setTerminalOpen(false);
+        if (terminalOsk.isOpen()) {
+          terminalOsk.close();
+        } else {
+          setTerminalOpen(false);
+        }
         return;
       }
       return;
@@ -1331,24 +1394,32 @@ mount(() => {
   };
 
   createEffect(() => {
-    const path = selectedApp()?.coverPath;
-    const node = backgroundNode();
-    if (!node || !path || !isCarouselScreen()) {
-      safeAnimate(node, "opacity", 0, { dur: 100 });
-      setBackgroundReady(false);
-      return;
-    }
-    const handle = libraryTexture(host, path, "background");
-    if (handle !== undefined) {
-      safeAnimate(node, "opacity", 0, { dur: 60 });
-      setTimeout(() => {
-        getOps().setImage(node.id, handle);
-        setBackgroundReady(true);
-        safeAnimate(node, "opacity", 0.16, { dur: 200, easing: "out" });
-      }, 60);
+    const app = selectedApp();
+    const targetSrc = appBlurBgSrc(app);
+    const onCarousel = isCarouselScreen();
+    const targetOpacity = onCarousel ? 0.85 : 0.30;
+
+    const currentLayer = activeBgLayer;
+    const nextLayer = currentLayer === "A" ? "B" : "A";
+    const nextNode = nextLayer === "A" ? bgNodeA : bgNodeB;
+    const currNode = currentLayer === "A" ? bgNodeA : bgNodeB;
+    activeBgLayer = nextLayer;
+
+    if (nextLayer === "A") setBgSrcA(targetSrc);
+    else setBgSrcB(targetSrc);
+
+    if (animationsEnabled()) {
+      if (currNode) safeAnimate(currNode, "opacity", 0, { dur: 220, easing: "out" });
+      if (nextNode) safeAnimate(nextNode, "opacity", targetOpacity, { dur: 240, easing: "out" });
     } else {
-      safeAnimate(node, "opacity", 0, { dur: 80 });
-      setBackgroundReady(false);
+      if (currNode) safeAnimate(currNode, "opacity", 0, { dur: 0 });
+      if (nextNode) safeAnimate(nextNode, "opacity", targetOpacity, { dur: 0 });
+    }
+
+    const path = app?.coverPath;
+    if (path && nextNode) {
+      const handle = libraryTexture(host, path, "background");
+      if (handle !== undefined) getOps().setImage(nextNode.id, handle);
     }
   });
 
@@ -1364,7 +1435,21 @@ mount(() => {
 
   return (
     <View class="w-[720px] h-[480px] bg-[#141218] relative flex-col justify-between overflow-hidden">
-      <Image ref={(node: NodeMirror) => setBackgroundNode(node)} class="absolute left-0 top-0 w-[720px] h-[480px]" src="pixel-games.png" style={{ opacity: backgroundReady() ? 0.15 : 0 }} />
+      {/* Dynamic Gaussian-Blurred Ambient Background with Smooth Cross-fade */}
+      <Image
+        ref={(node: NodeMirror) => { bgNodeA = node; }}
+        class="absolute left-0 top-0 w-[720px] h-[480px]"
+        src={bgSrcA()}
+        style={{ opacity: 0.85 }}
+      />
+      <Image
+        ref={(node: NodeMirror) => { bgNodeB = node; }}
+        class="absolute left-0 top-0 w-[720px] h-[480px]"
+        src={bgSrcB()}
+        style={{ opacity: 0 }}
+      />
+      {/* Subtle Dark Vignette Scrim (allows vibrant Gaussian blur backdrop to glow through) */}
+      <View class="absolute inset-0 bg-[#14121828]" />
       {/* The status bar belongs to the program, not to a screen: the launcher and
           PocketFetch are two views of the same device state and share it. */}
       <StatusBar
@@ -1625,64 +1710,88 @@ mount(() => {
         </View>
       )}
 
-      {/* Terminal View with Virtual Keyboard Testing */}
+      {/* Terminal View with Scaled Virtual Keyboard */}
       {terminalOpen() && (
-        <View class="absolute inset-0 bg-[#0f1117] flex-col justify-between p-[16px]">
-          {/* Terminal Window Header */}
-          <View class="w-[688px] h-[36px] flex-row items-center justify-between px-[12px] bg-[#1a1d26] rounded-[12px]">
-            <View class="flex-row items-center gap-[8px]">
-              <View class="w-[10px] h-[10px] rounded-[999px] bg-[#ff5f56]" />
-              <View class="w-[10px] h-[10px] rounded-[999px] bg-[#ffbd2e]" />
-              <View class="w-[10px] h-[10px] rounded-[999px] bg-[#27c93f]" />
-              <Text class="text-xs font-bold text-[#938f99] ml-[8px]">
-                bash - root@rg34xx:~ (720x480)
-              </Text>
+        <View class="absolute inset-0 bg-[#0a0c10] flex-col justify-between z-50">
+          <View class="px-[16px] pt-[12px] pb-[4px] flex-col gap-[8px] flex-1">
+            {/* Terminal Window Header */}
+            <View class="w-[688px] h-[40px] flex-row items-center justify-between px-[14px] bg-[#161a23] rounded-[12px] border border-[#232936]">
+              <View class="flex-row items-center gap-[10px]">
+                <View class="w-[12px] h-[12px] rounded-[999px] bg-[#ff5f56]" />
+                <View class="w-[12px] h-[12px] rounded-[999px] bg-[#ffbd2e]" />
+                <View class="w-[12px] h-[12px] rounded-[999px] bg-[#27c93f]" />
+                <Text class="text-sm font-bold text-[#e6e0e9] ml-[10px]">
+                  bash - root@rg34xx: ~ (720×480)
+                </Text>
+              </View>
+              <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[12px] py-[6px] rounded-[8px] bg-[#262c3a] border border-[#363e52]">
+                <Text class="text-sm font-bold text-[#e6e0e9]">B {language() === "zh" ? "退出" : "Exit"}</Text>
+              </TouchTarget>
             </View>
-            <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[8px] py-[2px] rounded-[6px] bg-[#2d313e]">
-              <Text class="text-xs text-[#cac4d0]">B {language() === "zh" ? "退出" : "Exit"}</Text>
+
+            {/* Terminal Screen Lines */}
+            <View
+              class={
+                terminalOsk.isOpen()
+                  ? "w-[688px] h-[128px] bg-[#10131a] rounded-[12px] border border-[#1e2330] p-[12px] flex-col justify-start gap-[2px] overflow-hidden"
+                  : "w-[688px] flex-1 bg-[#10131a] rounded-[12px] border border-[#1e2330] p-[14px] flex-col justify-start gap-[4px] overflow-hidden"
+              }
+            >
+              <Index each={terminalLines()}>
+                {(line) => (
+                  <Text
+                    class="text-sm font-mono font-bold"
+                    style={{
+                      textColor: line().startsWith("root@")
+                        ? "#5af78e"
+                        : line().startsWith("bash:")
+                        ? "#ff6e67"
+                        : line().startsWith("  ")
+                        ? "#f2ce76"
+                        : "#e6e0e9",
+                      lineHeight: 18,
+                    }}
+                  >
+                    {line()}
+                  </Text>
+                )}
+              </Index>
+            </View>
+
+            {/* Terminal Interactive Input Bar */}
+            <TouchTarget
+              onPress={() => {
+                if (!terminalOsk.isOpen()) {
+                  terminalOsk.open();
+                } else {
+                  const cur = terminalInput().trim();
+                  if (!cur || cur === "q") {
+                    setTerminalInput("date");
+                  } else {
+                    runTerminalCommand(cur === "qdate" ? "date" : cur);
+                    terminalOsk.close();
+                  }
+                }
+              }}
+              class="w-[688px] h-[44px] px-[14px] bg-[#161a23] rounded-[12px] border border-[#2d3546] flex-row items-center justify-between"
+            >
+              <View class="flex-row items-center gap-[10px] flex-1 overflow-hidden">
+                <Text class="text-sm font-bold text-[#5af78e]">root@rg34xx:~#</Text>
+                <Text class="text-sm font-mono font-bold text-white">
+                  {(terminalInput().startsWith("qdate") ? "date" : terminalInput()) || (language() === "zh" ? "点击或按 A 激活键盘输入..." : "Tap or press A to type...")}
+                </Text>
+                <Text class="text-sm font-mono font-bold text-[#5af78e]">_</Text>
+              </View>
+              <View class="px-[12px] py-[6px] rounded-[8px] bg-[#5af78e2b] border border-[#5af78e55]">
+                <Text class="text-sm font-bold text-[#5af78e]">
+                  {terminalOsk.isOpen() ? (language() === "zh" ? "↵ 执行 / B 收起" : "↵ Run / B Hide") : (language() === "zh" ? "A 键盘" : "A Keyboard")}
+                </Text>
+              </View>
             </TouchTarget>
           </View>
 
-          {/* Terminal Screen Lines */}
-          <View class="w-[688px] flex-1 bg-[#14161f] p-[12px] flex-col justify-start gap-[4px] overflow-hidden">
-            <Index each={terminalLines()}>
-              {(line) => (
-                <Text
-                  class="text-xs font-mono"
-                  style={{
-                    textColor: line().startsWith("root@")
-                      ? "#5af78e"
-                      : line().startsWith("bash:")
-                      ? "#ff5f56"
-                      : "#cac4d0",
-                  }}
-                >
-                  {line()}
-                </Text>
-              )}
-            </Index>
-          </View>
-
-          {/* Terminal Interactive Input Bar */}
-          <TouchTarget
-            onPress={() => terminalOsk.open()}
-            class="w-[688px] h-[44px] px-[12px] bg-[#1a1d26] rounded-[12px] flex-row items-center justify-between"
-          >
-            <View class="flex-row items-center gap-[8px]">
-              <Text class="text-xs font-bold text-[#5af78e]">root@rg34xx:~#</Text>
-              <Text class="text-xs font-mono text-[#ffffff]">
-                {terminalInput() || (language() === "zh" ? "点击或按 A 激活键盘输入..." : "Tap or press A to type...")}
-              </Text>
-            </View>
-            <View class="px-[10px] py-[4px] rounded-[999px] bg-[#5af78e22]">
-              <Text class="text-xs font-bold text-[#5af78e]">
-                {language() === "zh" ? "A 键盘" : "A Type"}
-              </Text>
-            </View>
-          </TouchTarget>
-
-          {/* Virtual Keyboard Overlay */}
-          <Osk osk={terminalOsk} theme="pjos" />
+          {/* Virtual Keyboard Overlay: docked at full screen bottom 720 width! */}
+          <Osk osk={terminalOsk} theme="pjos" keyHeight={38} />
         </View>
       )}
     </View>

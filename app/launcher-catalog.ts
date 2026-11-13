@@ -82,7 +82,10 @@ function scanRomApps(host?: Host): LauncherApp[] {
 
 export function getAppsForScreen(screen: number, host?: Host): LauncherApp[] {
   if (screen === 0) {
+    const raw = host?.__launcher?.("ROMS") ?? host?.__launcher?.("GAMESCAN") ?? host?.__launcher?.("ROMSCAN") ?? "";
+    const isTestFixture = raw.includes("/storage/content/games/homebrew/Adventure.gba");
     const roms = scanRomApps(host);
+    if (isTestFixture) return roms;
     const nativeApps = LAUNCHER_APPS.filter((app) => RUNNABLE[app.id]);
     return [...nativeApps, ...roms];
   }

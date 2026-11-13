@@ -227,8 +227,8 @@ export function WifiPage(props: WifiPageProps) {
 
       {/* Docked over the page's lower half while open; the OSK blocks the panel
           beneath it itself, so nothing here needs a scrim. */}
-      <View class="absolute left-0 bottom-0" style={{ width: 240 }}>
-        <Osk osk={props.osk} theme="pjos" />
+      <View class="absolute left-0 bottom-0 w-[720px]">
+        <Osk osk={props.osk} theme="pjos" keyHeight={40} />
       </View>
     </View>
   );

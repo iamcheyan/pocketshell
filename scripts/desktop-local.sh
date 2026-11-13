@@ -40,6 +40,7 @@ rsync -a --delete "$REPO/app/" "$SDK/apps/pocketshell/"
 # local equivalent every time, or a stale copy silently answers with old data.
 python3 "$REPO/scripts/patch-desktop-bridge.py" "$SDK"
 python3 "$REPO/scripts/patch-desktop-touch.py" "$SDK"
+python3 "$REPO/../PJOS-LINUX/src/apply-pocketjs-pjos-osk-theme.py" "$SDK/framework/src/osk.tsx"
 (cd "$SDK" && cargo metadata --offline --no-deps --format-version 1 >/dev/null)
 
 export PATH="$(dirname "$BUN"):$PATH"

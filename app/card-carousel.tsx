@@ -83,6 +83,37 @@ export function CardCarousel(props: CardCarouselProps) {
   );
 }
 
+export function appCoverSrc(app: LauncherApp | undefined): string {
+  if (!app) return "cover-game-default.png";
+  if (app.cover) return app.cover;
+  if (app.id === "terminal") return "cover-terminal.png";
+  if (app.id === "pocketfetch") return "cover-pocketfetch.png";
+  if (app.id === "kanade") return "cover-kanade.png";
+  if (app.id === "disk") return "cover-disk.png";
+  const name = `${app.label || ""} ${app.romPath || ""}`;
+  if (/zelda|minish|塞尔达|缩小帽|ふしぎのぼうし/i.test(name)) return "cover-zelda.png";
+  if (/apotris/i.test(name)) return "cover-apotris.png";
+  if (/celeste/i.test(name)) return "cover-celeste.png";
+  if (/dino/i.test(name)) return "cover-dino.png";
+  if (/snek|snake/i.test(name)) return "cover-snek.png";
+  return "cover-game-default.png";
+}
+
+export function appBlurBgSrc(app: LauncherApp | undefined): string {
+  if (!app) return "bg-blur-default.png";
+  if (app.id === "terminal") return "bg-blur-terminal.png";
+  if (app.id === "pocketfetch") return "bg-blur-pocketfetch.png";
+  if (app.id === "kanade") return "bg-blur-kanade.png";
+  if (app.id === "disk") return "bg-blur-disk.png";
+  const name = `${app.label || ""} ${app.romPath || ""}`;
+  if (/zelda|minish|塞尔达|缩小帽|ふしぎのぼうし/i.test(name)) return "bg-blur-zelda.png";
+  if (/apotris/i.test(name)) return "bg-blur-apotris.png";
+  if (/celeste/i.test(name)) return "bg-blur-celeste.png";
+  if (/dino/i.test(name)) return "bg-blur-dino.png";
+  if (/snek|snake/i.test(name)) return "bg-blur-snek.png";
+  return "bg-blur-default.png";
+}
+
 function CoverImage(props: { app: () => LauncherApp; active: () => boolean; isSelected: () => boolean }) {
   let node: NodeMirror | undefined;
   createEffect(() => {
@@ -97,18 +128,7 @@ function CoverImage(props: { app: () => LauncherApp; active: () => boolean; isSe
     <Image
       ref={(value: NodeMirror) => { node = value; }}
       class={props.isSelected() ? "w-[252px] h-[252px]" : "w-[200px] h-[200px]"}
-      src={
-        props.app()?.cover ||
-        (props.app()?.id === "pocketfetch"
-          ? "tux-hidpi.png"
-          : props.app()?.id === "kanade"
-          ? "cover-video.png"
-          : /zelda/i.test(props.app()?.label || "")
-          ? "zelda-minish.png"
-          : /apotris/i.test(props.app()?.label || "")
-          ? "apotris-modern.png"
-          : "cover-games.png")
-      }
+      src={appCoverSrc(props.app())}
     />
   );
 }
