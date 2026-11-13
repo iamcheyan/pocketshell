@@ -160,7 +160,7 @@ fn ip_address() -> String {
         .output();
     let Ok(output) = output else { return "--".into() };
     for line in String::from_utf8_lossy(&output.stdout).lines() {
-        // "3: wlp3s0    inet 192.168.3.188/24 brd …" — iface, "inet", prefix.
+        // "3: wlp3s0    inet 203.0.113.188/24 brd …" — iface, "inet", prefix.
         let fields: Vec<&str> = line.split_whitespace().collect();
         if fields.len() < 4 || fields[2] != "inet" || line.contains("scope host") {
             continue;
@@ -461,6 +461,8 @@ pub fn command(value: &str) -> String {
     }
     let mut fields = value.split('\t');
     match (fields.next().unwrap_or(""), fields.next().unwrap_or("")) {
+        ("ROMS", _) => std::env::var("POCKETSHELL_TEST_LIBRARY")
+            .ok().and_then(|path| std::fs::read_to_string(path).ok()).unwrap_or_default(),
         ("SYSTEM", _) => snapshot(),
         ("LEVEL", "battery") => battery_level().map_or_else(|| "unknown".into(), |v| v.to_string()),
         ("LEVEL", "battery-status") => battery_status().into(),

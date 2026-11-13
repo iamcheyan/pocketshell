@@ -5,3 +5,8 @@ node_modules/
 
 # Compiler scratch output (build.sh regenerates it)
 app/dist-src/
+
+# Third-party box art: the Minish Cap cover is libretro thumbnail art owned by its
+# publisher. It stays on local disk for device builds but is not published from
+# this public repository.
+app/zelda-minish.png

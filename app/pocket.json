@@ -20,8 +20,8 @@
     "viewport": {
       "fixed": {
         "logical": [
-          360,
-          240
+          720,
+          480
         ],
         "presentation": "integer-fit"
       }

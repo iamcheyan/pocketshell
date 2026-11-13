@@ -1,12 +1,14 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, createEffect, createMemo, onMount, Index } from "solid-js";
 import { mount } from "@pocketjs/framework/solid";
-import { Text, View, type NodeMirror } from "@pocketjs/framework/solid/components";
+import { Text, View, Image, type NodeMirror } from "@pocketjs/framework/solid/components";
+import { getOps } from "@pocketjs/framework/host";
 import { BTN, onTextEvent, type TextEvent } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { animate } from "@pocketjs/framework/animation";
-import { createOsk } from "@pocketjs/framework/osk";
+import { Osk, createOsk } from "@pocketjs/framework/osk";
 
 import {
+  LAUNCHER_APPS,
   appDescription,
   appName,
   appShortName,
@@ -17,11 +19,21 @@ import {
 } from "./launcher-catalog";
 import { translator } from "./i18n";
 import { StatusBar } from "./status-bar";
-import { CardCarousel } from "./card-carousel";
+import { CardCarousel, CAROUSEL_OFFSET_5, CAROUSEL_OFFSET_LESS, CAROUSEL_STEP } from "./card-carousel";
+import { libraryTexture } from "./library-images";
+import { PixelStatus } from "./pixel-status";
 import { TouchTarget } from "./touch-target";
 import { SettingsPage, type SettingsState } from "./pages/settings-page";
 import { SETTING_ROWS, SETTINGS_COUNT, TIMEOUT_OPTIONS, AUTO_POWEROFF_OPTIONS, parseToggle } from "./settings-model";
 import { readSetting, writeSetting } from "./setting-bridge";
+import {
+  THEME_PALETTES,
+  THEME_COLORS,
+  FONT_SIZES,
+  FONT_SCALE_CONFIGS,
+  type ThemeColorKey,
+  type FontSizeKey,
+} from "./theme-model";
 import { SYSTEM_PAGES, SystemPage } from "./pages/system-page";
 import { WifiPage, type WifiPhase } from "./pages/wifi-page";
 import { BtPage, type BtPhase } from "./pages/bt-page";
@@ -60,6 +72,13 @@ mount(() => {
 
   // Card indexes per screen
   const [homeCardIndex, setHomeCardIndex] = createSignal(0);
+  const [carouselCenter, setCarouselCenter] = createSignal(0);
+  let carouselResetAt = 0;
+  const [favorites, setFavorites] = createSignal<string[]>([]);
+  const [gameOptionsOpen, setGameOptionsOpen] = createSignal(false);
+  const [libraryRevision, setLibraryRevision] = createSignal(0);
+  const [backgroundReady, setBackgroundReady] = createSignal(false);
+  const [backgroundNode, setBackgroundNode] = createSignal<NodeMirror>();
   const [systemPageIndex, setSystemPageIndex] = createSignal(0);
 
   // Settings State
@@ -68,7 +87,7 @@ mount(() => {
   const [volume, setVolume] = createSignal<number | null>(null);
   const [wifiEnabled, setWifiEnabled] = createSignal<boolean | null>(null);
   const [bluetoothEnabled, setBluetoothEnabled] = createSignal(false);
-  const [language, setLanguage] = createSignal("en");
+  const [language, setLanguage] = createSignal("zh");
   const [timeoutIndex, setTimeoutIndex] = createSignal(0); // 10s, matches the saved default
   const [autoPoweroffIndex, setAutoPoweroffIndex] = createSignal(0); // never
   // Raw bridge answers per settings key; null means "the host did not answer".
@@ -90,12 +109,18 @@ mount(() => {
   let carouselNode: NodeMirror | undefined;
   let toastNode: NodeMirror | undefined;
   let toastFrames = 0;
+  let pendingForceQuitToast = "";
 
   interface CardNodeEntry {
     node: NodeMirror;
     screen: number;
   }
   const cardNodes: Map<number, CardNodeEntry> = new Map();
+
+  const animationsEnabled = () => {
+    const val = settingValues().animations;
+    return val !== "false" && val !== "off";
+  };
 
   const safeAnimate = (
     node: NodeMirror | undefined | null,
@@ -105,7 +130,8 @@ mount(() => {
   ): number => {
     if (!node || typeof node.id !== "number" || node.id <= 0) return 0;
     try {
-      return animate(node, prop, to, opts);
+      const actualOpts = animationsEnabled() ? opts : { ...(opts || {}), dur: 0 };
+      return animate(node, prop, to, actualOpts);
     } catch {
       return 0;
     }
@@ -121,6 +147,8 @@ mount(() => {
   // The volume wheel changes the mixer behind the app's back, so the settings
   // rows are re-read while that page is visible.
   let lastSettingsPoll = 0;
+  let zlHoldFrames = 0;
+  let zrHoldFrames = 0;
 
   // -------------------------------------------------------------------------
   // Toast & Animation Helpers
@@ -134,21 +162,26 @@ mount(() => {
       setToastMessage(message);
       toastFrames = 80; // ~1.3s at 60fps
       safeAnimate(toastNode, "opacity", 1, { dur: 100, easing: "out" });
-      safeAnimate(toastNode, "translateY", 0, { dur: 120, easing: "out-back" });
+      safeAnimate(toastNode, "translateY", 0, { dur: 120, easing: "out" });
     } catch {
       // ignore
     }
   };
 
-  const currentApps = () => getAppsForScreen(currentScreen(), host);
-  const currentCardIndex = () => (currentScreen() === 0 ? homeCardIndex() : 0);
+  const games = createMemo(() => {
+    libraryRevision();
+    return getAppsForScreen(0, host);
+  });
+  const currentApps = () => games();
+  const isCarouselScreen = () => currentScreen() === 0;
+  const currentCardIndex = () => homeCardIndex();
 
   const updateCardPosition = (idx: number, smooth = true) => {
     try {
-      const targetX = -Math.max(0, idx - 2) * 112;
+      const targetX = currentApps().length >= 5 ? CAROUSEL_OFFSET_5 : CAROUSEL_OFFSET_LESS(idx);
       if (carouselNode) {
         if (smooth) {
-          safeAnimate(carouselNode, "translateX", targetX, { dur: 220, easing: "out-back" });
+          safeAnimate(carouselNode, "translateX", targetX, { dur: 220, easing: "out" });
         } else {
           safeAnimate(carouselNode, "translateX", targetX, { dur: 0 });
         }
@@ -159,21 +192,31 @@ mount(() => {
   };
 
   // Three panels: APPS (0), SETTINGS (3), SYSTEM (4).
-  const SCREENS = [0, 3, 4];
+  const SCREENS: number[] = [0, 3, 4];
   const switchScreen = (target: number, direction: number) => {
     try {
       const next = SCREENS.includes(target) ? target : 0;
       if (next === currentScreen()) return;
 
+      if (next === 0) setLibraryRevision((revision) => revision + 1);
       setCurrentScreen(next);
+      setHomeCardIndex(0);
+      setCarouselCenter(0);
+      carouselResetAt = 0;
 
       if (next === 0) {
         updateCardPosition(currentCardIndex(), false);
       }
 
       safeAnimate(pageNode, "translateX", direction * 24, { dur: 0 });
-      safeAnimate(pageNode, "translateX", 0, { dur: 200, easing: "out-back" });
+      safeAnimate(pageNode, "translateX", 0, { dur: 200, easing: "out" });
       safeAnimate(pageNode, "opacity", 1, { dur: 180, easing: "out" });
+      if (next === 3) {
+        syncSettings();
+        lastSettingsPoll = Date.now();
+      } else if (next === 4) {
+        syncSystemStatus();
+      }
     } catch {
       // ignore
     }
@@ -182,26 +225,19 @@ mount(() => {
   const moveCard = (delta: number) => {
     const apps = currentApps();
     if (apps.length === 0) return;
-    const s = currentScreen();
-    let cur = currentCardIndex();
-    const next = (cur + delta + apps.length) % apps.length;
-
-    try {
-      const oldEntry = cardNodes.get(cur);
-      const newEntry = cardNodes.get(next);
-      if (oldEntry && oldEntry.screen === s) {
-        safeAnimate(oldEntry.node, "scale", 1.0, { dur: 160, easing: "out" });
-      }
-      if (newEntry && newEntry.screen === s) {
-        safeAnimate(newEntry.node, "scale", 1.06, { dur: 200, easing: "spring-bouncy" });
-      }
-    } catch {
-      // ignore
+    const cur = currentCardIndex();
+    const next = apps.length >= 5 ? (cur + delta + apps.length) % apps.length : Math.max(0, Math.min(apps.length - 1, cur + delta));
+    if (next === cur) return;
+    if (carouselResetAt) {
+      setCarouselCenter(cur);
+      updateCardPosition(cur, false);
+      carouselResetAt = 0;
     }
-
     setHomeCardIndex(next);
-
-    updateCardPosition(next, true);
+    if (apps.length >= 5) {
+      safeAnimate(carouselNode, "translateX", CAROUSEL_OFFSET_5 - delta * CAROUSEL_STEP, { dur: 220, easing: "out" });
+      carouselResetAt = Date.now() + 220;
+    } else updateCardPosition(next, true);
   };
 
   // -------------------------------------------------------------------------
@@ -247,21 +283,26 @@ mount(() => {
   // lowering the level). A real adjustment moves 5% per detent, so any single
   // poll that jumps by more than three detents is a transient: hold the
   // previous value until the same number is read twice.
-  let pendingLevel: { key: "brightness" | "volume"; value: number } | null = null;
+  const pendingLevel: Partial<Record<"brightness" | "volume", number>> = {};
   const settleLevel = (key: "brightness" | "volume", value: number | null) => {
     if (value === null) return null;
     const previous = key === "volume" ? volume() : brightness();
     if (previous === null) return value;
     if (Math.abs(value - previous) <= 30) {
-      pendingLevel = null;
+      delete pendingLevel[key];
       return value;
     }
-    if (pendingLevel && pendingLevel.key === key && pendingLevel.value === value) {
-      pendingLevel = null;
+    if (pendingLevel[key] === value) {
+      delete pendingLevel[key];
       return value;
     }
-    pendingLevel = { key, value };
+    pendingLevel[key] = value;
     return previous;
+  };
+
+  const level = (raw: string | null | undefined) => {
+    const value = Number(raw);
+    return raw !== null && raw !== undefined && Number.isFinite(value) && value >= 0 && value <= 100 ? Math.round(value) : null;
   };
 
   const syncSettings = () => {
@@ -275,10 +316,6 @@ mount(() => {
     const savedPower = next["autoPoweroff"];
     const powerAt = AUTO_POWEROFF_OPTIONS.findIndex((option) => option.value === savedPower);
     if (powerAt >= 0) setAutoPoweroffIndex(powerAt);
-    const level = (raw: string | null | undefined) => {
-      const value = Number(raw);
-      return raw !== null && raw !== undefined && Number.isFinite(value) && value >= 0 && value <= 100 ? Math.round(value) : null;
-    };
     const brightness = settleLevel("brightness", level(next["brightness"]));
     const volumeLevel = settleLevel("volume", level(next["volume"]));
     if (brightness !== null) next["brightness"] = String(brightness);
@@ -290,6 +327,51 @@ mount(() => {
     setBluetoothEnabled(parseToggle(next["bluetooth"] ?? undefined) ?? false);
   };
 
+  // Floating OSD for Volume and Brightness
+  const [osd, setOsd] = createSignal<{ visible: boolean; type: "brightness" | "volume"; value: number }>({
+    visible: false,
+    type: "brightness",
+    value: 50,
+  });
+  let osdTimer: any = null;
+
+  const showOsd = (type: "brightness" | "volume", value: number) => {
+    if (osdTimer) clearTimeout(osdTimer);
+    setOsd({ visible: true, type, value: Math.max(0, Math.min(100, Math.round(value))) });
+    osdTimer = setTimeout(() => {
+      setOsd((curr) => ({ ...curr, visible: false }));
+    }, 1500);
+  };
+
+  // Brightness and volume can change through hardware controls. Poll just
+  // these two values between full settings refreshes: a full pass reads every
+  // row and can spawn several helpers on the render thread.
+  const syncLevels = () => {
+    const prevB = brightness();
+    const prevV = volume();
+    const nextBrightness = settleLevel("brightness", level(readRow("brightness")));
+    const nextVolume = settleLevel("volume", level(readRow("volume")));
+    if (prevB !== null && nextBrightness !== null && prevB !== nextBrightness) {
+      showOsd("brightness", nextBrightness);
+    }
+    if (prevV !== null && nextVolume !== null && prevV !== nextVolume) {
+      showOsd("volume", nextVolume);
+    }
+    setBrightness(nextBrightness);
+    setVolume(nextVolume);
+    const brightnessText = nextBrightness === null ? null : String(nextBrightness);
+    const volumeText = nextVolume === null ? null : String(nextVolume);
+    setSettingValues((current) => current.brightness === brightnessText && current.volume === volumeText
+      ? current : { ...current, brightness: brightnessText, volume: volumeText });
+  };
+
+  // Auto-sync NTP time when Wi-Fi connects
+  createEffect(() => {
+    if (networkSnapshot().connected) {
+      writeSetting(host, "ntp", "sync");
+    }
+  });
+
   const changeLevel = (key: "brightness" | "volume", delta: number) => {
     const current = key === "brightness" ? brightness() : volume();
     if (current === null) {
@@ -299,17 +381,21 @@ mount(() => {
     const floor = key === "brightness" ? 5 : 0;
     const next = Math.max(floor, Math.min(100, current + delta));
     const saved = writeSetting(host, key, String(next));
-    syncSettings();
+    syncLevels();
     if (saved === null) showToast(t("common.failed"));
-    else showToast(t(key === "brightness" ? "toast.brightness" : "toast.volume", { value: saved }));
+    else {
+      showOsd(key, next);
+    }
   };
 
   const setLevel = (key: "brightness" | "volume", rawValue: number) => {
     const value = Math.max(key === "brightness" ? 5 : 0, Math.min(100, Math.round(rawValue)));
     const saved = writeSetting(host, key, String(value));
-    syncSettings();
+    syncLevels();
     if (saved === null) showToast(t("common.failed"));
-    else showToast(t(key === "brightness" ? "toast.brightness" : "toast.volume", { value: saved }));
+    else {
+      showOsd(key, value);
+    }
   };
 
   const toggleRow = (key: string) => {
@@ -671,13 +757,34 @@ mount(() => {
     syncSettings();
   };
 
+  const [themeColor, setThemeColor] = createSignal<ThemeColorKey>("purple");
+  const [fontSize, setFontSize] = createSignal<FontSizeKey>("normal");
+  const theme = () => THEME_PALETTES[themeColor()] || THEME_PALETTES.purple;
+  const fontConfig = () => FONT_SCALE_CONFIGS[fontSize()] || FONT_SCALE_CONFIGS.normal;
+
+  const cycleThemeColor = (delta: number) => {
+    const cur = themeColor();
+    const idx = THEME_COLORS.indexOf(cur);
+    const next = THEME_COLORS[(idx + delta + THEME_COLORS.length) % THEME_COLORS.length];
+    setThemeColor(next);
+  };
+
+  const cycleFontSize = (delta: number) => {
+    const cur = fontSize();
+    const idx = FONT_SIZES.indexOf(cur);
+    const next = FONT_SIZES[(idx + delta + FONT_SIZES.length) % FONT_SIZES.length];
+    setFontSize(next);
+  };
+
   const adjustSetting = (index: number, direction: -1 | 1) => {
     const row = SETTING_ROWS[index];
     if (!row) return;
     if (row.kind === "level") changeLevel(row.key === "brightness" ? "brightness" : "volume", direction * 5);
     else if (row.kind === "toggle") toggleRow(row.key);
     else if (row.kind === "enum") {
-      if (row.key === "language") cycleLanguage(direction);
+      if (row.key === "fontSize") cycleFontSize(direction);
+      else if (row.key === "themeColor") cycleThemeColor(direction);
+      else if (row.key === "language") cycleLanguage(direction);
       else if (row.key === "timeout") cycleTimeout(direction);
       else if (row.key === "autoPoweroff") cycleAutoPoweroff(direction);
     }
@@ -694,7 +801,9 @@ mount(() => {
       else if (row.key === "bluetooth") openBluetoothPanel();
       else toggleRow(row.key);
     } else if (row.kind === "enum") {
-      if (row.key === "language") cycleLanguage(1);
+      if (row.key === "fontSize") cycleFontSize(1);
+      else if (row.key === "themeColor") cycleThemeColor(1);
+      else if (row.key === "language") cycleLanguage(1);
       else if (row.key === "timeout") cycleTimeout(1);
       else if (row.key === "autoPoweroff") cycleAutoPoweroff(1);
     } else if (row.kind === "action") {
@@ -743,33 +852,118 @@ mount(() => {
   const moveSettingsSelection = (delta: -1 | 1) =>
     setSettingsIndex((index) => Math.max(0, Math.min(SETTINGS_COUNT - 1, index + delta)));
 
-  const launchApp = (app: LauncherApp) => {
-    showToast(t("toast.launch", { name: appShortName(t, app) }));
-    try {
-      const entry = cardNodes.get(currentCardIndex());
-      if (entry && entry.screen === currentScreen()) {
-        safeAnimate(entry.node, "scale", 1.15, { dur: 90, easing: "out" });
-      }
-    } catch {
-      // ignore
-    }
+  // Terminal state and Virtual Keyboard controller
+  const [terminalOpen, setTerminalOpen] = createSignal(false);
+  const [terminalInput, setTerminalInput] = createSignal("");
+  const [terminalLines, setTerminalLines] = createSignal<string[]>([
+    "BaseOS Linux 5.10.110 (aarch64 rg34xx)",
+    "Type commands to test virtual keyboard.",
+    "Commands: help, uname, date, whoami, uptime, df, free, ip, clear, exit",
+    "----------------------------------------",
+  ]);
 
+  const runTerminalCommand = (rawCmd: string) => {
+    const cmd = rawCmd.trim();
+    if (!cmd) return;
+    const history = [...terminalLines(), `root@rg34xx:~# ${cmd}`];
+    const parts = cmd.split(/\s+/);
+    const bin = parts[0].toLowerCase();
+    if (bin === "clear") {
+      setTerminalLines([]);
+      setTerminalInput("");
+      return;
+    }
+    if (bin === "exit") {
+      setTerminalOpen(false);
+      setTerminalInput("");
+      return;
+    }
+    if (bin === "help") {
+      history.push(
+        "Available commands:",
+        "  help      - Show this help summary",
+        "  uname -a  - Kernel and hardware architecture",
+        "  whoami    - Current logged-in user",
+        "  date      - Current system date and time",
+        "  uptime    - System uptime and load",
+        "  df -h     - Disk storage filesystem usage",
+        "  free -m   - Physical memory RAM usage",
+        "  ip / addr - Network IPv4 interface address",
+        "  echo [s]  - Print arguments",
+        "  clear     - Clear terminal buffer",
+        "  exit      - Close terminal and return to launcher"
+      );
+    } else if (bin === "uname") {
+      history.push("Linux rg34xx 5.10.110-rockchip aarch64 GNU/Linux");
+    } else if (bin === "whoami") {
+      history.push("root");
+    } else if (bin === "date") {
+      history.push(new Date().toString());
+    } else if (bin === "uptime") {
+      history.push("up 4 hours, load average: 0.18, 0.22, 0.15");
+    } else if (bin === "df") {
+      history.push(
+        "Filesystem      Size  Used Avail Use% Mounted on",
+        "/dev/root       1.8G  1.2G  520M  70% /",
+        "/dev/mmcblk0p2   58G   12G   44G  22% /storage"
+      );
+    } else if (bin === "free") {
+      const r = systemSnapshot()?.ramVariant || "1024 MB";
+      history.push(
+        "              total        used        free      shared  buff/cache   available",
+        `Mem:           ${r}      380 MB      490 MB       12 MB      154 MB      580 MB`,
+        "Swap:             0B          0B          0B"
+      );
+    } else if (bin === "ip" || bin === "ifconfig" || bin === "addr") {
+      const net = networkSnapshot();
+      history.push(
+        `wlan0: inet ${net.address || "unavailable"} netmask 255.255.255.0 broadcast 255.255.255.255`,
+        `status: ${net.connected ? "CONNECTED" : "DISCONNECTED"}`
+      );
+    } else if (bin === "echo") {
+      history.push(parts.slice(1).join(" "));
+    } else {
+      history.push(`bash: ${bin}: command not found`);
+    }
+    if (history.length > 13) {
+      setTerminalLines(history.slice(history.length - 13));
+    } else {
+      setTerminalLines(history);
+    }
+    setTerminalInput("");
+  };
+
+  const terminalOsk = createOsk({
+    value: () => terminalInput(),
+    setValue: (val) => setTerminalInput(val),
+    onCommit: () => {
+      runTerminalCommand(terminalInput());
+      terminalOsk.close();
+    },
+    maxLength: 64,
+    closeOnCommit: true,
+    onClose: () => {},
+  });
+
+  const launchApp = (app: LauncherApp) => {
+    if (app.id === "terminal") {
+      setTerminalOpen(true);
+      return;
+    }
+    showToast(t("toast.launch", { name: appShortName(t, app) }));
     if (app.kind === "native") {
       const rom = app.romPath;
       if (rom) {
         const answer = host?.__launcher?.(`ROMLAUNCH\t${rom}`) ?? "";
-        if (!/^(Starting game|launching:)/.test(answer)) {
-          host?.__launcher?.(`ROM\tlaunch\t${rom}`);
+        if (!answer || /unknown/i.test(answer)) {
+          const legacy = host?.__launcher?.(`ROM\tlaunch\t${rom}`) ?? "";
+          if (!/^launching:/i.test(legacy)) showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
+        } else if (!/^(Starting game|launching:)/i.test(answer)) {
+          showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
         }
       } else {
-        // LAUNCH is the native hand-off arm: the bridge writes the app id into
-        // System/pocketjs/active, stops the launcher, and launch_frontend.sh
-        // respawns into the package. Bridges that predate that arm only answer
-        // on the ROM arm, so fall back there to keep the restart path working.
         const answer = host?.__launcher?.(`LAUNCH\t${app.id}`) ?? "";
-        if (!answer || answer.includes("error") || answer.includes("Unknown") || answer === "") {
-          host?.__launcher?.(`ROM\tlaunch\t/storage/apps/${app.id}.gb`);
-        }
+        if (!answer || /error|unknown|unable/i.test(answer)) showToast(language() === "zh" ? "应用启动失败" : "Unable to start app");
       }
       return;
     }
@@ -785,7 +979,7 @@ mount(() => {
 
   const activateCurrent = () => {
     const s = currentScreen();
-    if (s <= 2) {
+    if (s <= 2 || s === 5) {
       const apps = currentApps();
       const app = apps[currentCardIndex()];
       if (app) launchApp(app);
@@ -807,16 +1001,45 @@ mount(() => {
     else activateCurrent();
   };
 
+  const syncFavorites = () => {
+    const result = host?.__launcher?.("FAVORITES\tlist") ?? "";
+    setFavorites(result.split("\n").filter((path) => path.startsWith("/")));
+  };
+
+  const toggleFavorite = () => {
+    const path = selectedApp()?.romPath;
+    if (!path) return;
+    const result = host?.__launcher?.(`FAVORITES\ttoggle\t${path}`) ?? "";
+    if (result === "added" || result === "removed") {
+      syncFavorites();
+      setHomeCardIndex(0);
+      setCarouselCenter(0);
+      carouselResetAt = 0;
+      updateCardPosition(0, false);
+    } else showToast(language() === "zh" ? "收藏保存失败" : "Could not save favorite");
+    setGameOptionsOpen(false);
+  };
+
 
   onMount(() => {
     // One pass fills every settings row, the language and the screen timeout —
     // they all come from the same bridge map.
     syncSettings();
+    syncFavorites();
+    const closedApp = host?.__launcher?.("FORCEQUIT")?.trim() ?? "";
+    if (/^[a-zA-Z0-9._-]{1,64}$/.test(closedApp)) {
+      const app = LAUNCHER_APPS.find((entry) => entry.id === closedApp);
+      pendingForceQuitToast = t("toast.forceQuit", { name: closedApp === "game" ? t("toast.game") : appName(t, app) || t("toast.app") });
+    }
     syncHardwareStatus();
-    syncSystemStatus();
     lastHardwarePoll = Date.now();
 
     onTextEvent((event: TextEvent) => {
+      if (gameOptionsOpen() && event.kind === "key" && event.pressed) {
+        if (event.key === "Enter") toggleFavorite();
+        else if (event.key === "Escape") setGameOptionsOpen(false);
+        return true;
+      }
       if (powerMenuOpen() && event.kind === "key" && event.pressed) {
         if (event.key === "ArrowLeft") powerMenuKey("left");
         else if (event.key === "ArrowRight") powerMenuKey("right");
@@ -845,13 +1068,13 @@ mount(() => {
       if (launcherOpen()) {
         if (event.kind === "key" && event.pressed) {
           if (event.key === "ArrowLeft") {
-            if (currentScreen() === 0) moveCard(-1);
+            if (isCarouselScreen()) moveCard(-1);
             else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
             else if (currentScreen() === 4) {
               setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
             }
           } else if (event.key === "ArrowRight") {
-            if (currentScreen() === 0) moveCard(1);
+            if (isCarouselScreen()) moveCard(1);
             else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
             else if (currentScreen() === 4) {
               setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
@@ -867,9 +1090,9 @@ mount(() => {
           } else if (event.key === "Escape") {
             if (currentScreen() !== 0) switchScreen(0, -1);
           } else if (event.key === "PageUp") {
-            switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 2) % 3], -1);
+            switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + SCREENS.length - 1) % SCREENS.length], -1);
           } else if (event.key === "PageDown") {
-            switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % 3], 1);
+            switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % SCREENS.length], 1);
           }
         }
         return true;
@@ -895,6 +1118,11 @@ mount(() => {
 
     // Poll on elapsed time so the visible page remains live at any frame rate.
     const now = Date.now();
+    if (carouselResetAt && now >= carouselResetAt) {
+      carouselResetAt = 0;
+      setCarouselCenter(currentCardIndex());
+      updateCardPosition(currentCardIndex(), false);
+    }
     // Long power press: baseos-hotkeys writes /run/power-menu.request instead of
     // cutting power. The bridge consumes the marker, so one press = one dialog.
     if (now - lastPowerPoll >= 250 && !powerMenuOpen() && !powerBusy()) {
@@ -902,19 +1130,25 @@ mount(() => {
       if ((host?.__launcher?.("POWER\tmenu") ?? "").trim() === "menu") openPowerMenu();
     }
 
-    if (currentScreen() === 3 && now - lastSettingsPoll >= 400) {
-      lastSettingsPoll = now;
-      syncSettings();
-    }
-
     if (now - lastHardwarePoll >= 5000) {
       lastHardwarePoll = now;
-      syncSystemStatus();
+      if (currentScreen() === 4) syncSystemStatus();
       syncHardwareStatus();
       // Volume is a system-wide value: the wheel, the settings row and any
       // future hotkey all move the same mixer, so the cached signal has to
       // follow it even while another page is visible.
-      syncSettings();
+      if (currentScreen() === 3) { syncSettings(); lastSettingsPoll = now; }
+      else syncLevels();
+    }
+
+    if (currentScreen() === 3 && now - lastSettingsPoll >= 400) {
+      lastSettingsPoll = now;
+      syncLevels();
+    }
+
+    if (pendingForceQuitToast && toastNode) {
+      showToast(pendingForceQuitToast);
+      pendingForceQuitToast = "";
     }
 
     // Advance frame-driven toast
@@ -943,6 +1177,11 @@ mount(() => {
       else if (pressed & BTN.RIGHT) powerMenuKey("right");
       else if (pressed & BTN.CIRCLE) powerMenuKey("ok");
       else if (pressed & BTN.CROSS) powerMenuKey("back");
+      return;
+    }
+    if (gameOptionsOpen()) {
+      if (pressed & BTN.CIRCLE) toggleFavorite();
+      else if (pressed & (BTN.CROSS | BTN.START)) setGameOptionsOpen(false);
       return;
     }
     if (wifiOpen()) {
@@ -982,24 +1221,65 @@ mount(() => {
       }
       return;
     }
-    if (launcherOpen()) {
-      if (pressed & (BTN.RTRIGGER | BTN.ZR | BTN.START)) {
-        switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % 3], 1);
+    if (terminalOpen()) {
+      if (terminalOsk.isOpen()) return;
+      if (pressed & BTN.CIRCLE) {
+        terminalOsk.open();
         return;
       }
-      if (pressed & (BTN.LTRIGGER | BTN.ZL)) {
-        switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 2) % 3], -1);
+      if (pressed & BTN.CROSS) {
+        setTerminalOpen(false);
         return;
+      }
+      return;
+    }
+    if (launcherOpen()) {
+      if (pressed & BTN.START && isCarouselScreen() && selectedApp()?.romPath) {
+        setGameOptionsOpen(true);
+        return;
+      }
+      // L1 / R1: Category navigation (Apps <-> Settings <-> System)
+      if (pressed & BTN.RTRIGGER) {
+        switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % SCREENS.length], 1);
+        return;
+      }
+      if (pressed & BTN.LTRIGGER) {
+        switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + SCREENS.length - 1) % SCREENS.length], -1);
+        return;
+      }
+      // L2 / R2: Brightness adjustment with hold-to-repeat
+      if (pressed & BTN.ZL) {
+        zlHoldFrames = 0;
+        changeLevel("brightness", -5);
+      } else if (buttons & BTN.ZL) {
+        zlHoldFrames++;
+        if (zlHoldFrames > 18 && zlHoldFrames % 6 === 0) {
+          changeLevel("brightness", -5);
+        }
+      } else {
+        zlHoldFrames = 0;
+      }
+
+      if (pressed & BTN.ZR) {
+        zrHoldFrames = 0;
+        changeLevel("brightness", 5);
+      } else if (buttons & BTN.ZR) {
+        zrHoldFrames++;
+        if (zrHoldFrames > 18 && zrHoldFrames % 6 === 0) {
+          changeLevel("brightness", 5);
+        }
+      } else {
+        zrHoldFrames = 0;
       }
       if (pressed & BTN.LEFT) {
-        if (currentScreen() === 0) moveCard(-1);
+        if (isCarouselScreen()) moveCard(-1);
         else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
         else if (currentScreen() === 4) {
           setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
         }
       }
       if (pressed & BTN.RIGHT) {
-        if (currentScreen() === 0) moveCard(1);
+        if (isCarouselScreen()) moveCard(1);
         else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
         else if (currentScreen() === 4) {
           setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
@@ -1030,10 +1310,47 @@ mount(() => {
     if (pressed & BTN.CROSS) setLauncherOpen(true);
   });
 
+  const titleLines = (name: string): string[] => {
+    const lines: string[] = []; let line = ""; let width = 0;
+    for (const word of name.replace(/[-_]+/g, " ").split(/(\s+)/)) {
+      const wordWidth = Array.from(word).reduce((n, c) => n + (c.charCodeAt(0) > 255 ? 2 : 1), 0);
+      if (width + wordWidth > 26 && line.trim()) { lines.push(line.trim()); line = ""; width = 0; }
+      for (const c of word) {
+        const cw = c.charCodeAt(0) > 255 ? 2 : 1;
+        if (width + cw > 26) { lines.push(line.trim()); line = ""; width = 0; }
+        line += c; width += cw;
+      }
+    }
+    if (line.trim()) lines.push(line.trim());
+    return lines.length <= 2 ? lines : [lines[0], lines.slice(1).join(" ").slice(0, 23) + "…"];
+  };
+
   const selectedApp = () => {
     const apps = currentApps();
     return apps[currentCardIndex()] || apps[0];
   };
+
+  createEffect(() => {
+    const path = selectedApp()?.coverPath;
+    const node = backgroundNode();
+    if (!node || !path || !isCarouselScreen()) {
+      safeAnimate(node, "opacity", 0, { dur: 100 });
+      setBackgroundReady(false);
+      return;
+    }
+    const handle = libraryTexture(host, path, "background");
+    if (handle !== undefined) {
+      safeAnimate(node, "opacity", 0, { dur: 60 });
+      setTimeout(() => {
+        getOps().setImage(node.id, handle);
+        setBackgroundReady(true);
+        safeAnimate(node, "opacity", 0.16, { dur: 200, easing: "out" });
+      }, 60);
+    } else {
+      safeAnimate(node, "opacity", 0, { dur: 80 });
+      setBackgroundReady(false);
+    }
+  });
 
   const settingsState = (): SettingsState => ({
     selectedIndex: settingsIndex(),
@@ -1041,10 +1358,13 @@ mount(() => {
     values: settingValues(),
     wifiConnected: networkSnapshot().connected,
     ipAddress: ipAddress(),
+    themeColor: themeColor(),
+    fontSize: fontSize(),
   });
 
   return (
-    <View class="w-[360px] h-[240px] bg-[#0c131a] relative flex-col justify-between overflow-hidden">
+    <View class="w-[720px] h-[480px] bg-[#141218] relative flex-col justify-between overflow-hidden">
+      <Image ref={(node: NodeMirror) => setBackgroundNode(node)} class="absolute left-0 top-0 w-[720px] h-[480px]" src="pixel-games.png" style={{ opacity: backgroundReady() ? 0.15 : 0 }} />
       {/* The status bar belongs to the program, not to a screen: the launcher and
           PocketFetch are two views of the same device state and share it. */}
       <StatusBar
@@ -1056,6 +1376,9 @@ mount(() => {
         sshEnabled={sshEnabled()}
         adbEnabled={adbEnabled()}
         mtpEnabled={mtpEnabled()}
+        themeColor={themeColor()}
+        fontSize={fontSize()}
+        showClock={settingValues().showClock === "true" || settingValues().showClock === "on"}
         onSelectTab={(screen) => switchScreen(screen, screen > currentScreen() ? 1 : -1)}
         title={launcherOpen() ? undefined : t("app.systemInfo")}
         batteryLevel={batteryLevel()}
@@ -1063,61 +1386,58 @@ mount(() => {
       />
 
       {launcherOpen() ? (
-        <View class="w-[360px] h-[218px] flex-col justify-between">
+        <View class="w-[720px] h-[416px] flex-col justify-between">
           {/* Animated Page Container */}
-          <View class="w-[360px] flex-1 flex-col justify-between overflow-hidden relative">
-            {currentScreen() === 0 ? (
-              <View class="w-[360px] h-[198px] flex-col justify-between px-2 py-1">
-                {/* Active Card Title & Description Row */}
-                <View class="w-[344px] h-[34px] flex-col justify-between">
-                  <View class="flex-row items-center justify-between">
-                    <Text class="text-sm font-bold text-white">
-                      {appName(t, selectedApp())}
-                    </Text>
-                  </View>
-                  <Text class="text-xs text-slate-400">
-                    {appDescription(t, selectedApp())}
-                  </Text>
-                </View>
-
-                {/* Horizontal Card Carousel */}
-                <CardCarousel
-                  t={t}
-                  apps={currentApps()}
-                  selectedIndex={currentCardIndex()}
-                  onMountCarousel={(node) => {
-                    carouselNode = node;
-                  }}
-                  onMountCard={(idx, node) => {
-                    cardNodes.set(idx, { node, screen: currentScreen() });
-                  }}
-                  onCardPress={(idx) => {
-                    if (idx !== currentCardIndex()) {
-                      setHomeCardIndex(idx);
-                      updateCardPosition(idx, true);
-                    } else {
-                      const app = currentApps()[idx];
-                      if (app) launchApp(app);
-                    }
-                  }}
-                  onMove={(delta) => moveCard(delta)}
-                />
-
-                {/* Action Feedback Bar */}
-                <View class="w-[344px] h-[20px] flex-row items-center justify-between">
-                  <Text class="text-xs text-slate-500">
-                    {currentCardIndex() + 1} / {currentApps().length} · {t("hint.select")}
-                  </Text>
-                  <View
-                    ref={(node: NodeMirror) => {
-                      toastNode = node;
+          <View class="w-[720px] flex-1 flex-col justify-between overflow-hidden relative">
+            {isCarouselScreen() ? (
+              <View class="w-[720px] h-[348px] flex-col justify-between items-center py-[2px]">
+                {/* Horizontal Switch-Style Card Carousel */}
+                {currentApps().length ? (
+                  <CardCarousel
+                    t={t}
+                    apps={currentApps()}
+                    selectedIndex={currentCardIndex()}
+                    windowCenter={carouselCenter()}
+                    onMountCarousel={(node) => {
+                      carouselNode = node;
+                      updateCardPosition(currentCardIndex(), false);
                     }}
-                    class="px-2 h-[18px] rounded-md bg-[#164e63] border border-[#38bdf8] items-center justify-center opacity-0"
-                  >
-                    <Text class="text-xs font-mono text-cyan-200">
-                      {toastMessage()}
+                    onMountCard={(idx, node) => {
+                      cardNodes.set(idx, { node, screen: currentScreen() });
+                    }}
+                    onCardPress={(idx) => {
+                      if (idx !== currentCardIndex()) {
+                        setHomeCardIndex(idx);
+                        setCarouselCenter(idx);
+                        carouselResetAt = 0;
+                        updateCardPosition(idx, false);
+                      } else {
+                        const app = currentApps()[idx];
+                        if (app) launchApp(app);
+                      }
+                    }}
+                    onMove={(delta) => moveCard(delta)}
+                  />
+                ) : (
+                  <View class="w-[340px] h-[140px] items-center justify-center rounded-[16px] bg-[#211f26]">
+                    <Text class="text-xl text-[#cac4d0]">
+                      {language() === "zh" ? (currentScreen() === 5 ? "暂无收藏游戏" : "暂无内容") : language() === "ja" ? "項目がありません" : (currentScreen() === 5 ? "No favorites" : "Nothing here")}
                     </Text>
                   </View>
+                )}
+
+                {/* Modern Game Title & Metadata Plaque (Material Design 3 typography) */}
+                <View class="w-[640px] flex-col items-center justify-center gap-[4px] mb-[6px]">
+                  <Text class="text-2xl font-bold text-[#e6e0e9] text-center tracking-wide">
+                    {appName(t, selectedApp()) || "Nintendo Switch"}
+                  </Text>
+                  {selectedApp() ? (
+                    <Text class="text-base font-bold text-[#cac4d0] text-center">
+                      {selectedApp()?.romPath
+                        ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
+                        : `${categoryLabel(t, selectedApp()) || "App"} · ${currentCardIndex() + 1} / ${currentApps().length}`}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             ) : currentScreen() === 3 ? (
@@ -1164,7 +1484,12 @@ mount(() => {
                   }}
                   onLevelCommit={(key, value) => setLevel(key, value)}
                   onLevelCancel={syncSettings}
-                  onAdjust={adjustSetting} />
+                  onAdjust={adjustSetting}
+                  onSetLanguage={(lang) => {
+                    const saved = writeSetting(host, "language", lang);
+                    if (saved) setLanguage(saved);
+                    syncSettings();
+                  }} />
               )
             ) : (
               /* Screen 4: System Information Page */
@@ -1180,30 +1505,46 @@ mount(() => {
                   brightness: brightness(),
                   volume: volume(),
                   language: language(),
+                  themeColor: themeColor(),
+                  fontSize: fontSize(),
                 }}
               />
             )}
           </View>
 
-          {/* The footer carries the context that used to sit beside the tabs and the
-              status glyphs: the selected app's category and kind, or the current page
-              and its counter. The key hints are gone — the pad layout is fixed. */}
-          <View class="w-[360px] h-[20px] flex-col justify-between" style={{ bgColor: "#06111B" }}>
-            <View class="w-[360px] h-[1px]" style={{ bgColor: "#1B3345" }} />
-            <View class="w-[360px] h-[19px] flex-row items-center justify-between px-2">
-              {currentScreen() === 4 ? (
-                <Text class="text-xs font-bold" style={{ textColor: "#3ECFFF" }}>{t(`system.page.${SYSTEM_PAGES[systemPageIndex()]}`)}</Text>
-              ) : (
-                <Text class="text-xs font-bold" style={{ textColor: "#3ECFFF" }}>
-                  {currentScreen() === 0 ? categoryLabel(t, selectedApp()) : t("settings.title")}
+          {/* Bottom Action Footer Bar (Material Design 3 borderless, seamless transparent background) */}
+          <View class="w-[720px] h-[64px] bg-transparent flex-row items-center justify-between px-[32px]">
+            <View class="flex-row items-center gap-[10px]">
+              <Text class="text-xl text-[#938f99]">◀ ▶</Text>
+              <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#cac4d0]" : "text-lg font-bold text-[#cac4d0]"}>
+                {language() === "zh" ? "选择" : language() === "ja" ? "選択" : "Select"}
+              </Text>
+            </View>
+            <View class="flex-row items-center gap-[28px]">
+              {/* (A) Button */}
+              <View class="flex-row items-center gap-[8px]">
+                <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>A</Text>
+                <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+                  {language() === "zh" ? "开始" : language() === "ja" ? "決定" : "Start"}
                 </Text>
-              )}
-              {currentScreen() === 4 ? (
-                <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>{`${systemPageIndex() + 1}/${SYSTEM_PAGES.length}`}</Text>
-              ) : (
-                <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>
-                  {currentScreen() === 0 ? `[ ${t("catalog.builtin")} ${appTag(t, selectedApp())} ]` : `${settingsIndex() + 1}/${SETTINGS_COUNT}`}
+              </View>
+
+              {/* (B) Button */}
+              <View class="flex-row items-center gap-[8px]">
+                <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>B</Text>
+                <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+                  {language() === "zh" ? "返回" : language() === "ja" ? "戻る" : "Back"}
                 </Text>
+              </View>
+
+              {/* (+) Button */}
+              {isCarouselScreen() && (
+                <View class="flex-row items-center gap-[8px]">
+                  <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>+</Text>
+                  <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+                    {language() === "zh" ? "选项" : language() === "ja" ? "設定" : "Options"}
+                  </Text>
+                </View>
               )}
             </View>
           </View>
@@ -1219,6 +1560,38 @@ mount(() => {
         />
       )}
 
+      <View ref={(node: NodeMirror) => { toastNode = node; }} class="absolute bottom-[60px] left-[180px] w-[360px] h-[36px] items-center opacity-0">
+        <View class="w-[360px] h-[36px] rounded-full bg-[#1e222a] border border-[#3e4555] items-center justify-center shadow-lg">
+          <Text class="text-sm font-bold text-white text-center">{toastMessage()}</Text>
+        </View>
+      </View>
+
+      {gameOptionsOpen() ? (
+        <View class="absolute inset-0 bg-[#00000099] items-center justify-center">
+          <View class="w-[320px] h-[120px] rounded-[16px] bg-[#1c2028] border-2 border-[#00d2ff] flex-col items-center justify-center gap-[12px] p-[16px]">
+            <Text class="text-base font-bold text-white text-center">
+              {favorites().includes(selectedApp()?.romPath || "")
+                ? (language() === "zh" ? "取消收藏" : language() === "ja" ? "お気に入り解除" : "Remove Favorite")
+                : (language() === "zh" ? "加入收藏" : language() === "ja" ? "お気に入り追加" : "Add Favorite")}
+            </Text>
+            <View class="flex-row items-center gap-[16px]">
+              <View class="flex-row items-center gap-[6px]">
+                <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#00d2ff]">
+                  <Text class="text-2xs font-bold text-[#14161c]">A</Text>
+                </View>
+                <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "确定" : "OK"}</Text>
+              </View>
+              <View class="flex-row items-center gap-[6px]">
+                <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#343a46]">
+                  <Text class="text-2xs font-bold text-white">B</Text>
+                </View>
+                <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "返回" : "Back"}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
       {powerMenuOpen() ? (
         <PowerMenu
           language={language()}
@@ -1230,6 +1603,88 @@ mount(() => {
           onCancel={() => setPowerMenuOpen(false)}
         />
       ) : null}
+
+      {/* Floating Volume / Brightness OSD */}
+      {osd().visible && (
+        <View class="absolute top-[14px] left-[200px] w-[320px] h-[46px] rounded-[999px] bg-[#211f26] border border-[#49454f] flex-row items-center justify-between px-[18px] shadow-lg">
+          <Text class="text-lg font-bold text-[#e6e0e9]">
+            {osd().type === "brightness" ? "☼" : "🔊"}
+          </Text>
+          <View class="w-[180px] h-[8px] rounded-[999px] bg-[#36343b] overflow-hidden">
+            <View
+              class="h-full rounded-[999px]"
+              style={{
+                width: Math.round((Math.max(0, Math.min(100, osd().value)) / 100) * 180),
+                bgColor: theme().primary,
+              }}
+            />
+          </View>
+          <Text class="text-sm font-bold" style={{ textColor: theme().primary }}>
+            {`${Math.round(osd().value)}%`}
+          </Text>
+        </View>
+      )}
+
+      {/* Terminal View with Virtual Keyboard Testing */}
+      {terminalOpen() && (
+        <View class="absolute inset-0 bg-[#0f1117] flex-col justify-between p-[16px]">
+          {/* Terminal Window Header */}
+          <View class="w-[688px] h-[36px] flex-row items-center justify-between px-[12px] bg-[#1a1d26] rounded-[12px]">
+            <View class="flex-row items-center gap-[8px]">
+              <View class="w-[10px] h-[10px] rounded-[999px] bg-[#ff5f56]" />
+              <View class="w-[10px] h-[10px] rounded-[999px] bg-[#ffbd2e]" />
+              <View class="w-[10px] h-[10px] rounded-[999px] bg-[#27c93f]" />
+              <Text class="text-xs font-bold text-[#938f99] ml-[8px]">
+                bash - root@rg34xx:~ (720x480)
+              </Text>
+            </View>
+            <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[8px] py-[2px] rounded-[6px] bg-[#2d313e]">
+              <Text class="text-xs text-[#cac4d0]">B {language() === "zh" ? "退出" : "Exit"}</Text>
+            </TouchTarget>
+          </View>
+
+          {/* Terminal Screen Lines */}
+          <View class="w-[688px] flex-1 bg-[#14161f] p-[12px] flex-col justify-start gap-[4px] overflow-hidden">
+            <Index each={terminalLines()}>
+              {(line) => (
+                <Text
+                  class="text-xs font-mono"
+                  style={{
+                    textColor: line().startsWith("root@")
+                      ? "#5af78e"
+                      : line().startsWith("bash:")
+                      ? "#ff5f56"
+                      : "#cac4d0",
+                  }}
+                >
+                  {line()}
+                </Text>
+              )}
+            </Index>
+          </View>
+
+          {/* Terminal Interactive Input Bar */}
+          <TouchTarget
+            onPress={() => terminalOsk.open()}
+            class="w-[688px] h-[44px] px-[12px] bg-[#1a1d26] rounded-[12px] flex-row items-center justify-between"
+          >
+            <View class="flex-row items-center gap-[8px]">
+              <Text class="text-xs font-bold text-[#5af78e]">root@rg34xx:~#</Text>
+              <Text class="text-xs font-mono text-[#ffffff]">
+                {terminalInput() || (language() === "zh" ? "点击或按 A 激活键盘输入..." : "Tap or press A to type...")}
+              </Text>
+            </View>
+            <View class="px-[10px] py-[4px] rounded-[999px] bg-[#5af78e22]">
+              <Text class="text-xs font-bold text-[#5af78e]">
+                {language() === "zh" ? "A 键盘" : "A Type"}
+              </Text>
+            </View>
+          </TouchTarget>
+
+          {/* Virtual Keyboard Overlay */}
+          <Osk osk={terminalOsk} theme="pjos" />
+        </View>
+      )}
     </View>
   );
 });

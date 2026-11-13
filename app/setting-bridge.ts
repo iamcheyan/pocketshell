@@ -136,6 +136,6 @@ export const writeSetting = (host: LauncherHost | undefined, key: string, value:
   const bridge = SETTING_BRIDGE[key];
   if (!bridge?.write) return null;
   const legacy = host?.__launcher?.(bridge.write(value))?.trim() ?? "";
-  if (!legacy || /failed|error|invalid|unable|unsupported/i.test(legacy)) return null;
+  if (!legacy || isUnknownArm(legacy) || /failed|error|invalid|unable|unsupported/i.test(legacy)) return null;
   return readSetting(host, key);
 };

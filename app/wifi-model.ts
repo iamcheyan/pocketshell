@@ -56,32 +56,32 @@ const securityWord = (flags: string): WifiSecurity => {
 
 export function parseScan(raw: string, saved: string[], activeSsid: string): ScanResult {
   const trimmed = raw.trim();
-  if (trimmed.startsWith("error")) {
+  if (trimmed.startsWith("error") || /unknown launcher action/i.test(trimmed)) {
     return { ok: false, reason: trimmed.includes("supplicant") ? "supplicant" : "failed" };
   }
   if (trimmed === "" || trimmed === "empty") return { ok: true, networks: [] };
 
   // Dynamic SSID keys: a scan repeats an SSID once per BSSID, and only the
   // strongest sample of each is worth showing.
-  const bySsid: Record<string, WifiNetwork> = {};
+  const bySsid = new Map<string, WifiNetwork>();
   for (const line of raw.split("\n")) {
     const [ssid, signal, sec] = line.split("\t");
     // Hidden networks arrive as an empty SSID and cannot be joined by name.
     if (!ssid || !ssid.trim() || ssidBytes(ssid) > 32) continue;
     const network: WifiNetwork = {
       ssid,
-      signal: Number(signal),
+      signal: signal?.trim() ? Number(signal) : Number.NaN,
       security: securityWord(sec ?? ""),
       saved: saved.includes(ssid),
       active: ssid === activeSsid,
     };
-    const previous = bySsid[ssid];
-    if (!previous || (Number.isFinite(network.signal) && network.signal > previous.signal)) {
-      bySsid[ssid] = network;
+    const previous = bySsid.get(ssid);
+    if (!previous || (Number.isFinite(network.signal) && (!Number.isFinite(previous.signal) || network.signal > previous.signal))) {
+      bySsid.set(ssid, network);
     }
   }
 
-  return { ok: true, networks: sortNetworks(Object.values(bySsid)) };
+  return { ok: true, networks: sortNetworks([...bySsid.values()]) };
 }
 
 /** Associated first, then by signal strength; unusable readings sink. */

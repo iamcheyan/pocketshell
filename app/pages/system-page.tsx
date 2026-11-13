@@ -3,7 +3,13 @@ import { Text, View, type NodeMirror } from "@pocketjs/framework/solid/component
 import { animate } from "@pocketjs/framework/animation";
 import { displaySize, ramUsage, type NetworkSnapshot, type SystemSnapshot } from "../system-status";
 import { translator } from "../i18n";
-import { RollingText } from "../rolling-text";
+
+import {
+  THEME_PALETTES,
+  FONT_SCALE_CONFIGS,
+  type ThemeColorKey,
+  type FontSizeKey,
+} from "../theme-model";
 
 export interface SystemStatus {
   ssh: boolean;
@@ -13,6 +19,8 @@ export interface SystemStatus {
   brightness: number | null;
   volume: number | null;
   language: string;
+  themeColor?: ThemeColorKey;
+  fontSize?: FontSizeKey;
 }
 
 export interface SystemPageProps {
@@ -22,109 +30,79 @@ export interface SystemPageProps {
   status: SystemStatus;
 }
 
-const INK = "#06111B";
-const CYAN = "#3ECFFF";
-const GREEN = "#00FF99";
-const AMBER = "#FFB400";
-const PALE = "#D8E8FF";
-const MUTED = "#7893A8";
-const LINE = "#1B3345";
-const CELL = "#0d1b26";
-
-// Three pages, each with a vertical budget that adds up to the 190px body
-// (360×198 panel minus the shell's status bar and footer):
-//
-//   OVERVIEW  14+6+3×22+2×5+8+38+6+19+4+19 = 190
-//   DEVICE    12+4+6×19+4+12+4+3×19       = 190
-//   NETWORK   12+4+3×19+6+12+4+5×19       = 190
-//
-// Fixed gaps rather than justify-between: even spacing is the point, and a page
-// that loses a row must not stretch the rest to disguise it.
-export const SYSTEM_PAGE_KEYS = ["overview", "device", "network"] as const;
+export const SYSTEM_PAGE_KEYS = ["overview", "hardware", "network"] as const;
 export const SYSTEM_PAGES = SYSTEM_PAGE_KEYS;
 
 const text = (value: string | null | undefined) => value || "--";
-const percentText = (value: number | null | undefined) => (value === null || value === undefined ? "--%" : `${value}%`);
-const compactOs = (snapshot: SystemSnapshot | null) => text(snapshot?.os).replace(/\s*Linux\s*/i, " ").trim();
+const percentText = (value: number | null | undefined) =>
+  value === null || value === undefined ? "--%" : `${Math.round(value)}%`;
+const compactOs = (snapshot: SystemSnapshot | null) =>
+  text(snapshot?.os).replace(/\s*Linux\s*/i, " ").trim();
 const compactKernel = (snapshot: SystemSnapshot | null) =>
   text(snapshot?.kernel).replace(/^Linux\s+/i, "").replace(/\s*\(([^)]+)\)\s*$/, " $1");
 
-function Bar(props: { value: number | null | undefined; color: string }) {
-  const filledCount = () => Math.round((Math.max(0, Math.min(100, props.value ?? 0)) / 100) * 28);
-  const blocks = () => Array.from({ length: 28 }, (_, index) => index < filledCount());
+function SegmentedMeter(props: { percent: number | null | undefined; color: string }) {
+  const pct = () => Math.max(0, Math.min(100, props.percent ?? 0));
+  const filledCount = () => Math.round((pct() / 100) * 8);
+  const segments = [0, 1, 2, 3, 4, 5, 6, 7];
   return (
-    <View class="w-[336px] h-[7px] flex-row gap-[2px]">
-      <Index each={blocks()}>
-        {(filled) => <View class="flex-1 h-[7px]" style={{ bgColor: filled() ? props.color : LINE }} />}
+    <View class="w-[180px] flex-row items-center gap-[4px]">
+      <Index each={segments}>
+        {(i) => {
+          const filled = () => i() < filledCount();
+          return (
+            <View
+              class="w-[18px] h-[6px] rounded-[3px]"
+              style={{
+                bgColor: filled() ? props.color : "#36343b",
+              }}
+            />
+          );
+        }}
       </Index>
     </View>
   );
 }
 
-// Label and value share a 14px line; the bar sits 1px under it. 22px total.
-// The label owns the same 132px column as Field, so every page aligns.
-function Meter(props: { label: string; value: string; color: string; percent: number | null | undefined }) {
+function MetricCard(props: {
+  title: string;
+  percent: number | null | undefined;
+  valueStr: string;
+  subtext: string;
+  color: string;
+}) {
   return (
-    <View class="w-[336px] h-[22px] flex-col justify-between">
-      <View class="w-[336px] h-[14px] flex-row items-center">
-        <View class="h-[14px] flex-row items-center overflow-hidden" style={{ width: LABEL_COL, overflow: 1 }}>
-          <Text class="text-xs font-bold tracking-wide" style={{ textColor: props.color }}>
-            {props.label}
-          </Text>
-        </View>
-        <RollingText value={props.value} color={PALE} width={VALUE_COL} />
+    <View class="w-[210px] h-[126px] p-[14px] rounded-[20px] bg-[#211f26] flex-col justify-between">
+      {/* Top: Title & Dot */}
+      <View class="flex-row items-center justify-between">
+        <Text class="text-sm font-bold text-[#cac4d0] tracking-wide">{props.title}</Text>
+        <View class="w-[8px] h-[8px] rounded-[999px]" style={{ bgColor: props.color }} />
       </View>
-      <Bar value={props.percent} color={props.color} />
-    </View>
-  );
-}
 
-// One table line: label left, value right-aligned in a fixed column so long
-// values (CPU model, kernel string) scroll instead of colliding with the label.
-const VALUE_COL = 196;
-const LABEL_COL = 132;
-function Field(props: { label: string; value: string; color?: string; muted?: boolean }) {
-  return (
-    <View class="w-[336px] h-[19px] flex-row items-center justify-between">
-      <View class="h-[19px] flex-row items-center overflow-hidden" style={{ width: LABEL_COL, overflow: 1 }}>
-        <Text class="text-xs font-bold tracking-wide" style={{ textColor: props.muted ? MUTED : props.color ?? CYAN }}>
-          {props.label}
+      {/* Middle: Value & Subtext */}
+      <View class="flex-col">
+        <Text class="text-2xl font-bold" style={{ textColor: props.color }}>
+          {props.valueStr}
         </Text>
+        <Text class="text-xs text-[#938f99]">{props.subtext}</Text>
       </View>
-      <View class="h-[19px] flex-row items-center" style={{ width: VALUE_COL }}>
-        <RollingText value={props.value} color={props.muted ? MUTED : PALE} width={VALUE_COL} />
-      </View>
+
+      {/* Bottom: 8-segment Pill Bar */}
+      <SegmentedMeter percent={props.percent} color={props.color} />
     </View>
   );
 }
 
-function Section(props: { label: string }) {
+function InfoRow(props: { label: string; value: string; color?: string; muted?: boolean }) {
   return (
-    <View class="w-[336px] h-[12px] flex-row items-center">
-      <Text class="text-xs font-bold tracking-wide" style={{ textColor: MUTED }}>
-        {props.label}
+    <View class="w-[660px] h-[40px] px-[18px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between mb-[5px]">
+      <Text class="text-base text-[#cac4d0]">{props.label}</Text>
+      <Text
+        class="text-base font-bold"
+        style={{ textColor: props.muted ? "#938f99" : props.color ?? "#e6e0e9" }}
+      >
+        {props.value}
       </Text>
-    </View>
-  );
-}
-
-// Three equal cells, 38px tall: a 12px caption over a 12px value with 4px of
-// breathing room, so the pair does not touch the cell edges.
-function Trio(props: { cells: { label: string; value: string; color: string }[] }) {
-  return (
-    <View class="w-[336px] h-[38px] flex-row gap-[4px]">
-      <Index each={props.cells}>
-        {(cell) => (
-          <View class="flex-1 h-[38px] px-[5px] py-[4px] flex-col justify-between bg-[#0d1b26] border border-[#1B3345]">
-            <Text class="text-xs font-mono" style={{ textColor: MUTED }}>
-              {cell().label}
-            </Text>
-            <Text class="text-xs font-mono" style={{ textColor: cell().color }}>
-              {cell().value}
-            </Text>
-          </View>
-        )}
-      </Index>
     </View>
   );
 }
@@ -135,13 +113,14 @@ export function SystemPage(props: SystemPageProps) {
   const cpu = () => snapshot()?.cpuUsagePercent ?? null;
   const storage = () => snapshot()?.storagePercent ?? null;
   const t = () => translator(props.status.language);
-  const onOff = (value: boolean) => (value ? t()("common.on") : t()("common.off"));
-  // `ramVariant` is a device-tree fact (H700 DDR4). Where the bridge has none,
-  // show the measured total instead of an empty dash.
-  const memoryLabel = () => text(snapshot()?.ramVariant) === "--"
-    ? (ram() ? `${ram()!.totalMb} MB` : "--")
-    : text(snapshot()?.ramVariant);
-  const lowBattery = () => props.status.battery >= 0 && props.status.battery <= 20;
+
+  const memoryLabel = () =>
+    text(snapshot()?.ramVariant) === "--"
+      ? ram()
+        ? `${ram()!.totalMb} MB`
+        : "--"
+      : text(snapshot()?.ramVariant);
+
   let pageNode: NodeMirror | undefined;
   createEffect(() => {
     props.pageIndex;
@@ -152,106 +131,174 @@ export function SystemPage(props: SystemPageProps) {
       animate(pageNode, "opacity", 0.7, { dur: 0 });
       animate(pageNode, "opacity", 1, { dur: 120, easing: "out" });
     } catch {
-      // Current page remains visible if animation is unavailable.
+      // ignore
     }
   });
 
   return (
-    <View class="w-[360px] h-[198px] flex-col px-3 py-1" style={{ bgColor: INK }}>
-      <View class="w-[336px] h-[190px] flex-col" ref={(node: NodeMirror) => { pageNode = node; }}>
-
+    <View class="w-[720px] h-[348px] px-[30px] py-[6px] bg-transparent flex-col items-center justify-center">
+      <View
+        class="w-[660px] flex-col"
+        ref={(node: NodeMirror) => {
+          pageNode = node;
+        }}
+      >
         {props.pageIndex === 0 ? (
-          <>
-            <View class="w-[336px] h-[14px] flex-row items-center justify-between">
-              <Text class="text-xs font-mono" style={{ textColor: MUTED }}>
-                {text(snapshot()?.model)}
-              </Text>
-              <Text class="text-xs font-mono" style={{ textColor: MUTED }}>
-                {memoryLabel()}
-              </Text>
+          <View class="w-[660px] flex-col">
+            {/* Header Device Summary */}
+            <View class="w-[660px] flex-row items-center justify-between px-[4px] mb-[6px]">
+              <Text class="text-lg font-bold text-[#e6e0e9]">{text(snapshot()?.model)}</Text>
+              <Text class="text-sm font-bold text-[#cac4d0]">{memoryLabel()}</Text>
             </View>
-            <View class="h-[6px]" />
-            <Meter label={t()("system.cpu")} value={percentText(cpu())} color={CYAN} percent={cpu()} />
-            <View class="h-[5px]" />
-            <Meter
-              label={t()("system.memory")}
-              value={ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}
-              color={GREEN}
-              percent={ram()?.percent}
-            />
-            <View class="h-[5px]" />
-            <Meter
-              label={t()("system.storage")}
-              value={snapshot()?.storageUsed && snapshot()?.storageTotal ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}` : "-- / --"}
-              color={AMBER}
-              percent={storage()}
-            />
-            <View class="h-[8px]" />
-            <Trio
-              cells={[
-                { label: "SSH", value: onOff(props.status.ssh), color: props.status.ssh ? GREEN : MUTED },
-                { label: "ADB", value: onOff(props.status.adb), color: props.status.adb ? GREEN : MUTED },
-                { label: "MTP", value: onOff(props.status.mtp), color: props.status.mtp ? GREEN : MUTED },
-              ]}
-            />
-            <View class="h-[6px]" />
-            <Field label={t()("system.os")} value={compactOs(snapshot())} />
-            <View class="h-[4px]" />
-            <Field label={t()("system.kernel")} value={compactKernel(snapshot())} muted />
-          </>
+
+            {/* 3 Metric Cards Side-by-Side (No overflow) */}
+            <View class="w-[660px] flex-row justify-between mb-[8px]">
+              <MetricCard
+                title={t()("system.cpu")}
+                percent={cpu()}
+                valueStr={percentText(cpu())}
+                subtext={snapshot()?.cpu || "Quad-Core ARM"}
+                color="#d0bcff"
+              />
+              <MetricCard
+                title={t()("system.memory")}
+                percent={ram()?.percent}
+                valueStr={percentText(ram()?.percent)}
+                subtext={ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}
+                color="#a8efff"
+              />
+              <MetricCard
+                title={t()("system.storage")}
+                percent={storage()}
+                valueStr={percentText(storage())}
+                subtext={
+                  snapshot()?.storageUsed && snapshot()?.storageTotal
+                    ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}`
+                    : "-- / --"
+                }
+                color="#ffd8e4"
+              />
+            </View>
+
+            {/* Service Status Row (SSH, ADB, MTP) */}
+            <View class="w-[660px] flex-row justify-between mb-[8px]">
+              <View class="w-[210px] h-[44px] px-[16px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between">
+                <Text class="text-sm font-bold text-[#cac4d0]">SSH</Text>
+                <View
+                  class={
+                    props.status.ssh
+                      ? "px-[10px] py-[2px] rounded-[999px] bg-[#1e3a2f]"
+                      : "px-[10px] py-[2px] rounded-[999px] bg-[#36343b]"
+                  }
+                >
+                  <Text
+                    class="text-xs font-bold"
+                    style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}
+                  >
+                    {props.status.ssh ? "ON" : "OFF"}
+                  </Text>
+                </View>
+              </View>
+
+              <View class="w-[210px] h-[44px] px-[16px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between">
+                <Text class="text-sm font-bold text-[#cac4d0]">ADB</Text>
+                <View
+                  class={
+                    props.status.adb
+                      ? "px-[10px] py-[2px] rounded-[999px] bg-[#1e3a2f]"
+                      : "px-[10px] py-[2px] rounded-[999px] bg-[#36343b]"
+                  }
+                >
+                  <Text
+                    class="text-xs font-bold"
+                    style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}
+                  >
+                    {props.status.adb ? "ON" : "OFF"}
+                  </Text>
+                </View>
+              </View>
+
+              <View class="w-[210px] h-[44px] px-[16px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between">
+                <Text class="text-sm font-bold text-[#cac4d0]">MTP</Text>
+                <View
+                  class={
+                    props.status.mtp
+                      ? "px-[10px] py-[2px] rounded-[999px] bg-[#1e3a2f]"
+                      : "px-[10px] py-[2px] rounded-[999px] bg-[#36343b]"
+                  }
+                >
+                  <Text
+                    class="text-xs font-bold"
+                    style={{ textColor: props.status.mtp ? "#a8efff" : "#938f99" }}
+                  >
+                    {props.status.mtp ? "ON" : "OFF"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* OS & Kernel */}
+            <InfoRow label={t()("system.os")} value={compactOs(snapshot())} />
+            <InfoRow label={t()("system.kernel")} value={compactKernel(snapshot())} muted />
+          </View>
         ) : null}
 
         {props.pageIndex === 1 ? (
-          <>
-            <Section label={t()("system.hardware")} />
-            <View class="h-[4px]" />
-            <Field label={t()("system.board")} value={text(snapshot()?.hardware)} />
-            <Field label={t()("system.cpu")} value={text(snapshot()?.cpu)} />
-            <Field label={t()("system.frequency")} value={text(snapshot()?.frequency)} />
-            <Field label={t()("system.temperature")} value={text(snapshot()?.temperature)} color={AMBER} />
-            <Field label={t()("system.memory")} value={memoryLabel()} color={GREEN} />
-            <Field label={t()("system.display")} value={displaySize(snapshot()?.display) ?? "--"} />
-            <View class="h-[4px]" />
-            <Section label={t()("system.software")} />
-            <View class="h-[4px]" />
-            <Field label={t()("system.os")} value={compactOs(snapshot())} />
-            <Field label={t()("system.kernel")} value={compactKernel(snapshot())} />
-            <Field label={t()("system.runtime")} value={text(snapshot()?.runtime)} muted />
-          </>
+          <View class="w-[660px] flex-col">
+            <View class="w-[660px] px-[6px] mb-[6px]">
+              <Text class="text-base font-bold text-[#d0bcff]">{t()("system.hardware")}</Text>
+            </View>
+            <InfoRow label={t()("system.board")} value={text(snapshot()?.hardware)} />
+            <InfoRow label={t()("system.cpu")} value={text(snapshot()?.cpu)} />
+            <InfoRow label={t()("system.frequency")} value={text(snapshot()?.frequency)} />
+            <InfoRow
+              label={t()("system.temperature")}
+              value={text(snapshot()?.temperature)}
+              color="#ffd8e4"
+            />
+            <InfoRow label={t()("system.memory")} value={memoryLabel()} color="#a8efff" />
+            <InfoRow
+              label={t()("system.display")}
+              value={displaySize(snapshot()?.display) ?? "--"}
+            />
+            <InfoRow label={t()("system.runtime")} value={text(snapshot()?.runtime)} muted />
+          </View>
         ) : null}
 
         {props.pageIndex === 2 ? (
-          <>
-            <Section label={t()("system.link")} />
-            <View class="h-[4px]" />
-            <Field
+          <View class="w-[660px] flex-col">
+            <View class="w-[660px] px-[6px] mb-[6px]">
+              <Text class="text-base font-bold text-[#d0bcff]">{t()("system.link")}</Text>
+            </View>
+            <InfoRow
               label={t()("system.status")}
               value={props.network.connected ? t()("system.connected") : t()("system.disconnected")}
-              color={props.network.connected ? GREEN : AMBER}
+              color={props.network.connected ? "#a8efff" : "#ffd8e4"}
             />
-            <Field label={t()("system.interface")} value={text(props.network.interface).toUpperCase()} />
-            <Field label={t()("system.address")} value={text(props.network.address)} />
-            <View class="h-[6px]" />
-            <Section label={t()("system.thisDevice")} />
-            <View class="h-[4px]" />
-            <Field
+            <InfoRow
+              label={t()("system.interface")}
+              value={text(props.network.interface).toUpperCase()}
+            />
+            <InfoRow label={t()("system.address")} value={text(props.network.address)} />
+
+            <View class="w-[660px] px-[6px] mt-[6px] mb-[6px]">
+              <Text class="text-base font-bold text-[#d0bcff]">{t()("system.thisDevice")}</Text>
+            </View>
+            <InfoRow
               label={t()("system.battery")}
               value={props.status.battery >= 0 ? `${props.status.battery}%` : "--"}
-              color={lowBattery() ? AMBER : GREEN}
+              color={props.status.battery <= 20 ? "#ffb4ab" : "#a8efff"}
             />
-            <Field
+            <InfoRow
               label={t()("system.brightness")}
               value={props.status.brightness === null ? "--" : `${props.status.brightness}%`}
             />
-            <Field
+            <InfoRow
               label={t()("system.volume")}
               value={props.status.volume === null ? "--" : `${props.status.volume}%`}
             />
-            <Field label={t()("system.language")} value={props.status.language.toUpperCase()} color={CYAN} />
-            <Field label={t()("system.display")} value={displaySize(snapshot()?.display) ?? "--"} />
-          </>
+          </View>
         ) : null}
-
       </View>
     </View>
   );

@@ -1,3 +1,4 @@
+import { PixelStatus } from "../pixel-status";
 import { Index } from "solid-js";
 import { Text, View } from "@pocketjs/framework/solid/components";
 import { translator } from "../i18n";
@@ -28,9 +29,9 @@ const VISIBLE = 6;
 // glance which rows are already known to the handheld.
 const BARS: ReadonlyArray<readonly [string, string, string]> = [
   ["#233441", "#233441", "#233441"],
-  ["#4ed49a", "#233441", "#233441"],
-  ["#4ed49a", "#4ed49a", "#233441"],
-  ["#4ed49a", "#4ed49a", "#4ed49a"],
+  ["#f2ce76", "#233441", "#233441"],
+  ["#f2ce76", "#f2ce76", "#233441"],
+  ["#f2ce76", "#f2ce76", "#f2ce76"],
 ];
 
 const levelFor = (rssi: number): number => {
@@ -42,11 +43,11 @@ const levelFor = (rssi: number): number => {
 
 function SignalBars(props: { rssi: number; dim: boolean }) {
   return (
-    <View class="w-[16px] h-[12px] flex-row items-end gap-[2px]">
+    <View class="w-[11px] h-[8px] flex-row items-end gap-[1px]">
       <Index each={[0, 1, 2]}>
         {(bar) => (
           <View
-            class="w-[3px]"
+            class="w-[2px]"
             style={{
               height: 3 + bar() * 3,
               bgColor: props.dim ? "#2c3d4a" : BARS[levelFor(props.rssi)][bar()],
@@ -69,13 +70,13 @@ export function BtPage(props: BtPageProps) {
   const empty = () => props.devices.length === 0;
 
   return (
-    <View class="w-[360px] h-[198px] flex-col px-2 py-1">
-      <View class="w-[344px] h-[22px] flex-row items-center justify-between">
-        <View class="flex-row items-center gap-2">
-          <Text class="text-sm font-bold text-white">{"\uf293"}</Text>
-          <Text class="text-sm font-bold text-white">{t()("bt.title")}</Text>
+    <View class="w-[240px] h-[132px] flex-col px-[5px] py-[3px]">
+      <View class="w-[229px] h-[15px] flex-row items-center justify-between">
+        <View class="flex-row items-center gap-[5px]">
+          <PixelStatus kind="bluetooth" color="#f2ce76" />
+          <Text class="text-xs font-bold text-white">{t()("bt.title")}</Text>
         </View>
-        <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>
+        <Text class="text-2xs" style={{ textColor: "#9893ad" }}>
           {props.phase === "scanning"
             ? t()("bt.scanning")
             : props.phase === "connecting"
@@ -86,21 +87,21 @@ export function BtPage(props: BtPageProps) {
         </Text>
       </View>
 
-      <View class="w-[344px] flex-1 flex-col">
+      <View class="w-[229px] flex-1 flex-col">
         {props.phase === "scanning" || props.phase === "connecting" ? (
-          <View class="w-[344px] h-[70px] flex-col items-center justify-center gap-2">
+          <View class="w-[229px] h-[47px] flex-col items-center justify-center gap-[5px]">
             <ScanTrack active />
-            <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>
+            <Text class="text-2xs" style={{ textColor: "#9893ad" }}>
               {props.phase === "scanning" ? t()("bt.scanning") : t()("bt.connecting")}
             </Text>
           </View>
         ) : props.powered === false ? (
-          <View class="w-[344px] h-[70px] items-center justify-center">
-            <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>{t()("bt.off")}</Text>
+          <View class="w-[229px] h-[47px] items-center justify-center">
+            <Text class="text-2xs" style={{ textColor: "#9893ad" }}>{t()("bt.off")}</Text>
           </View>
         ) : empty() ? (
-          <View class="w-[344px] h-[70px] items-center justify-center">
-            <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>{t()("bt.empty")}</Text>
+          <View class="w-[229px] h-[47px] items-center justify-center">
+            <Text class="text-2xs" style={{ textColor: "#9893ad" }}>{t()("bt.empty")}</Text>
           </View>
         ) : (
           <Index each={windowRows()}>
@@ -112,29 +113,29 @@ export function BtPage(props: BtPageProps) {
                 }}
                 class={
                   row().realIndex === props.index
-                    ? "w-[344px] h-[19px] flex-row items-center justify-between px-2 bg-[#164e63]"
-                    : "w-[344px] h-[19px] flex-row items-center justify-between px-2"
+                    ? "w-[229px] h-[13px] flex-row items-center justify-between px-[5px] bg-[#39304e]"
+                    : "w-[229px] h-[13px] flex-row items-center justify-between px-[5px]"
                 }
               >
-                <View class="flex-row items-center gap-2">
+                <View class="flex-row items-center gap-[5px]">
                   <View
-                    class="w-[8px] h-[8px]"
+                    class="w-[5px] h-[5px]"
                     style={{
                       bgColor: row().paired
-                        ? "#4ed49a"
-                        : row().realIndex === props.index ? "#58c8e8" : "#31465a",
+                        ? "#f2ce76"
+                        : row().realIndex === props.index ? "#f2ce76" : "#31465a",
                     }}
                   />
                   <Text
-                    class="text-xs"
-                    style={{ textColor: row().realIndex === props.index ? "#EAF7FF" : "#D8E8FF" }}
+                    class="text-2xs"
+                    style={{ textColor: row().realIndex === props.index ? "#EAF7FF" : "#f5eddb" }}
                   >
                     {row().name.length > 22 ? `${row().name.slice(0, 21)}…` : row().name}
                   </Text>
                 </View>
-                <View class="flex-row items-center gap-2">
+                <View class="flex-row items-center gap-[5px]">
                   {row().paired ? (
-                    <Text class="text-xs font-mono" style={{ textColor: "#4ed49a" }}>{t()("bt.paired")}</Text>
+                    <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("bt.paired")}</Text>
                   ) : null}
                   <SignalBars rssi={row().rssi} dim={row().realIndex !== props.index} />
                 </View>
@@ -144,24 +145,24 @@ export function BtPage(props: BtPageProps) {
         )}
       </View>
 
-      <View class="w-[344px] h-[18px] flex-row items-center justify-between">
-        <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>{props.status}</Text>
-        <View class="flex-row items-center gap-2">
+      <View class="w-[229px] h-[12px] flex-row items-center justify-between">
+        <Text class="text-2xs" style={{ textColor: "#9893ad" }}>{props.status}</Text>
+        <View class="flex-row items-center gap-[5px]">
           {props.phase === "list" && selected()?.paired ? (
-            <TouchTarget onPress={() => selected() && props.onDisconnect(selected().address)} class="h-[18px] px-2 items-center justify-center">
-              <Text class="text-xs font-mono" style={{ textColor: "#FFB400" }}>{t()("bt.disconnect")}</Text>
+            <TouchTarget onPress={() => selected() && props.onDisconnect(selected().address)} class="h-[12px] px-[5px] items-center justify-center">
+              <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("bt.disconnect")}</Text>
             </TouchTarget>
           ) : null}
           {props.phase === "list" && selected()?.paired ? (
-            <TouchTarget onPress={() => selected() && props.onForget(selected().address)} class="h-[18px] px-2 items-center justify-center">
-              <Text class="text-xs font-mono" style={{ textColor: "#FFB400" }}>{t()("bt.forget")}</Text>
+            <TouchTarget onPress={() => selected() && props.onForget(selected().address)} class="h-[12px] px-[5px] items-center justify-center">
+              <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("bt.forget")}</Text>
             </TouchTarget>
           ) : null}
-          <TouchTarget onPress={props.onRescan} class="h-[18px] px-2 items-center justify-center">
-            <Text class="text-xs font-mono" style={{ textColor: "#3ECFFF" }}>{t()("bt.rescan")}</Text>
+          <TouchTarget onPress={props.onRescan} class="h-[12px] px-[5px] items-center justify-center">
+            <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("bt.rescan")}</Text>
           </TouchTarget>
-          <TouchTarget onPress={props.onBack} class="h-[18px] px-2 items-center justify-center">
-            <Text class="text-xs font-mono" style={{ textColor: "#7893A8" }}>{t()("bt.back")}</Text>
+          <TouchTarget onPress={props.onBack} class="h-[12px] px-[5px] items-center justify-center">
+            <Text class="text-2xs" style={{ textColor: "#9893ad" }}>{t()("bt.back")}</Text>
           </TouchTarget>
         </View>
       </View>

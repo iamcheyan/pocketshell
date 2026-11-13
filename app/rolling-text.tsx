@@ -9,7 +9,7 @@ export interface RollingTextProps {
   color: string;
   /** Column width in logical px; text wider than this scrolls. */
   width: number;
-  /** Font slot used to measure — 16 is 12px monospace. */
+  /** Font slot used to measure — 19 is the 10 px label face. */
   slot?: number;
   /** Show the value only, no scrolling (used for numbers that must not move). */
   still?: boolean;
@@ -45,7 +45,7 @@ export function RollingText(props: RollingTextProps) {
     const still = props.still === true;
     let width = 0;
     try {
-      width = getOps().measureText(value, props.slot ?? 16);
+      width = getOps().measureText(value, props.slot ?? 19);
     } catch {
       width = 0;
     }
@@ -77,12 +77,12 @@ export function RollingText(props: RollingTextProps) {
   });
 
   return (
-    <View class="h-[14px] overflow-hidden" style={{ width: props.width, overflow: 1 }}>
+    <View class="h-[12px] overflow-hidden" style={{ width: props.width, overflow: 1 }}>
       <Text
         ref={(mirror: NodeMirror) => {
           node = mirror;
         }}
-        class="text-xs font-mono"
+        class="text-2xs"
         style={{ textColor: props.color }}
       >
         {props.value}

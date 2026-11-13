@@ -14,23 +14,23 @@ export interface PocketFetchProps {
   onBack?: () => void;
 }
 
-const INK = "#06111B";
-const CYAN = "#3ECFFF";
-const GREEN = "#00FF99";
-const AMBER = "#FFB400";
-const PALE = "#D8E8FF";
-const MUTED = "#7893A8";
-const LINE = "#1B3345";
+const INK = "#19172b";
+const CYAN = "#f2ce76";
+const GREEN = "#f2ce76";
+const AMBER = "#f2ce76";
+const PALE = "#f5eddb";
+const MUTED = "#9893ad";
+const LINE = "#38334f";
 
 // The value column is 210px at 12px monospace; RollingText scrolls anything
 // wider instead of clipping it.
-const VALUE_WIDTH = 210;
+const VALUE_WIDTH = 120;
 
 // Tux: the kernel's logo_linux_clut224, cut out of the driver tree and shipped
 // as a pak image so the mark is the same penguin the boot log draws.
 const LOGO_SRC = "tux.png";
-const LOGO_W = 54;
-const LOGO_H = 54;
+const LOGO_W = 36;
+const LOGO_H = 36;
 
 // `user@host` from the bridge. A machine that answers neither keeps the generic
 // localhost form rather than a device name that may be wrong.
@@ -101,21 +101,21 @@ export function PocketFetch(props: PocketFetchProps) {
   const t = () => translator(props.language);
 
   return (
-    <View class="w-[360px] h-[218px] flex-col" style={{ bgColor: INK }}>
-      <View class="w-[360px] flex-1 flex-row px-3 pt-2">
-        <Image class="mt-1 mr-3" src={LOGO_SRC} style={{ width: LOGO_W, height: LOGO_H }} />
+    <View class="w-[240px] h-[145px] flex-col" style={{ bgColor: INK }}>
+      <View class="w-[240px] flex-1 flex-row px-[8px] pt-[5px]">
+        <Image class="mt-[3px] mr-[8px]" src={LOGO_SRC} style={{ width: LOGO_W, height: LOGO_H }} />
 
         <View class="flex-col">
-          <Text class="text-xs font-bold" style={{ textColor: GREEN }}>
+          <Text class="text-2xs font-bold" style={{ textColor: GREEN }}>
             {promptLine()}
           </Text>
-          <Text class="text-xs font-mono" style={{ textColor: LINE }}>
+          <Text class="text-2xs" style={{ textColor: LINE }}>
             ------------------
           </Text>
           <For each={rows()}>
             {(row) => (
-              <View class="w-[272px] h-[14px] flex-row items-center">
-                <Text class="text-xs font-bold w-[62px] shrink-0" style={{ textColor: CYAN }}>
+              <View class="w-[181px] h-[11px] flex-row items-center">
+                <Text class="text-2xs font-bold w-[41px] shrink-0" style={{ textColor: CYAN }}>
                   {row.label}
                 </Text>
                 <RollingText value={row.value} color={row.color} width={VALUE_WIDTH} />
@@ -125,8 +125,8 @@ export function PocketFetch(props: PocketFetchProps) {
         </View>
       </View>
 
-      <View class="w-[360px] h-[18px] flex-row items-center justify-end px-2">
-        <TouchTarget onPress={props.onRefresh ?? (() => {})} class="h-[18px] min-w-[24px] px-2 items-center justify-center"><Text class="text-xs font-mono" style={{ textColor: GREEN }}>
+      <View class="w-[240px] h-[12px] flex-row items-center justify-end px-[5px]">
+        <TouchTarget onPress={props.onRefresh ?? (() => {})} class="h-[12px] min-w-[16px] px-[5px] items-center justify-center"><Text class="text-2xs" style={{ textColor: GREEN }}>
           ↻
         </Text></TouchTarget>
       </View>

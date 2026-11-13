@@ -17,12 +17,12 @@ export function ScanTrack(props: { active: boolean; color?: string }) {
   const head = () => Math.floor(frame() / 4);
   const lit = (cell: number) => cell <= head() && cell > head() - TAIL;
   return (
-    <View class="w-[96px] h-[6px] flex-row gap-[2px]">
+    <View class="w-[64px] h-[4px] flex-row gap-[1px]">
       <Index each={Array.from({ length: TRACK }, (_, i) => i)}>
         {(cell) => (
           <View
-            class="w-[6px] h-[6px]"
-            style={{ bgColor: lit(cell()) ? (props.color ?? "#3ECFFF") : "#233240" }}
+            class="w-[4px] h-[4px]"
+            style={{ bgColor: lit(cell()) ? (props.color ?? "#f2ce76") : "#233240" }}
           />
         )}
       </Index>

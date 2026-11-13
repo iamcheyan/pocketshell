@@ -22,6 +22,10 @@ export interface SettingRow {
 export const SETTING_ROWS: readonly SettingRow[] = [
   { key: "brightness", label: "brightness", kind: "level", group: "display" },
   { key: "volume", label: "volume", kind: "level", group: "display" },
+  { key: "fontSize", label: "fontSize", kind: "enum", group: "display", values: ["normal", "large", "huge"] },
+  { key: "themeColor", label: "themeColor", kind: "enum", group: "display", values: ["purple", "blue", "green", "pink", "amber"] },
+  { key: "showClock", label: "showClock", kind: "toggle", group: "display" },
+  { key: "animations", label: "animations", kind: "toggle", group: "display" },
   { key: "bluetooth", label: "bluetooth", kind: "toggle", group: "connectivity" },
   { key: "wifi", label: "wifi", kind: "toggle", group: "connectivity" },
   { key: "ssh", label: "ssh", kind: "toggle", group: "connectivity" },
