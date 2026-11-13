@@ -19,8 +19,11 @@ frontend-session                     (BaseOS /mnt/sdcard frontend contract)
 ```
 
 The runtime is native Rust with an embedded QuickJS guest. This package is the
-guest: 360×240 logical canvas scaled 2× onto the 720×480 panel, 60 Hz tick,
+guest: 480×320 logical canvas presented at 720×480, 60 Hz tick,
 capabilities `input.buttons` + `text.glyphs.baked`.
+The PJOS runtime applies the matching 1.5× software presentation patch. Its
+profile differs from older packages, so those packages still need the legacy
+runtime.
 
 **There is no network, filesystem or database API in the guest.** Every piece of
 data (battery, volume, brightness, services, system snapshot, launching apps)
@@ -32,7 +35,7 @@ See `app/main.tsx` for the call sites and the ROCKNIX `pocketjs-runtime` package
 
 There are two views, both fed by that bridge:
 
-- the launcher: status bar, one APPS carousel, SETTINGS, SYSTEM.
+- the launcher: games, media, apps, favorites, settings and system information.
 - **PocketFetch** (`app/pages/pocket-fetch.tsx`): a full-screen fetch-style TUI —
   OS, host, kernel, CPU, memory, disk, display, network, battery, runtime — read
   from the same `SYSTEM` / `LEVEL` polls. A re-polls, B returns. It is a view in
@@ -44,11 +47,11 @@ There are two views, both fed by that bridge:
 |---|---|
 | `app/` | the PocketJS application: `main.tsx`, `card-carousel.tsx`, `pages/`, fonts, `pocket.json` |
 | `app/fonts/` | FusionPixel zh_hans subset (baked), FusionPixel ja + Nerd Font (fallbacks, see `fonts.json`) |
-| `config/profile.ts` | the `rocknix-h700-kms` runtime profile (720×480 / 360×240 @2×, 60 Hz, capabilities) |
+| `config/profile.ts` | the `rocknix-h700-kms` runtime profile (720×480 / 480×320, 60 Hz, capabilities) |
 | `config/pocket.runtime-config.ts` | runtime config the compiler binds the package to (this hash is what admission checks) |
 | `scripts/build.sh` | stages the app into the PocketJS SDK, compiles, prints sections + sha256 |
-| `scripts/check.sh` | pushes to `/storage/pjs/` and runs `pocket-linux-kms --check` on the device |
-| `scripts/deploy.sh` | backup → install → restart frontend → capture a frame |
+| `scripts/check.sh` | stages and admission-checks the paired package and runtime |
+| `scripts/deploy.sh` | backs up card files, installs the paired runtime and launcher, then captures a frame |
 | `app/browser-preview.html` | browser harness for layout/colour work (no device needed) |
 
 ## Build
@@ -60,22 +63,30 @@ make build                                  # POCKETJS_SDK=~/development/.pocket
 ```
 
 The CLI only compiles apps that live inside the SDK tree, so the build stages
-`app/` into `$POCKETJS_SDK/apps/rocknix-h700/` and `config/` into
-`$POCKETJS_SDK/programs/rocknix-h700/`, then compiles with
-`--target rocknix-h700-kms`. The SDK tree is a build input, not a dependency you
-edit — this repository is the source of truth.
+`app/` into `$POCKETJS_SDK/apps/pocketshell/` and `config/` into
+`$POCKETJS_SDK/programs/pocketshell/`, then compiles with
+`--target rocknix-h700-kms`. The build also applies the PJOS OSK theme patch to
+the SDK. Preserve any existing SDK changes; the application source of truth is
+this repository.
 
 ## Deploy to the handheld (no image rebuild)
 
-The device is reachable over ADB on the jump host `HX90`:
+Build the matching static AArch64 musl runtime in `../PJOS-LINUX` first. The
+deployment helper prefers a single connected local USB ADB device. When USB is
+unavailable, set `PJOS_DEVICE_IP` and `PJOS_DEV_PW` for password-assisted SSH.
+Set `PJOS_ADB_SERIAL` if multiple devices are connected.
 
 ```sh
-make check     # admission only, writes nothing to System/
-make deploy    # backs up boot.pocket, installs, restarts, captures a frame
+make check     # stages files and checks admission without replacing card files
+make deploy    # backs up, installs, restarts and captures the active frame
 ```
 
-Rollback is printed at the end of `deploy.sh`; the timestamped
-`boot.pocket.bak-*` stays on the card.
+The installer prints the timestamped backup directory under
+`/storage/System/pocketjs/backups`. It keeps the previous runtime at
+`System/pocketjs/bin/pocket-linux-kms` and installs the new one at
+`System/pocketjs/bin/launcher/pocket-linux-kms`. The device deployment and
+performance still need verification on the handheld. See `../PJOS-LINUX/AGENTS.md`
+for device connection, framebuffer and simulator details.
 
 ## Serialising device access
 
@@ -97,15 +108,7 @@ The same `app/` compiles for the `linux-app` profile and runs under
 without a handheld:
 
 ```sh
-cd "$POCKETJS_SDK"
-export POCKETJS_FONT_REGULAR=$HOME/development/pocketshell/app/fonts/SarasaUiSC-Regular.ttf
-export POCKETJS_FONT_BOLD=$HOME/development/pocketshell/app/fonts/SarasaUiSC-Bold.ttf
-export POCKETJS_FONT_MONO=$POCKETJS_FONT_REGULAR
-bun tools/pocket.ts compile --runtime-config programs/desktop/linux/pocket.runtime-config.ts \
-  --target linux-app --manifest apps/pocketshell/pocket.json --output /tmp/pocketshell-desktop.pocket
-bun tools/pocket.ts build --config programs/desktop/linux/pocket.runtime-config.ts \
-  --target linux-app --pocket /tmp/pocketshell-desktop.pocket --out /tmp/pocketshell-desktop
-/tmp/pocketshell-desktop/program/run
+POCKETJS_SDK="$HOME/development/.pocketjs-star-drift-sdk" ./scripts/desktop-local.sh --no-shot
 ```
 
 On NixOS the host needs the desktop libraries on the loader path — winit dlopens
@@ -140,13 +143,14 @@ pull elsewhere.
 PJOS-LINUX ships the built artifact, not this source tree:
 
 ```sh
-make build && cp dist/pocketshell.pocket \
-  ~/development/PJOS-LINUX/overlay/usr/share/pocketshell/System/pocketjs/apps/boot.pocket
+make build
+cd ~/development/PJOS-LINUX
+sh tools/sync-pocketshell.sh
 ```
 
 and `overlay/usr/share/pocketshell/System/pocketjs/version` records its sha256.
-A launcher change therefore needs **only** `make deploy`; regenerating the image
-is required only when the runtime binary or the OS itself changes.
+The paired runtime and OS changes also need their corresponding PJOS build or
+card deployment; copying the package by itself is insufficient for this profile.
 
 ## Runtime/package pairing
 

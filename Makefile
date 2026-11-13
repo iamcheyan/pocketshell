@@ -7,10 +7,10 @@ PKG := dist/pocketshell.pocket
 build:            ## compile app/ into dist/pocketshell.pocket
 	POCKETJS_SDK="$(POCKETJS_SDK)" BUN="$(BUN)" ./scripts/build.sh
 
-check: build      ## admission-check the package with the device's own runtime
+check: build      ## stage and admission-check the paired runtime and package
 	./scripts/check.sh $(PKG)
 
-deploy: check     ## push the package over ADB and restart the frontend (no image rebuild)
+deploy: build     ## back up and install the paired runtime and launcher
 	./scripts/deploy.sh $(PKG)
 
 preview:          ## browser harness for layout/colour work (no device)
