@@ -13,7 +13,7 @@ export interface LauncherApp {
   shortKey: string;
   descKey: string;
   tagKey: string;
-  kind: "native" | "fetch" | "series";
+  kind: "native" | "external" | "series";
   category: "home" | "media" | "games" | "system";
   icon: string;
   romPath?: string;
@@ -26,15 +26,49 @@ export interface LauncherApp {
 }
 
 export const LAUNCHER_APPS: readonly LauncherApp[] = [
-  { id: "pocketfetch", nameKey: "app.systemInfo", shortKey: "app.systemInfo.short", descKey: "app.systemInfo.desc", tagKey: "catalog.fetch", kind: "fetch", category: "home", icon: "\uf120" },
   { id: "terminal", nameKey: "app.terminal", shortKey: "app.terminal.short", descKey: "app.terminal.desc", tagKey: "catalog.native", kind: "native", category: "home", icon: "\uf120" },
-  { id: "disk", nameKey: "app.files", shortKey: "app.files.short", descKey: "app.files.desc", tagKey: "catalog.native", kind: "native", category: "home", icon: "\uf07b" },
-  { id: "xmplayer", nameKey: "app.player", shortKey: "app.player", descKey: "app.player.desc", tagKey: "catalog.native", kind: "native", category: "media", icon: "\uf001" },
-  { id: "kanade", nameKey: "app.kanade", shortKey: "app.kanade", descKey: "app.kanade.desc", tagKey: "catalog.native", kind: "native", category: "media", icon: "\uf03d" },
 ] as const;
 
-const RUNNABLE: Record<string, true> = { pocketfetch: true, kanade: true, terminal: true };
 type Host = { __launcher?: (cmd: string) => string };
+
+const INSTALLED_APP_METADATA: Record<string, Pick<LauncherApp, "nameKey" | "shortKey" | "descKey" | "tagKey" | "category" | "icon" | "cover">> = {
+  pocketfetch: { nameKey: "app.systemInfo", shortKey: "app.systemInfo.short", descKey: "app.systemInfo.desc", tagKey: "catalog.system", category: "system", icon: "\uf05a", cover: "cover-pocketfetch.png" },
+  kanade: { nameKey: "app.kanade", shortKey: "app.kanade", descKey: "app.kanade.desc", tagKey: "catalog.media", category: "media", icon: "\uf03d", cover: "cover-kanade.png" },
+  files: { nameKey: "app.files", shortKey: "app.files.short", descKey: "app.files.desc", tagKey: "catalog.native", category: "home", icon: "\uf07b", cover: "cover-disk.png" },
+  music: { nameKey: "app.music", shortKey: "app.music", descKey: "app.music", tagKey: "catalog.media", category: "media", icon: "\uf001", cover: "cover-kanade.png" },
+  reader: { nameKey: "app.reader", shortKey: "app.reader", descKey: "app.reader", tagKey: "catalog.media", category: "media", icon: "\uf02d", cover: "cover-games.png" },
+  settings: { nameKey: "app.settings", shortKey: "app.settings", descKey: "app.settings", tagKey: "catalog.native", category: "system", icon: "\uf013", cover: "cover-system.png" },
+  video: { nameKey: "app.video", shortKey: "app.video", descKey: "app.video", tagKey: "catalog.media", category: "media", icon: "\uf03d", cover: "cover-video.png" },
+  web: { nameKey: "app.web", shortKey: "app.web", descKey: "app.web", tagKey: "catalog.media", category: "media", icon: "\uf0ac", cover: "cover-game-default.png" },
+  galaxy: { nameKey: "app.galaxy", shortKey: "app.galaxy", descKey: "app.galaxy", tagKey: "catalog.games", category: "games", icon: "\uf11b", cover: "cover-game-default.png" },
+  "youtube-video": { nameKey: "app.youtubeVideo", shortKey: "app.youtubeVideo", descKey: "app.youtubeVideo", tagKey: "catalog.media", category: "media", icon: "\uf16a", cover: "cover-video.png" },
+};
+
+
+function scanInstalledApps(host?: Host): LauncherApp[] {
+  const raw = host?.__launcher?.("APPS\tlist") ?? "";
+  const ids = [...new Set(raw.split(/\r?\n/).map((id) => id.trim()).filter((id) => /^[A-Za-z0-9._-]+$/.test(id) && id !== "terminal"))];
+  const priority = ["pocketfetch", "kanade"];
+  ids.sort((a, b) => {
+    const ai = priority.indexOf(a), bi = priority.indexOf(b);
+    return (ai < 0 ? priority.length : ai) - (bi < 0 ? priority.length : bi) || a.localeCompare(b);
+  });
+  return ids.map((id): LauncherApp => {
+    const metadata = INSTALLED_APP_METADATA[id];
+    return {
+      id,
+      nameKey: metadata?.nameKey ?? "",
+      shortKey: metadata?.shortKey ?? "",
+      descKey: metadata?.descKey ?? "",
+      tagKey: metadata?.tagKey ?? "catalog.native",
+      kind: "external",
+      category: metadata?.category ?? "media",
+      icon: metadata?.icon ?? "\uf11b",
+      cover: metadata?.cover,
+      label: metadata ? undefined : id.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    };
+  });
+}
 
 function fileTitle(path: string): string {
   const base = path.split("/").pop() || path;
@@ -137,8 +171,7 @@ export function getAppsForScreen(screen: number, host?: Host): LauncherApp[] {
     const isTestFixture = raw.includes("/storage/content/games/homebrew/Adventure.gba");
     const roms = scanRomApps(host);
     if (isTestFixture) return roms;
-    const nativeApps = LAUNCHER_APPS.filter((app) => RUNNABLE[app.id]);
-    return [...nativeApps, ...roms];
+    return [...LAUNCHER_APPS, ...scanInstalledApps(host), ...roms];
   }
   return [];
 }

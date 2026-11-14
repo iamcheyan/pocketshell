@@ -1,4 +1,4 @@
-export type ThemeColorKey = "purple" | "blue" | "green" | "pink" | "amber";
+export type ThemeColorKey = "purple" | "blue" | "green" | "pink" | "amber" | "teal" | "coral" | "ice" | "mono";
 export type FontSizeKey = "normal" | "large" | "huge";
 
 export interface ThemePalette {
@@ -51,9 +51,41 @@ export const THEME_PALETTES: Record<ThemeColorKey, ThemePalette> = {
     activeSurface: "#302820",
     switchThumb: "#472400",
   },
+  teal: {
+    name: "theme.teal",
+    primary: "#80cbc4",
+    container: "#004d40",
+    onContainer: "#b2dfdb",
+    activeSurface: "#203633",
+    switchThumb: "#003b35",
+  },
+  coral: {
+    name: "theme.coral",
+    primary: "#ff8a80",
+    container: "#7f1d1d",
+    onContainer: "#ffd9d4",
+    activeSurface: "#382527",
+    switchThumb: "#4a0b0b",
+  },
+  ice: {
+    name: "theme.ice",
+    primary: "#9be7ff",
+    container: "#005078",
+    onContainer: "#d0f4ff",
+    activeSurface: "#20343b",
+    switchThumb: "#003543",
+  },
+  mono: {
+    name: "theme.mono",
+    primary: "#e0e0e0",
+    container: "#424242",
+    onContainer: "#f5f5f5",
+    activeSurface: "#303030",
+    switchThumb: "#111111",
+  },
 };
 
-export const THEME_COLORS: ThemeColorKey[] = ["purple", "blue", "green", "pink", "amber"];
+export const THEME_COLORS: ThemeColorKey[] = ["purple", "blue", "green", "pink", "amber", "teal", "coral", "ice", "mono"];
 export const FONT_SIZES: FontSizeKey[] = ["normal", "large", "huge"];
 
 export interface FontScaleConfig {

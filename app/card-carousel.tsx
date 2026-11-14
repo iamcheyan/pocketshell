@@ -6,11 +6,13 @@ import type { LauncherApp } from "./launcher-catalog";
 import type { Translator } from "./i18n";
 import { TouchTarget } from "./touch-target";
 import { createGesture } from "@pocketjs/framework/gesture";
+import { THEME_PALETTES, type ThemeColorKey } from "./theme-model";
 
 export interface CardCarouselProps {
   apps: LauncherApp[];
   t: Translator;
   selectedIndex: number;
+  themeColor: ThemeColorKey;
   windowCenter: number;
   onMountCarousel?: (node: NodeMirror) => void;
   onMountCard?: (index: number, node: NodeMirror) => void;
@@ -30,6 +32,7 @@ export const CAROUSEL_OFFSET_LESS = (idx: number) => 230 - idx * 284;
 
 export function CardCarousel(props: CardCarouselProps) {
   let viewport: NodeMirror | undefined;
+  const theme = () => THEME_PALETTES[props.themeColor] || THEME_PALETTES.purple;
   const indices = () => props.apps.map((_, index) => index);
 
   createGesture({
@@ -57,9 +60,10 @@ export function CardCarousel(props: CardCarouselProps) {
                 onMount={(node) => props.onMountCard?.(index(), node)}
                 class={
                   isSelected()
-                    ? "w-[260px] h-[260px] mr-[24px] flex-col items-center justify-center overflow-hidden bg-[#2b2930] p-[4px] relative"
+                    ? "w-[260px] h-[260px] mr-[24px] flex-col items-center justify-center overflow-hidden border-2 p-[2px] relative"
                     : "w-[204px] h-[204px] mr-[24px] flex-col items-center justify-center overflow-hidden bg-[#1d1b20] opacity-40 p-[2px] relative"
                 }
+                style={isSelected() ? { bgColor: theme().container, borderColor: theme().primary } : undefined}
               >
                 {/* Modern Material 3 Square Game Tile (Right-Angled / 直角, No harsh borders) */}
                 <View class={isSelected() ? "w-[252px] h-[252px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[200px] h-[200px] items-center justify-center overflow-hidden bg-[#141218]"}>

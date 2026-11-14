@@ -1,4 +1,4 @@
-import { Image, Text, View } from "@pocketjs/framework/solid/components";
+import { Text, View } from "@pocketjs/framework/solid/components";
 import { Index, createSignal, createEffect } from "solid-js";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { TouchTarget } from "./touch-target";
@@ -8,6 +8,7 @@ import {
   type ThemeColorKey,
   type FontSizeKey,
 } from "./theme-model";
+import { PixelStatus } from "./pixel-status";
 
 export interface StatusBarProps {
   currentScreen?: number;
@@ -84,7 +85,7 @@ export function StatusBar(props: StatusBarProps) {
   };
 
   return (
-    <View class="w-[720px] h-[64px] flex-row items-center justify-between px-[24px] bg-transparent">
+    <View class="w-[720px] h-[64px] flex-row items-center justify-between px-[24px] bg-[#111019bd]">
       {/* Left: M3 Navigation Tabs (No L/R badges, borderless pill indicators) */}
       <View class="flex-row items-center gap-[12px]">
         {props.title ? (
@@ -159,34 +160,11 @@ export function StatusBar(props: StatusBarProps) {
       {/* Right: Modern Vector Status Icons (Bright when enabled, dim when disabled) */}
       <View class="flex-row items-center gap-[12px]">
         {/* Wi-Fi */}
-        <Image
-          class="w-[22px] h-[22px]"
-          src={props.wifiConnected ? "icon-wifi-on.png" : "icon-wifi-off.png"}
-        />
-
-        {/* Bluetooth */}
-        <Image
-          class="w-[22px] h-[22px]"
-          src={props.bluetoothOn ? "icon-bt-on.png" : "icon-bt-off.png"}
-        />
-
-        {/* SSH */}
-        <Image
-          class="w-[22px] h-[22px]"
-          src={props.sshEnabled ? "icon-ssh-on.png" : "icon-ssh-off.png"}
-        />
-
-        {/* ADB */}
-        <Image
-          class="w-[22px] h-[22px]"
-          src={props.adbEnabled ? "icon-adb-on.png" : "icon-adb-off.png"}
-        />
-
-        {/* USB / MTP */}
-        <Image
-          class="w-[22px] h-[22px]"
-          src={props.mtpEnabled ? "icon-usb-on.png" : "icon-usb-off.png"}
-        />
+        <PixelStatus kind="wifi" color={props.wifiConnected ? theme().primary : "#756f7d"} scale={2} />
+        <PixelStatus kind="bluetooth" color={props.bluetoothOn ? theme().primary : "#756f7d"} scale={2} />
+        <PixelStatus kind="ssh" color={props.sshEnabled ? theme().primary : "#756f7d"} scale={2} />
+        <PixelStatus kind="lock" color={props.adbEnabled ? theme().primary : "#756f7d"} scale={2} />
+        <PixelStatus kind="usb" color={props.mtpEnabled ? theme().primary : "#756f7d"} scale={2} />
 
         {/* Battery Level */}
         <View class="flex-row items-center gap-[8px] ml-[4px]">

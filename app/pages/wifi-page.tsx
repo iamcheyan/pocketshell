@@ -1,11 +1,12 @@
 import { PixelStatus } from "../pixel-status";
 import { createSignal, Index } from "solid-js";
 import { Text, View } from "@pocketjs/framework/solid/components";
-import { Osk, type OskController } from "@pocketjs/framework/osk";
+import { Osk, type OskController, type OskThemeName } from "@pocketjs/framework/osk";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { translator } from "../i18n";
 import { TouchTarget } from "../touch-target";
 import type { WifiNetwork } from "../wifi-model";
+import { THEME_PALETTES, type ThemeColorKey } from "../theme-model";
 
 export type WifiPhase = "scanning" | "list" | "psk" | "connecting";
 
@@ -17,7 +18,9 @@ export interface WifiPageProps {
   psk: string;
   phase: WifiPhase;
   language: string;
+  themeColor: ThemeColorKey;
   /** The passphrase keyboard; the caller owns it so its text outlives this view. */
+  oskTheme: OskThemeName;
   osk: OskController;
   onSelect: (index: number) => void;
   onActivate: (index: number) => void;
@@ -38,14 +41,8 @@ const barsFor = (signal: number): number => {
   return 1;
 };
 
-const BARS: ReadonlyArray<readonly [string, string, string]> = [
-  ["#233441", "#233441", "#233441"],
-  ["#f2ce76", "#233441", "#233441"],
-  ["#f2ce76", "#f2ce76", "#233441"],
-  ["#f2ce76", "#f2ce76", "#f2ce76"],
-];
 
-function SignalBars(props: { signal: number; dim: boolean }) {
+function SignalBars(props: { signal: number; dim: boolean; accent: string }) {
   const level = () => barsFor(props.signal);
   return (
     <View class="w-[11px] h-[8px] flex-row items-end gap-[1px]">
@@ -55,7 +52,7 @@ function SignalBars(props: { signal: number; dim: boolean }) {
             class="w-[2px]"
             style={{
               height: 3 + bar() * 3,
-              bgColor: props.dim ? "#2c3d4a" : BARS[level()][bar()],
+              bgColor: props.dim ? "#2c3d4a" : bar() < level() ? props.accent : "#233441",
             }}
           />
         )}
@@ -69,6 +66,7 @@ function SignalBars(props: { signal: number; dim: boolean }) {
 const TRACK = 12;
 
 export function WifiPage(props: WifiPageProps) {
+  const theme = () => THEME_PALETTES[props.themeColor] || THEME_PALETTES.purple;
   const t = () => translator(props.language);
   const [frame, setFrame] = createSignal(0);
   const [spin, setSpin] = createSignal(0);
@@ -102,7 +100,7 @@ export function WifiPage(props: WifiPageProps) {
       <View class="w-[240px] flex-1 flex-col px-[5px] py-[3px]">
         <View class="w-[229px] h-[15px] flex-row items-center justify-between">
           <View class="flex-row items-center gap-[5px]">
-            <PixelStatus kind="wifi" color="#f2ce76" />
+            <PixelStatus kind="wifi" color={theme().primary} />
             <Text class="text-xs font-bold text-white">{t()("wifi.title")}</Text>
           </View>
           <Text class="text-2xs" style={{ textColor: "#9893ad" }}>
@@ -129,7 +127,7 @@ export function WifiPage(props: WifiPageProps) {
             {/* The keyboard covers the lower half of this page, so the result of
                 the last attempt replaces the hint line instead of sitting under
                 it: a hidden "wrong password" would look like nothing happened. */}
-            <Text class="text-2xs" style={{ textColor: props.status ? "#f2ce76" : "#9893ad" }}>
+            <Text class="text-2xs" style={{ textColor: props.status ? theme().primary : "#9893ad" }}>
               {props.status || t()("wifi.passwordHint")}
             </Text>
           </View>
@@ -142,7 +140,7 @@ export function WifiPage(props: WifiPageProps) {
                     {(cell) => (
                       <View
                         class="w-[4px] h-[4px]"
-                        style={{ bgColor: lit(cell()) ? "#f2ce76" : "#233240" }}
+                        style={{ bgColor: lit(cell()) ? theme().primary : "#233240" }}
                       />
                     )}
                   </Index>
@@ -163,19 +161,16 @@ export function WifiPage(props: WifiPageProps) {
                       props.onSelect(row().realIndex);
                       props.onActivate(row().realIndex);
                     }}
-                    class={
-                      row().realIndex === props.index
-                        ? "w-[229px] h-[13px] flex-row items-center justify-between px-[5px] bg-[#39304e]"
-                        : "w-[229px] h-[13px] flex-row items-center justify-between px-[5px]"
-                    }
+                    class="w-[229px] h-[13px] flex-row items-center justify-between px-[5px]"
+                    style={row().realIndex === props.index ? { bgColor: theme().activeSurface } : undefined}
                   >
                     <View class="flex-row items-center gap-[5px]">
                       <View
                         class="w-[5px] h-[5px]"
                         style={{
                           bgColor: row().active
-                            ? "#f2ce76"
-                            : row().realIndex === props.index ? "#f2ce76" : "#31465a",
+                            ? theme().primary
+                            : row().realIndex === props.index ? theme().primary : "#31465a",
                         }}
                       />
                       <Text
@@ -190,11 +185,11 @@ export function WifiPage(props: WifiPageProps) {
                     </View>
                     <View class="flex-row items-center gap-[5px]">
                       {row().active ? (
-                        <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("wifi.current")}</Text>
+                        <Text class="text-2xs" style={{ textColor: theme().primary }}>{t()("wifi.current")}</Text>
                       ) : row().saved ? (
                         <Text class="text-2xs" style={{ textColor: "#9893ad" }}>{t()("wifi.savedTag")}</Text>
                       ) : null}
-                      <SignalBars signal={row().signal} dim={row().realIndex !== props.index} />
+                      <SignalBars signal={row().signal} dim={row().realIndex !== props.index} accent={theme().primary} />
                     </View>
                   </TouchTarget>
                 )}
@@ -208,15 +203,15 @@ export function WifiPage(props: WifiPageProps) {
           <View class="flex-row items-center gap-[5px]">
             {props.phase === "list" && selected()?.active ? (
               <TouchTarget onPress={props.onDisconnect} class="h-[12px] px-[5px] items-center justify-center">
-                <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("wifi.disconnect")}</Text>
+                <Text class="text-2xs" style={{ textColor: theme().primary }}>{t()("wifi.disconnect")}</Text>
               </TouchTarget>
             ) : props.phase === "list" && selected()?.saved ? (
               <TouchTarget onPress={() => selected() && props.onForget(selected().ssid)} class="h-[12px] px-[5px] items-center justify-center">
-                <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("wifi.forget")}</Text>
+                <Text class="text-2xs" style={{ textColor: theme().primary }}>{t()("wifi.forget")}</Text>
               </TouchTarget>
             ) : null}
             <TouchTarget onPress={props.onRescan} class="h-[12px] px-[5px] items-center justify-center">
-              <Text class="text-2xs" style={{ textColor: "#f2ce76" }}>{t()("wifi.rescan")}</Text>
+              <Text class="text-2xs" style={{ textColor: theme().primary }}>{t()("wifi.rescan")}</Text>
             </TouchTarget>
             <TouchTarget onPress={props.onBack} class="h-[12px] px-[5px] items-center justify-center">
               <Text class="text-2xs" style={{ textColor: "#9893ad" }}>{t()("wifi.back")}</Text>
@@ -228,7 +223,7 @@ export function WifiPage(props: WifiPageProps) {
       {/* Docked over the page's lower half while open; the OSK blocks the panel
           beneath it itself, so nothing here needs a scrim. */}
       <View class="absolute left-0 bottom-0 w-[720px]">
-        <Osk osk={props.osk} theme="pjos" keyHeight={40} />
+        <Osk osk={props.osk} theme={props.oskTheme} keyHeight={40} />
       </View>
     </View>
   );

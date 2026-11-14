@@ -88,6 +88,24 @@ The installer prints the timestamped backup directory under
 performance still need verification on the handheld. See `../PJOS-LINUX/AGENTS.md`
 for device connection, framebuffer and simulator details.
 
+## External applications
+
+The launcher ships only the Terminal card itself. Every other PocketJS program is
+an independent package under `/storage/apps/<id>.pocket`; the launcher lists them
+with the bridge command `APPS\tlist` and starts one with `LAUNCH\t<id>`. A launch
+first paints a centered progress dialog (cover, name, indeterminate bar) before
+the bridge hands the panel to the supervisor.
+
+Current external repositories:
+
+| app | repository | package |
+| --- | --- | --- |
+| PocketFetch (system info) | `~/development/pocketfetch` | `pocketfetch.pocket` |
+| Kanade (media player) | `~/development/pjos-kanade` | `kanade.pocket` |
+
+Return from a child app uses the runtime's `APP\tclose` bridge (framework
+`appClose` on native hosts). See each repository README for its build command.
+
 ## Serialising device access
 
 The handheld is shared with other agent sessions. `pocket-linux-kms` stops with
@@ -170,6 +188,16 @@ secrets. Everything it needs goes through `host.__launcher(...)`:
   `LAUNCH\t<id>` hands the panel to that package and returns to the launcher when it
   exits. The supervisor script owns the display, not the launcher, so only one
   runtime is ever drawing.
+
+## Theme palette
+
+`themeColor` is one persisted setting (`/storage/.config/pocketjs/ui-settings.conf`,
+bridge `SETTING\tthemeColor`). Nine palettes ship: `purple`, `blue`, `green`,
+`pink`, `amber`, `teal`, `coral`, `ice`, `mono`. The palettes drive status-bar
+accents, tab pills, carousel selection, settings controls, series and favorite
+dialogs, the power menu, the Wi-Fi/Bluetooth pages and the system on-screen
+keyboard (`pjos-<theme>`). The external apps read the same key; see their own
+repositories.
 
 The full interface — return values, UI states, key mapping, layout and acceptance
 cases — is `docs/WIFI-BRIDGE-CONTRACT.md`. Change the contract there before changing

@@ -5,7 +5,7 @@ import { getOps } from "@pocketjs/framework/host";
 import { BTN, onTextEvent, type TextEvent } from "@pocketjs/framework/input";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { animate } from "@pocketjs/framework/animation";
-import { Osk, createOsk } from "@pocketjs/framework/osk";
+import { Osk, createOsk, type OskThemeName } from "@pocketjs/framework/osk";
 
 import {
   LAUNCHER_APPS,
@@ -47,7 +47,6 @@ import {
   pskIssue,
   type WifiNetwork,
 } from "./wifi-model";
-import { PocketFetch } from "./pages/pocket-fetch";
 import { PowerMenu, type PowerAction } from "./power-menu";
 import { parseNetworkSnapshot, parseSystemSnapshot, type NetworkSnapshot, type SystemSnapshot } from "./system-status";
 
@@ -62,7 +61,6 @@ mount(() => {
   // Launcher State (Switch 5-Screen)
   // -------------------------------------------------------------------------
   const [currentScreen, setCurrentScreen] = createSignal(0);
-  const [launcherOpen, setLauncherOpen] = createSignal(true);
   // Power menu: armed by a long power-key press, then a modal over everything.
   const [powerMenuOpen, setPowerMenuOpen] = createSignal(false);
   const [powerChoice, setPowerChoice] = createSignal<PowerAction>("poweroff");
@@ -109,6 +107,10 @@ mount(() => {
   const [mtpEnabled, setMtpEnabled] = createSignal(false);
   const [systemSnapshot, setSystemSnapshot] = createSignal<SystemSnapshot | null>(null);
   const [toastMessage, setToastMessage] = createSignal("");
+  const [launchingLabel, setLaunchingLabel] = createSignal("");
+  const [launchingPhase, setLaunchingPhase] = createSignal(0);
+  let pendingLaunchAction: (() => void) | null = null;
+  let pendingLaunchFrames = 0;
   const [networkSnapshot, setNetworkSnapshot] = createSignal<NetworkSnapshot>({ interface: null, address: null, connected: false });
 
   // Animation Node Mirrors & Safe Wrappers
@@ -771,6 +773,7 @@ mount(() => {
   const [themeColor, setThemeColor] = createSignal<ThemeColorKey>("purple");
   const [fontSize, setFontSize] = createSignal<FontSizeKey>("normal");
   const theme = () => THEME_PALETTES[themeColor()] || THEME_PALETTES.purple;
+  const oskTheme = () => `pjos-${themeColor()}` as OskThemeName;
   const fontConfig = () => FONT_SCALE_CONFIGS[fontSize()] || FONT_SCALE_CONFIGS.normal;
 
   const cycleThemeColor = (delta: number) => {
@@ -965,30 +968,35 @@ mount(() => {
     onClose: () => {},
   });
 
+  const scheduleLaunch = (label: string, dispatch: () => void) => {
+    setLaunchingLabel(label);
+    setLaunchingPhase(0);
+    pendingLaunchAction = dispatch;
+    pendingLaunchFrames = 6;
+  };
+
   const launchSeriesItem = (item: SeriesItem) => {
     writeSetting(host, "zeldaLastRom", item.romPath);
     host?.__launcher?.(`RESUME\tset\trom\t${item.romPath}`);
+    scheduleLaunch(item.title, () => {
+      const answer = host?.__launcher?.(`ROMLAUNCH\t${item.romPath}`) ?? "";
+      if (!answer || /unknown/i.test(answer)) {
+        const legacy = host?.__launcher?.(`ROM\tlaunch\t${item.romPath}`) ?? "";
+        if (!/^launching:/i.test(legacy)) {
+          setLaunchingLabel("");
+          showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
+        }
+      } else if (!/^(Starting game|launching:)/i.test(answer)) {
+        setLaunchingLabel("");
+        showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
+      }
+    });
     setSeriesModalOpen(false);
-    showToast(t("toast.launch", { name: item.title }));
-    const answer = host?.__launcher?.(`ROMLAUNCH\t${item.romPath}`) ?? "";
-    if (!answer || /unknown/i.test(answer)) {
-      const legacy = host?.__launcher?.(`ROM\tlaunch\t${item.romPath}`) ?? "";
-      if (!/^launching:/i.test(legacy)) showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
-    } else if (!/^(Starting game|launching:)/i.test(answer)) {
-      showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
-    }
   };
 
   const launchApp = (app: LauncherApp) => {
     if (app.id === "terminal") {
       setTerminalOpen(true);
-      return;
-    }
-    if (app.id === "pocketfetch" || app.id === "system-info" || app.id === "system") {
-      setLauncherOpen(false);
-      syncSettings();
-      syncHardwareStatus();
-      syncSystemStatus();
       return;
     }
     if (app.isSeries && app.seriesItems && app.seriesItems.length > 0) {
@@ -1010,30 +1018,25 @@ mount(() => {
       setSeriesModalOpen(true);
       return;
     }
-    showToast(t("toast.launch", { name: appShortName(t, app) }));
-    if (app.kind === "native") {
-      const rom = app.romPath;
-      if (rom) {
-        const answer = host?.__launcher?.(`ROMLAUNCH\t${rom}`) ?? "";
-        if (!answer || /unknown/i.test(answer)) {
-          const legacy = host?.__launcher?.(`ROM\tlaunch\t${rom}`) ?? "";
-          if (!/^launching:/i.test(legacy)) showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
-        } else if (!/^(Starting game|launching:)/i.test(answer)) {
+    if (app.romPath) {
+      scheduleLaunch(appShortName(t, app), () => {
+        const answer = host?.__launcher?.(`ROMLAUNCH\t${app.romPath}`) ?? "";
+        if (!/^(Starting game|launching:)/i.test(answer)) {
+          setLaunchingLabel("");
           showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
         }
-      } else {
-        const answer = host?.__launcher?.(`LAUNCH\t${app.id}`) ?? "";
-        if (!answer || /error|unknown|unable/i.test(answer)) showToast(language() === "zh" ? "应用启动失败" : "Unable to start app");
-      }
+      });
       return;
     }
-
-    // PocketFetch is this program's own screen, not a child process: closing the
-    // launcher opens it and re-polls the bridge, so nothing is handed to the host.
-    setLauncherOpen(false);
-    syncSettings();
-    syncHardwareStatus();
-    syncSystemStatus();
+    if (app.kind === "external") {
+      scheduleLaunch(appShortName(t, app), () => {
+        const answer = host?.__launcher?.(`LAUNCH\t${app.id}`) ?? "";
+        if (!/^launching:/i.test(answer)) {
+          setLaunchingLabel("");
+          showToast(language() === "zh" ? "应用启动失败" : "Unable to start app");
+        }
+      });
+    }
   };
 
 
@@ -1047,16 +1050,9 @@ mount(() => {
     }
   };
 
-  const refreshPocketFetch = () => {
-    syncSettings();
-    syncHardwareStatus();
-    syncSystemStatus();
-  };
-
   const confirmCurrent = () => {
     if (btOpen()) { btKey("ok"); return; }
     if (wifiOpen()) { wifiKey(0, "ok"); return; }
-    if (!launcherOpen()) { refreshPocketFetch(); return; }
     if (currentScreen() === 3) activateSetting(settingsIndex());
     else activateCurrent();
   };
@@ -1179,47 +1175,52 @@ mount(() => {
           return;
         }
       }
-      if (launcherOpen()) {
-        if (event.kind === "key" && event.pressed) {
-          if (event.key === "ArrowLeft") {
-            if (isCarouselScreen()) moveCard(-1);
-            else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
-            else if (currentScreen() === 4) {
-              setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
-            }
-          } else if (event.key === "ArrowRight") {
-            if (isCarouselScreen()) moveCard(1);
-            else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
-            else if (currentScreen() === 4) {
-              setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
-            }
-          } else if (event.key === "ArrowUp") {
-            if (currentScreen() === 3) moveSettingsSelection(-1);
-            else if (currentScreen() === 4) setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
-          } else if (event.key === "ArrowDown") {
-            if (currentScreen() === 3) moveSettingsSelection(1);
-            else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
-          } else if (event.key === "Enter") {
-            confirmCurrent();
-          } else if (event.key === "Escape") {
-            if (currentScreen() !== 0) switchScreen(0, -1);
-          } else if (event.key === "PageUp") {
-            switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + SCREENS.length - 1) % SCREENS.length], -1);
-          } else if (event.key === "PageDown") {
-            switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % SCREENS.length], 1);
+      if (event.kind === "key" && event.pressed) {
+        if (event.key === "ArrowLeft") {
+          if (isCarouselScreen()) moveCard(-1);
+          else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
+          else if (currentScreen() === 4) {
+            setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
           }
+        } else if (event.key === "ArrowRight") {
+          if (isCarouselScreen()) moveCard(1);
+          else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
+          else if (currentScreen() === 4) {
+            setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
+          }
+        } else if (event.key === "ArrowUp") {
+          if (currentScreen() === 3) moveSettingsSelection(-1);
+          else if (currentScreen() === 4) setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
+        } else if (event.key === "ArrowDown") {
+          if (currentScreen() === 3) moveSettingsSelection(1);
+          else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
+        } else if (event.key === "Enter") {
+          confirmCurrent();
+        } else if (event.key === "Escape") {
+          if (currentScreen() !== 0) switchScreen(0, -1);
+        } else if (event.key === "PageUp") {
+          switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + SCREENS.length - 1) % SCREENS.length], -1);
+        } else if (event.key === "PageDown") {
+          switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % SCREENS.length], 1);
         }
-        return true;
       }
-
-      // The keyboard escape key is a back action on PocketFetch.
-      if (event.kind !== "key" || !event.pressed) return true;
-      if (event.key === "Escape") setLauncherOpen(true);
       return true;
     });
   });
 
   onFrame((buttons: number) => {
+    if (pendingLaunchAction) {
+      if (pendingLaunchFrames > 0) {
+        pendingLaunchFrames -= 1;
+        setLaunchingPhase((phase) => Math.min(96, phase + 12));
+        previousButtons = buttons;
+        return;
+      }
+      const dispatch = pendingLaunchAction;
+      pendingLaunchAction = null;
+      dispatch();
+      return;
+    }
     if (buttons === 0) armed = true;
 
     // A bridge scan blocks its own thread, so it runs after the scanning frame
@@ -1378,82 +1379,70 @@ mount(() => {
       }
       return;
     }
-    if (launcherOpen()) {
-      if (pressed & BTN.START && isCarouselScreen() && selectedApp()?.romPath) {
-        setGameOptionsOpen(true);
-        return;
-      }
-      // L1 / R1: Category navigation (Apps <-> Settings <-> System)
-      if (pressed & BTN.RTRIGGER) {
-        switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % SCREENS.length], 1);
-        return;
-      }
-      if (pressed & BTN.LTRIGGER) {
-        switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + SCREENS.length - 1) % SCREENS.length], -1);
-        return;
-      }
-      // L2 / R2: Brightness adjustment with hold-to-repeat
-      if (pressed & BTN.ZL) {
-        zlHoldFrames = 0;
-        changeLevel("brightness", -5);
-      } else if (buttons & BTN.ZL) {
-        zlHoldFrames++;
-        if (zlHoldFrames > 18 && zlHoldFrames % 6 === 0) {
-          changeLevel("brightness", -5);
-        }
-      } else {
-        zlHoldFrames = 0;
-      }
-
-      if (pressed & BTN.ZR) {
-        zrHoldFrames = 0;
-        changeLevel("brightness", 5);
-      } else if (buttons & BTN.ZR) {
-        zrHoldFrames++;
-        if (zrHoldFrames > 18 && zrHoldFrames % 6 === 0) {
-          changeLevel("brightness", 5);
-        }
-      } else {
-        zrHoldFrames = 0;
-      }
-      if (pressed & BTN.LEFT) {
-        if (isCarouselScreen()) moveCard(-1);
-        else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
-        else if (currentScreen() === 4) {
-          setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
-        }
-      }
-      if (pressed & BTN.RIGHT) {
-        if (isCarouselScreen()) moveCard(1);
-        else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
-        else if (currentScreen() === 4) {
-          setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
-        }
-      }
-      if (pressed & BTN.UP) {
-        if (isCarouselScreen()) switchScreen(3, 1);
-        else if (currentScreen() === 3) moveSettingsSelection(-1);
-        else if (currentScreen() === 4) setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
-      }
-      if (pressed & BTN.DOWN) {
-        if (currentScreen() === 3) moveSettingsSelection(1);
-        else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
-      }
-      if (pressed & BTN.CIRCLE) {
-        confirmCurrent();
-      }
-      if (pressed & BTN.CROSS && currentScreen() !== 0) switchScreen(0, -1);
+    if (pressed & BTN.START && isCarouselScreen() && selectedApp()?.romPath) {
+      setGameOptionsOpen(true);
       return;
     }
+    // L1 / R1: Category navigation (Apps <-> Settings <-> System)
+    if (pressed & BTN.RTRIGGER) {
+      switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + 1) % SCREENS.length], 1);
+      return;
+    }
+    if (pressed & BTN.LTRIGGER) {
+      switchScreen(SCREENS[(SCREENS.indexOf(currentScreen()) + SCREENS.length - 1) % SCREENS.length], -1);
+      return;
+    }
+    // L2 / R2: Brightness adjustment with hold-to-repeat
+    if (pressed & BTN.ZL) {
+      zlHoldFrames = 0;
+      changeLevel("brightness", -5);
+    } else if (buttons & BTN.ZL) {
+      zlHoldFrames++;
+      if (zlHoldFrames > 18 && zlHoldFrames % 6 === 0) {
+        changeLevel("brightness", -5);
+      }
+    } else {
+      zlHoldFrames = 0;
+    }
 
-    // -----------------------------------------------------------------------
-    // PocketFetch Mode: A re-polls the bridge, B goes back.
-    // -----------------------------------------------------------------------
+    if (pressed & BTN.ZR) {
+      zrHoldFrames = 0;
+      changeLevel("brightness", 5);
+    } else if (buttons & BTN.ZR) {
+      zrHoldFrames++;
+      if (zrHoldFrames > 18 && zrHoldFrames % 6 === 0) {
+        changeLevel("brightness", 5);
+      }
+    } else {
+      zrHoldFrames = 0;
+    }
+    if (pressed & BTN.LEFT) {
+      if (isCarouselScreen()) moveCard(-1);
+      else if (currentScreen() === 3) adjustSetting(settingsIndex(), -1);
+      else if (currentScreen() === 4) {
+        setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
+      }
+    }
+    if (pressed & BTN.RIGHT) {
+      if (isCarouselScreen()) moveCard(1);
+      else if (currentScreen() === 3) adjustSetting(settingsIndex(), 1);
+      else if (currentScreen() === 4) {
+        setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
+      }
+    }
+    if (pressed & BTN.UP) {
+      if (isCarouselScreen()) switchScreen(3, 1);
+      else if (currentScreen() === 3) moveSettingsSelection(-1);
+      else if (currentScreen() === 4) setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
+    }
+    if (pressed & BTN.DOWN) {
+      if (currentScreen() === 3) moveSettingsSelection(1);
+      else if (currentScreen() === 4) setSystemPageIndex((p) => (p + 1) % SYSTEM_PAGES.length);
+    }
     if (pressed & BTN.CIRCLE) {
       confirmCurrent();
-      return;
     }
-    if (pressed & BTN.CROSS) setLauncherOpen(true);
+    if (pressed & BTN.CROSS && currentScreen() !== 0) switchScreen(0, -1);
   });
 
   const titleLines = (name: string): string[] => {
@@ -1531,10 +1520,9 @@ mount(() => {
         src={bgSrcB()}
         style={{ opacity: 0 }}
       />
-      {/* Subtle Dark Vignette Scrim (allows vibrant Gaussian blur backdrop to glow through) */}
-      <View class="absolute inset-0 bg-[#14121828]" />
-      {/* The status bar belongs to the program, not to a screen: the launcher and
-          PocketFetch are two views of the same device state and share it. */}
+      {/* Keep pale cover art visible but force predictable contrast for every label and status icon. */}
+      <View class="absolute inset-0 bg-[#0b0a10a8]" />
+      {/* The status bar stays readable over light and dark cover art. */}
       <StatusBar
         currentScreen={currentScreen()}
         language={language()}
@@ -1548,51 +1536,50 @@ mount(() => {
         fontSize={fontSize()}
         showClock={settingValues().showClock === "true" || settingValues().showClock === "on"}
         onSelectTab={(screen) => switchScreen(screen, screen > currentScreen() ? 1 : -1)}
-        title={launcherOpen() ? undefined : t("app.systemInfo")}
         batteryLevel={batteryLevel()}
         batteryStatus={batteryStatus()}
       />
 
-      {launcherOpen() ? (
-        <View class="w-[720px] h-[416px] flex-col justify-between">
-          {/* Animated Page Container */}
-          <View class="w-[720px] flex-1 flex-col justify-between overflow-hidden relative">
-            {isCarouselScreen() ? (
-              <View class="w-[720px] h-[348px] flex-col justify-between items-center py-[2px]">
-                {/* Horizontal Switch-Style Card Carousel */}
-                {currentApps().length ? (
-                  <CardCarousel
-                    t={t}
-                    apps={currentApps()}
-                    selectedIndex={currentCardIndex()}
-                    windowCenter={carouselCenter()}
-                    onMountCarousel={(node) => {
-                      carouselNode = node;
-                      updateCardPosition(currentCardIndex(), false);
-                    }}
-                    onMountCard={(idx, node) => {
-                      cardNodes.set(idx, { node, screen: currentScreen() });
-                    }}
-                    onCardPress={(idx) => {
-                      if (idx !== currentCardIndex()) {
-                        setHomeCardIndex(idx);
-                        setCarouselCenter(idx);
-                        carouselResetAt = 0;
-                        updateCardPosition(idx, false);
-                      } else {
-                        const app = currentApps()[idx];
-                        if (app) launchApp(app);
-                      }
-                    }}
-                    onMove={(delta) => moveCard(delta)}
-                  />
-                ) : (
-                  <View class="w-[340px] h-[140px] items-center justify-center rounded-[16px] bg-[#211f26]">
-                    <Text class="text-xl text-[#cac4d0]">
-                      {language() === "zh" ? (currentScreen() === 5 ? "暂无收藏游戏" : "暂无内容") : language() === "ja" ? "項目がありません" : (currentScreen() === 5 ? "No favorites" : "Nothing here")}
-                    </Text>
-                  </View>
-                )}
+      <View class="w-[720px] h-[416px] flex-col justify-between">
+        {/* Animated Page Container */}
+        <View class="w-[720px] flex-1 flex-col justify-between overflow-hidden relative">
+          {isCarouselScreen() ? (
+            <View class="w-[720px] h-[348px] flex-col justify-between items-center py-[2px]">
+              {/* Horizontal Switch-Style Card Carousel */}
+              {currentApps().length ? (
+                <CardCarousel
+                  t={t}
+                  themeColor={themeColor()}
+                  apps={currentApps()}
+                  selectedIndex={currentCardIndex()}
+                  windowCenter={carouselCenter()}
+                  onMountCarousel={(node) => {
+                    carouselNode = node;
+                    updateCardPosition(currentCardIndex(), false);
+                  }}
+                  onMountCard={(idx, node) => {
+                    cardNodes.set(idx, { node, screen: currentScreen() });
+                  }}
+                  onCardPress={(idx) => {
+                    if (idx !== currentCardIndex()) {
+                      setHomeCardIndex(idx);
+                      setCarouselCenter(idx);
+                      carouselResetAt = 0;
+                      updateCardPosition(idx, false);
+                    } else {
+                      const app = currentApps()[idx];
+                      if (app) launchApp(app);
+                    }
+                  }}
+                  onMove={(delta) => moveCard(delta)}
+                />
+              ) : (
+                <View class="w-[340px] h-[140px] items-center justify-center rounded-[16px] bg-[#211f26]">
+                  <Text class="text-xl text-[#cac4d0]">
+                    {language() === "zh" ? (currentScreen() === 5 ? "暂无收藏游戏" : "暂无内容") : language() === "ja" ? "項目がありません" : (currentScreen() === 5 ? "No favorites" : "Nothing here")}
+                  </Text>
+                </View>
+              )}
 
                 {/* Modern Game Title & Metadata Plaque (Material Design 3 typography) */}
                 <View class="w-[640px] flex-col items-center justify-center gap-[4px] mb-[6px]">
@@ -1619,6 +1606,7 @@ mount(() => {
                   status={btStatus()}
                   phase={btPhase()}
                   powered={btPowered()}
+                  themeColor={themeColor()}
                   language={language()}
                   onSelect={setBtIndex}
                   onActivate={activateBtDevice}
@@ -1637,6 +1625,8 @@ mount(() => {
                   phase={wifiPhase()}
                   language={language()}
                   osk={wifiOsk}
+                  themeColor={themeColor()}
+                  oskTheme={oskTheme()}
                   onSelect={setWifiIndex}
                   onActivate={activateWifiRow}
                   onRescan={scanWifi}
@@ -1683,7 +1673,7 @@ mount(() => {
           </View>
 
           {/* Bottom Action Footer Bar (Material Design 3 borderless, seamless transparent background) */}
-          <View class="w-[720px] h-[64px] bg-transparent flex-row items-center justify-between px-[32px]">
+          <View class="w-[720px] h-[64px] bg-[#111019bd] flex-row items-center justify-between px-[32px]">
             <View class="flex-row items-center gap-[10px]">
               <Text class="text-xl text-[#938f99]">◀ ▶</Text>
               <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-xl font-bold text-[#cac4d0]" : "text-lg font-bold text-[#cac4d0]"}>
@@ -1719,15 +1709,35 @@ mount(() => {
             </View>
           </View>
         </View>
-      ) : (
-        <PocketFetch
-          snapshot={systemSnapshot()}
-          network={networkSnapshot()}
-          battery={batteryLevel()}
-          language={language()}
-          onRefresh={refreshPocketFetch}
-          onBack={() => setLauncherOpen(true)}
-        />
+
+      {launchingLabel() && (
+        <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#000000d9] flex-col items-center justify-center z-50">
+          <View class="w-[430px] h-[250px] rounded-[28px] border-2 flex-col items-center justify-between p-[22px]"
+            style={{ bgColor: "#17151e", borderColor: theme().primary }}>
+            <View class="w-[386px] flex-row items-center gap-[16px]">
+              <View class="w-[96px] h-[96px] rounded-[18px] items-center justify-center overflow-hidden" style={{ bgColor: theme().container }}>
+                <Image src={appCoverSrc(selectedApp())} class="w-[96px] h-[96px]" />
+              </View>
+              <View class="flex-1 flex-col gap-[6px]">
+                <Text class="text-xs font-bold tracking-wide" style={{ textColor: theme().primary }}>
+                  {language() === "zh" ? "正在打开" : language() === "ja" ? "起動中" : "LAUNCHING"}
+                </Text>
+                <Text class="text-xl font-bold text-[#ffffff]">
+                  {launchingLabel()}
+                </Text>
+                <Text class="text-xs text-[#cac4d0]">
+                  {language() === "zh" ? "请稍候，操作将在启动完成后恢复" : language() === "ja" ? "起動が終わるまでお待ちください" : "Please wait until the app is ready"}
+                </Text>
+              </View>
+            </View>
+            <View class="w-[386px] h-[12px] rounded-[999px] bg-[#2b2930] overflow-hidden flex-row items-center p-[2px]">
+              <View class="h-full rounded-[999px]" style={{ width: Math.round((launchingPhase() / 100) * 382), bgColor: theme().primary }} />
+            </View>
+            <Text class="text-2xs font-bold text-[#938f99]">
+              {language() === "zh" ? "正在进入应用…" : language() === "ja" ? "アプリを準備しています…" : "Starting the app…"}
+            </Text>
+          </View>
+        </View>
       )}
 
       <View ref={(node: NodeMirror) => { toastNode = node; }} class="absolute bottom-[60px] left-[180px] w-[360px] h-[36px] items-center opacity-0">
@@ -1738,7 +1748,7 @@ mount(() => {
 
       {seriesModalOpen() && seriesSelectedApp() ? (
         <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#000000e0] flex-col items-center justify-center z-50">
-          <View class="w-[640px] h-[440px] rounded-[24px] bg-[#1e1a22] border-2 border-[#d0bcff] flex-col p-[16px] justify-between">
+          <View class="w-[640px] h-[440px] rounded-[24px] bg-[#1e1a22] border-2 flex-col p-[16px] justify-between" style={{ borderColor: theme().primary }}>
             {/* Header */}
             <View class="flex-row items-center gap-[14px] pb-[4px]">
               <Image src="cover-zelda.png" class="w-[52px] h-[52px] rounded-[8px]" />
@@ -1762,23 +1772,22 @@ mount(() => {
                   return (
                     <TouchTarget
                       onPress={() => launchSeriesItem(item())}
-                      class={
-                        isCur()
-                          ? "w-[608px] h-[46px] rounded-[12px] bg-[#4a4458] border border-[#d0bcff] flex-row items-center justify-between px-[14px]"
-                          : "w-[608px] h-[46px] rounded-[12px] bg-[#2b2930] flex-row items-center justify-between px-[14px]"
-                      }
+                      class={isCur()
+                        ? "w-[608px] h-[46px] rounded-[12px] border-2 flex-row items-center justify-between px-[14px]"
+                        : "w-[608px] h-[46px] rounded-[12px] bg-[#2b2930] flex-row items-center justify-between px-[14px]"}
+                      style={isCur() ? { bgColor: theme().container, borderColor: theme().primary } : undefined}
                     >
                       <View class="flex-row items-center gap-[10px]">
-                        <View class="px-[8px] py-[2px] rounded-[6px] bg-[#381e72]">
-                          <Text class="text-xs font-bold text-[#e8def8]">GBA</Text>
+                        <View class="px-[8px] py-[2px] rounded-[6px]" style={{ bgColor: theme().container }}>
+                          <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>GBA</Text>
                         </View>
                         <Text class={isCur() ? "text-base font-bold text-[#ffffff]" : "text-base font-bold text-[#e6e0e9]"}>
                           {item().title}
                         </Text>
                       </View>
                       {isMru() ? (
-                        <View class="px-[8px] py-[2px] rounded-[8px] bg-[#7d5260]">
-                          <Text class="text-2xs font-bold text-[#ffd8e4]">
+                        <View class="px-[8px] py-[2px] rounded-[8px]" style={{ bgColor: theme().activeSurface }}>
+                          <Text class="text-2xs font-bold" style={{ textColor: theme().primary }}>
                             {language() === "zh" ? "最近游玩" : language() === "ja" ? "最近プレイ" : "Recent"}
                           </Text>
                         </View>
@@ -1797,13 +1806,13 @@ mount(() => {
               </Text>
               <View class="flex-row items-center gap-[16px]">
                 <View class="flex-row items-center gap-[6px]">
-                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#d0bcff]">
-                    <Text class="text-2xs font-bold text-[#381e72]">A</Text>
+                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
+                    <Text class="text-2xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
                   </View>
                   <Text class="text-xs font-bold text-[#e6e0e9]">{language() === "zh" ? "开始游戏" : "Start"}</Text>
                 </View>
                 <View class="flex-row items-center gap-[6px]">
-                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#4a4458]">
+                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
                     <Text class="text-2xs font-bold text-[#ffffff]">B</Text>
                   </View>
                   <Text class="text-xs font-bold text-[#cac4d0]">{language() === "zh" ? "返回" : "Back"}</Text>
@@ -1816,7 +1825,7 @@ mount(() => {
 
       {gameOptionsOpen() ? (
         <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#00000099] flex-col items-center justify-center">
-          <View class="w-[320px] h-[120px] rounded-[16px] bg-[#1c2028] border-2 border-[#00d2ff] flex-col items-center justify-center gap-[12px] p-[16px]">
+          <View class="w-[320px] h-[120px] rounded-[16px] bg-[#1c2028] border-2 flex-col items-center justify-center gap-[12px] p-[16px]" style={{ borderColor: theme().primary }}>
             <Text class="text-base font-bold text-white text-center">
               {favorites().includes(selectedApp()?.romPath || "")
                 ? (language() === "zh" ? "取消收藏" : language() === "ja" ? "お気に入り解除" : "Remove Favorite")
@@ -1824,13 +1833,13 @@ mount(() => {
             </Text>
             <View class="flex-row items-center gap-[16px]">
               <View class="flex-row items-center gap-[6px]">
-                <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#00d2ff]">
-                  <Text class="text-2xs font-bold text-[#14161c]">A</Text>
+                <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
+                  <Text class="text-2xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
                 </View>
                 <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "确定" : "OK"}</Text>
               </View>
               <View class="flex-row items-center gap-[6px]">
-                <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#343a46]">
+                <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
                   <Text class="text-2xs font-bold text-white">B</Text>
                 </View>
                 <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "返回" : "Back"}</Text>
@@ -1843,6 +1852,7 @@ mount(() => {
       {powerMenuOpen() ? (
         <PowerMenu
           language={language()}
+          themeColor={themeColor()}
           selected={powerChoice()}
           busy={powerBusy()}
           refused={powerRefused()}
@@ -1954,7 +1964,7 @@ mount(() => {
           </View>
 
           {/* Virtual Keyboard Overlay: docked at full screen bottom 720 width! */}
-          <Osk osk={terminalOsk} theme="pjos" keyHeight={38} />
+          <Osk osk={terminalOsk} theme={oskTheme()} keyHeight={38} />
         </View>
       )}
     </View>
