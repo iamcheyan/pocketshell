@@ -1,5 +1,5 @@
 import { createEffect, Index } from "solid-js";
-import { Text, View, type NodeMirror } from "@pocketjs/framework/solid/components";
+import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/solid/components";
 import { animate } from "@pocketjs/framework/animation";
 import { displaySize, ramUsage, type NetworkSnapshot, type SystemSnapshot } from "../system-status";
 import { translator } from "../i18n";
@@ -41,62 +41,10 @@ const compactOs = (snapshot: SystemSnapshot | null) =>
 const compactKernel = (snapshot: SystemSnapshot | null) =>
   text(snapshot?.kernel).replace(/^Linux\s+/i, "").replace(/\s*\(([^)]+)\)\s*$/, " $1");
 
-function SegmentedMeter(props: { percent: number | null | undefined; color: string }) {
-  const pct = () => Math.max(0, Math.min(100, props.percent ?? 0));
-  const filledCount = () => Math.round((pct() / 100) * 8);
-  const segments = [0, 1, 2, 3, 4, 5, 6, 7];
-  return (
-    <View class="w-[180px] flex-row items-center gap-[4px]">
-      <Index each={segments}>
-        {(i) => {
-          const filled = () => i() < filledCount();
-          return (
-            <View
-              class="w-[18px] h-[6px] rounded-[3px]"
-              style={{
-                bgColor: filled() ? props.color : "#36343b",
-              }}
-            />
-          );
-        }}
-      </Index>
-    </View>
-  );
-}
-
-function MetricCard(props: {
-  title: string;
-  percent: number | null | undefined;
-  valueStr: string;
-  subtext: string;
-  color: string;
-}) {
-  return (
-    <View class="w-[210px] h-[126px] p-[14px] rounded-[20px] bg-[#211f26] flex-col justify-between">
-      {/* Top: Title & Dot */}
-      <View class="flex-row items-center justify-between">
-        <Text class="text-sm font-bold text-[#cac4d0] tracking-wide">{props.title}</Text>
-        <View class="w-[8px] h-[8px] rounded-[999px]" style={{ bgColor: props.color }} />
-      </View>
-
-      {/* Middle: Value & Subtext */}
-      <View class="flex-col">
-        <Text class="text-2xl font-bold" style={{ textColor: props.color }}>
-          {props.valueStr}
-        </Text>
-        <Text class="text-xs text-[#938f99]">{props.subtext}</Text>
-      </View>
-
-      {/* Bottom: 8-segment Pill Bar */}
-      <SegmentedMeter percent={props.percent} color={props.color} />
-    </View>
-  );
-}
-
 function InfoRow(props: { label: string; value: string; color?: string; muted?: boolean }) {
   return (
-    <View class="w-[660px] h-[40px] px-[18px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between mb-[5px]">
-      <Text class="text-base text-[#cac4d0]">{props.label}</Text>
+    <View class="w-[660px] h-[44px] px-[20px] rounded-[16px] bg-[#211f26] flex-row items-center justify-between mb-[6px] border border-[#2d2938]">
+      <Text class="text-base font-bold text-[#cac4d0]">{props.label}</Text>
       <Text
         class="text-base font-bold"
         style={{ textColor: props.muted ? "#938f99" : props.color ?? "#e6e0e9" }}
@@ -136,117 +84,140 @@ export function SystemPage(props: SystemPageProps) {
   });
 
   return (
-    <View class="w-[720px] h-[348px] px-[30px] py-[6px] bg-transparent flex-col items-center justify-center">
+    <View class="w-[720px] h-[348px] px-[24px] py-[6px] bg-transparent flex-col items-center justify-center">
       <View
-        class="w-[660px] flex-col"
+        class="w-[672px] h-[336px]"
         ref={(node: NodeMirror) => {
           pageNode = node;
         }}
       >
         {props.pageIndex === 0 ? (
-          <View class="w-[660px] flex-col">
-            {/* Header Device Summary */}
-            <View class="w-[660px] flex-row items-center justify-between px-[4px] mb-[6px]">
-              <Text class="text-lg font-bold text-[#e6e0e9]">{text(snapshot()?.model)}</Text>
-              <Text class="text-sm font-bold text-[#cac4d0]">{memoryLabel()}</Text>
-            </View>
-
-            {/* 3 Metric Cards Side-by-Side (No overflow) */}
-            <View class="w-[660px] flex-row justify-between mb-[8px]">
-              <MetricCard
-                title={t()("system.cpu")}
-                percent={cpu()}
-                valueStr={percentText(cpu())}
-                subtext={snapshot()?.cpu || "Quad-Core ARM"}
-                color="#d0bcff"
-              />
-              <MetricCard
-                title={t()("system.memory")}
-                percent={ram()?.percent}
-                valueStr={percentText(ram()?.percent)}
-                subtext={ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}
-                color="#a8efff"
-              />
-              <MetricCard
-                title={t()("system.storage")}
-                percent={storage()}
-                valueStr={percentText(storage())}
-                subtext={
-                  snapshot()?.storageUsed && snapshot()?.storageTotal
-                    ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}`
-                    : "-- / --"
-                }
-                color="#ffd8e4"
-              />
-            </View>
-
-            {/* Service Status Row (SSH, ADB, MTP) */}
-            <View class="w-[660px] flex-row justify-between mb-[8px]">
-              <View class="w-[210px] h-[44px] px-[16px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between">
-                <Text class="text-sm font-bold text-[#cac4d0]">SSH</Text>
-                <View
-                  class={
-                    props.status.ssh
-                      ? "px-[10px] py-[2px] rounded-[999px] bg-[#1e3a2f]"
-                      : "px-[10px] py-[2px] rounded-[999px] bg-[#36343b]"
-                  }
-                >
-                  <Text
-                    class="text-xs font-bold"
-                    style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}
-                  >
-                    {props.status.ssh ? "ON" : "OFF"}
-                  </Text>
-                </View>
+          <View class="w-[672px] h-[336px] flex-row items-center justify-between">
+            {/* Left Column: Device Identity Card */}
+            <View class="w-[230px] h-[336px] rounded-[24px] bg-[#1e1b24] p-[16px] flex-col items-center justify-between border border-[#2d2938]">
+              {/* Device Image (Vector Flat Handheld Illustration) */}
+              <View class="w-[124px] h-[124px] items-center justify-center">
+                <Image src="cover-handheld.png" style={{ width: 116, height: 116 }} />
               </View>
 
-              <View class="w-[210px] h-[44px] px-[16px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between">
-                <Text class="text-sm font-bold text-[#cac4d0]">ADB</Text>
-                <View
-                  class={
-                    props.status.adb
-                      ? "px-[10px] py-[2px] rounded-[999px] bg-[#1e3a2f]"
-                      : "px-[10px] py-[2px] rounded-[999px] bg-[#36343b]"
-                  }
-                >
-                  <Text
-                    class="text-xs font-bold"
-                    style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}
-                  >
-                    {props.status.adb ? "ON" : "OFF"}
-                  </Text>
-                </View>
+              {/* Device Names */}
+              <View class="flex-col items-center text-center">
+                <Text class="text-2xl font-bold text-[#e6e0e9]">RG34XX</Text>
+                <Text class="text-xs font-bold text-[#d0bcff] mt-[2px]">{text(snapshot()?.model) || "Allwinner H700"}</Text>
+                <Text class="text-xs text-[#938f99] mt-[2px]">
+                  {snapshot()?.cpu || "4 Cores @ 1.5 GHz"}
+                </Text>
               </View>
 
-              <View class="w-[210px] h-[44px] px-[16px] rounded-[14px] bg-[#211f26] flex-row items-center justify-between">
-                <Text class="text-sm font-bold text-[#cac4d0]">MTP</Text>
-                <View
-                  class={
-                    props.status.mtp
-                      ? "px-[10px] py-[2px] rounded-[999px] bg-[#1e3a2f]"
-                      : "px-[10px] py-[2px] rounded-[999px] bg-[#36343b]"
-                  }
-                >
-                  <Text
-                    class="text-xs font-bold"
-                    style={{ textColor: props.status.mtp ? "#a8efff" : "#938f99" }}
+              {/* OS Badge & Services */}
+              <View class="w-full flex-col gap-[6px]">
+                <View class="w-full h-[32px] px-[12px] rounded-[10px] bg-[#292633] flex-row items-center justify-between">
+                  <Text class="text-xs text-[#cac4d0]">PJOS</Text>
+                  <Text class="text-xs font-bold text-[#a8efff]">{compactOs(snapshot()) || "1.5.3"}</Text>
+                </View>
+                <View class="w-full flex-row justify-between gap-[6px]">
+                  <View
+                    class="flex-1 h-[28px] rounded-[8px] flex-row items-center justify-center gap-[4px]"
+                    style={{ bgColor: props.status.ssh ? "#1e3a2f" : "#292633" }}
                   >
-                    {props.status.mtp ? "ON" : "OFF"}
-                  </Text>
+                    <View class="w-[6px] h-[6px] rounded-[3px]" style={{ bgColor: props.status.ssh ? "#a8efff" : "#938f99" }} />
+                    <Text class="text-2xs font-bold" style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}>SSH</Text>
+                  </View>
+                  <View
+                    class="flex-1 h-[28px] rounded-[8px] flex-row items-center justify-center gap-[4px]"
+                    style={{ bgColor: props.status.adb ? "#1e3a2f" : "#292633" }}
+                  >
+                    <View class="w-[6px] h-[6px] rounded-[3px]" style={{ bgColor: props.status.adb ? "#a8efff" : "#938f99" }} />
+                    <Text class="text-2xs font-bold" style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}>ADB</Text>
+                  </View>
                 </View>
               </View>
             </View>
 
-            {/* OS & Kernel */}
-            <InfoRow label={t()("system.os")} value={compactOs(snapshot())} />
-            <InfoRow label={t()("system.kernel")} value={compactKernel(snapshot())} muted />
+            {/* Right Column: 3 Large Metric Cards */}
+            <View class="w-[426px] h-[336px] flex-col justify-between">
+              {/* CPU Card */}
+              <View class="w-[426px] h-[104px] p-[16px] rounded-[20px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+                <View class="flex-row items-center justify-between">
+                  <View class="flex-row items-center gap-[8px]">
+                    <View class="w-[10px] h-[10px] rounded-[5px] bg-[#d0bcff]" />
+                    <Text class="text-base font-bold text-[#e6e0e9]">{t()("system.cpu")}</Text>
+                  </View>
+                  <Text class="text-xs text-[#938f99] font-bold">
+                    {snapshot()?.frequency ? `${snapshot()!.frequency} · ` : ""}{snapshot()?.temperature || ""}
+                  </Text>
+                </View>
+                <View class="flex-row items-end justify-between">
+                  <Text class="text-2xl font-bold" style={{ textColor: "#d0bcff" }}>{percentText(cpu())}</Text>
+                  <View class="flex-col items-end gap-[6px]">
+                    <View class="w-[260px] h-[10px] rounded-[5px] bg-[#36343b] overflow-hidden">
+                      <View
+                        class="h-[10px] rounded-[5px] bg-[#d0bcff]"
+                        style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, cpu() ?? 0)) / 100) * 260)) }}
+                      />
+                    </View>
+                    <Text class="text-xs text-[#938f99]">{snapshot()?.cpu || "Quad-Core ARM"}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Memory Card */}
+              <View class="w-[426px] h-[104px] p-[16px] rounded-[20px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+                <View class="flex-row items-center justify-between">
+                  <View class="flex-row items-center gap-[8px]">
+                    <View class="w-[10px] h-[10px] rounded-[5px] bg-[#a8efff]" />
+                    <Text class="text-base font-bold text-[#e6e0e9]">{t()("system.memory")}</Text>
+                  </View>
+                  <Text class="text-xs text-[#a8efff] font-bold">{memoryLabel()}</Text>
+                </View>
+                <View class="flex-row items-end justify-between">
+                  <Text class="text-2xl font-bold" style={{ textColor: "#a8efff" }}>{percentText(ram()?.percent)}</Text>
+                  <View class="flex-col items-end gap-[6px]">
+                    <View class="w-[260px] h-[10px] rounded-[5px] bg-[#36343b] overflow-hidden">
+                      <View
+                        class="h-[10px] rounded-[5px] bg-[#a8efff]"
+                        style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, ram()?.percent ?? 0)) / 100) * 260)) }}
+                      />
+                    </View>
+                    <Text class="text-xs text-[#938f99]">{ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Storage Card */}
+              <View class="w-[426px] h-[104px] p-[16px] rounded-[20px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+                <View class="flex-row items-center justify-between">
+                  <View class="flex-row items-center gap-[8px]">
+                    <View class="w-[10px] h-[10px] rounded-[5px] bg-[#ffd8e4]" />
+                    <Text class="text-base font-bold text-[#e6e0e9]">{t()("system.storage")}</Text>
+                  </View>
+                  <Text class="text-xs text-[#ffd8e4] font-bold">
+                    {snapshot()?.storageTotal ? `TF / Storage` : ""}
+                  </Text>
+                </View>
+                <View class="flex-row items-end justify-between">
+                  <Text class="text-2xl font-bold" style={{ textColor: "#ffd8e4" }}>{percentText(storage())}</Text>
+                  <View class="flex-col items-end gap-[6px]">
+                    <View class="w-[260px] h-[10px] rounded-[5px] bg-[#36343b] overflow-hidden">
+                      <View
+                        class="h-[10px] rounded-[5px] bg-[#ffd8e4]"
+                        style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, storage() ?? 0)) / 100) * 260)) }}
+                      />
+                    </View>
+                    <Text class="text-xs text-[#938f99]">
+                      {snapshot()?.storageUsed && snapshot()?.storageTotal ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}` : "-- / --"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
           </View>
         ) : null}
 
         {props.pageIndex === 1 ? (
-          <View class="w-[660px] flex-col">
-            <View class="w-[660px] px-[6px] mb-[6px]">
-              <Text class="text-base font-bold text-[#d0bcff]">{t()("system.hardware")}</Text>
+          <View class="w-[672px] h-[336px] flex-col justify-between">
+            <View class="w-[672px] px-[6px] mb-[4px]">
+              <Text class="text-lg font-bold text-[#d0bcff]">{t()("system.hardware")}</Text>
             </View>
             <InfoRow label={t()("system.board")} value={text(snapshot()?.hardware)} />
             <InfoRow label={t()("system.cpu")} value={text(snapshot()?.cpu)} />
@@ -266,9 +237,9 @@ export function SystemPage(props: SystemPageProps) {
         ) : null}
 
         {props.pageIndex === 2 ? (
-          <View class="w-[660px] flex-col">
-            <View class="w-[660px] px-[6px] mb-[6px]">
-              <Text class="text-base font-bold text-[#d0bcff]">{t()("system.link")}</Text>
+          <View class="w-[672px] h-[336px] flex-col justify-between">
+            <View class="w-[672px] px-[6px] mb-[4px]">
+              <Text class="text-lg font-bold text-[#d0bcff]">{t()("system.link")}</Text>
             </View>
             <InfoRow
               label={t()("system.status")}
@@ -281,8 +252,8 @@ export function SystemPage(props: SystemPageProps) {
             />
             <InfoRow label={t()("system.address")} value={text(props.network.address)} />
 
-            <View class="w-[660px] px-[6px] mt-[6px] mb-[6px]">
-              <Text class="text-base font-bold text-[#d0bcff]">{t()("system.thisDevice")}</Text>
+            <View class="w-[672px] px-[6px] mt-[4px] mb-[4px]">
+              <Text class="text-lg font-bold text-[#d0bcff]">{t()("system.thisDevice")}</Text>
             </View>
             <InfoRow
               label={t()("system.battery")}

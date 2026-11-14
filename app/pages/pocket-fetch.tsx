@@ -28,16 +28,16 @@ const VALUE_WIDTH = 120;
 
 // Tux: the kernel's logo_linux_clut224, cut out of the driver tree and shipped
 // as a pak image so the mark is the same penguin the boot log draws.
-const LOGO_SRC = "tux.png";
-const LOGO_W = 36;
-const LOGO_H = 36;
+const LOGO_SRC = "cover-handheld.png";
+const LOGO_W = 120;
+const LOGO_H = 120;
 
 // `user@host` from the bridge. A machine that answers neither keeps the generic
 // localhost form rather than a device name that may be wrong.
 function prompt(snapshot: SystemSnapshot | null) {
   const user = snapshot?.user?.trim();
   const host = (snapshot?.hostname ?? snapshot?.model)?.trim().split(/\s+/)[0];
-  return `${user || "pocket"}@${host || "localhost"}`;
+  return `${user || "root"}@${host || "rg34xx"}`;
 }
 
 export function PocketFetch(props: PocketFetchProps) {
@@ -80,7 +80,7 @@ export function PocketFetch(props: PocketFetchProps) {
       field("CPU", cpuParts.length ? cpuParts.join(" · ") : "--"),
       field("Memory", ram ? `${ram.usedMb}M / ${ram.totalMb}M` : "--"),
       field("Disk", disk, storagePercent !== null && storagePercent >= 85 ? AMBER : PALE),
-      field("Display", displaySize(snap?.display) ?? "--"),
+      field("Display", displaySize(snap?.display) ?? "720x480"),
       field(
         "Network",
         net.address
@@ -101,35 +101,43 @@ export function PocketFetch(props: PocketFetchProps) {
   const t = () => translator(props.language);
 
   return (
-    <View class="w-[240px] h-[145px] flex-col" style={{ bgColor: INK }}>
-      <View class="w-[240px] flex-1 flex-row px-[8px] pt-[5px]">
-        <Image class="mt-[3px] mr-[8px]" src={LOGO_SRC} style={{ width: LOGO_W, height: LOGO_H }} />
+    <View class="w-[720px] h-[416px] px-[24px] py-[12px] flex-col justify-between" style={{ bgColor: "#121016" }}>
+      <View class="w-[672px] flex-1 flex-row items-center justify-between">
+        {/* Left Handheld Card */}
+        <View class="w-[200px] h-[340px] rounded-[24px] bg-[#1e1b24] p-[16px] flex-col items-center justify-between border border-[#2d2938]">
+          <View class="w-[124px] h-[124px] items-center justify-center">
+            <Image src={LOGO_SRC} style={{ width: LOGO_W, height: LOGO_H }} />
+          </View>
+          <View class="flex-col items-center text-center">
+            <Text class="text-xl font-bold text-[#e6e0e9]">RG34XX</Text>
+            <Text class="text-xs font-bold text-[#d0bcff] mt-[2px]">{promptLine()}</Text>
+          </View>
+          <TouchTarget
+            onPress={props.onBack ?? (() => {})}
+            class="w-full h-[36px] rounded-[12px] bg-[#36343b] items-center justify-center"
+          >
+            <Text class="text-xs font-bold text-[#e6e0e9]">B 返回</Text>
+          </TouchTarget>
+        </View>
 
-        <View class="flex-col">
-          <Text class="text-2xs font-bold" style={{ textColor: GREEN }}>
-            {promptLine()}
-          </Text>
-          <Text class="text-2xs" style={{ textColor: LINE }}>
-            ------------------
-          </Text>
+        {/* Right Info Rows */}
+        <View class="w-[456px] h-[340px] rounded-[24px] bg-[#1e1b24] p-[16px] flex-col justify-between border border-[#2d2938]">
+          <Text class="text-base font-bold text-[#d0bcff] mb-[4px]">系统详细参数</Text>
           <For each={rows()}>
             {(row) => (
-              <View class="w-[181px] h-[11px] flex-row items-center">
-                <Text class="text-2xs font-bold w-[41px] shrink-0" style={{ textColor: CYAN }}>
+              <View class="w-full h-[24px] flex-row items-center justify-between">
+                <Text class="text-xs font-bold text-[#938f99] w-[80px] shrink-0">
                   {row.label}
                 </Text>
-                <RollingText value={row.value} color={row.color} width={VALUE_WIDTH} />
+                <Text class="text-xs font-bold text-[#cac4d0]" style={{ textColor: row.color }}>
+                  {row.value}
+                </Text>
               </View>
             )}
           </For>
         </View>
       </View>
-
-      <View class="w-[240px] h-[12px] flex-row items-center justify-end px-[5px]">
-        <TouchTarget onPress={props.onRefresh ?? (() => {})} class="h-[12px] min-w-[16px] px-[5px] items-center justify-center"><Text class="text-2xs" style={{ textColor: GREEN }}>
-          ↻
-        </Text></TouchTarget>
-      </View>
     </View>
   );
 }
+

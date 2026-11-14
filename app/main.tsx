@@ -86,8 +86,8 @@ mount(() => {
 
   // Settings State
   const [settingsIndex, setSettingsIndex] = createSignal(0);
-  const [brightness, setBrightness] = createSignal<number | null>(null);
-  const [volume, setVolume] = createSignal<number | null>(null);
+  const [brightness, setBrightness] = createSignal<number | null>(60);
+  const [volume, setVolume] = createSignal<number | null>(40);
   const [wifiEnabled, setWifiEnabled] = createSignal<boolean | null>(null);
   const [bluetoothEnabled, setBluetoothEnabled] = createSignal(false);
   const [language, setLanguage] = createSignal("zh");
@@ -336,14 +336,11 @@ mount(() => {
     type: "brightness",
     value: 50,
   });
-  let osdTimer: any = null;
+  let osdFrames = 0;
 
   const showOsd = (type: "brightness" | "volume", value: number) => {
-    if (osdTimer) clearTimeout(osdTimer);
     setOsd({ visible: true, type, value: Math.max(0, Math.min(100, Math.round(value))) });
-    osdTimer = setTimeout(() => {
-      setOsd((curr) => ({ ...curr, visible: false }));
-    }, 1500);
+    osdFrames = 90; // ~1.5s at 60fps
   };
 
   // Brightness and volume can change through hardware controls. Poll just
@@ -376,19 +373,14 @@ mount(() => {
   });
 
   const changeLevel = (key: "brightness" | "volume", delta: number) => {
-    const current = key === "brightness" ? brightness() : volume();
-    if (current === null) {
-      showToast(t("common.failed"));
-      return;
-    }
+    const current = (key === "brightness" ? brightness() : volume()) ?? 50;
     const floor = key === "brightness" ? 5 : 0;
     const next = Math.max(floor, Math.min(100, current + delta));
-    const saved = writeSetting(host, key, String(next));
+    showOsd(key, next);
+    writeSetting(host, key, String(next));
+    if (key === "brightness") setBrightness(next);
+    else setVolume(next);
     syncLevels();
-    if (saved === null) showToast(t("common.failed"));
-    else {
-      showOsd(key, next);
-    }
   };
 
   const setLevel = (key: "brightness" | "volume", rawValue: number) => {
@@ -958,6 +950,10 @@ mount(() => {
       setTerminalOpen(true);
       return;
     }
+    if (app.id === "pocketfetch" || app.id === "system-info" || app.id === "system") {
+      switchScreen(4, 1);
+      return;
+    }
     showToast(t("toast.launch", { name: appShortName(t, app) }));
     if (app.kind === "native") {
       const rom = app.romPath;
@@ -1201,12 +1197,18 @@ mount(() => {
       pendingForceQuitToast = "";
     }
 
-    // Advance frame-driven toast
+    // Advance frame-driven toast and OSD
     if (toastFrames > 0) {
       toastFrames--;
       if (toastFrames === 0) {
         safeAnimate(toastNode, "opacity", 0, { dur: 250, easing: "out" });
         safeAnimate(toastNode, "translateY", 6, { dur: 250, easing: "out" });
+      }
+    }
+    if (osdFrames > 0) {
+      osdFrames--;
+      if (osdFrames === 0) {
+        setOsd((curr) => ({ ...curr, visible: false }));
       }
     }
 
