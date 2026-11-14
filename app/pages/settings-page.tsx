@@ -155,7 +155,7 @@ export function SettingsPage(props: SettingsPageProps) {
     </View>
   );
 
-  const rowValue = (row: SettingRow) => {
+  const rowValue = (row: SettingRow, realIndex: number) => {
     const raw = value(row.key);
     if (row.kind === "level") {
       const level = raw === null ? null : Number(raw);
@@ -167,8 +167,14 @@ export function SettingsPage(props: SettingsPageProps) {
             rowKey={row.key as LevelKey}
             value={level !== null && Number.isFinite(level) ? level : null}
             fillColor={theme().primary}
-            onPreview={(v) => props.onLevelPreview?.(row.key as LevelKey, v)}
-            onCommit={(v) => props.onLevelCommit?.(row.key as LevelKey, v)}
+            onPreview={(v) => {
+              props.onSelect?.(realIndex);
+              props.onLevelPreview?.(row.key as LevelKey, v);
+            }}
+            onCommit={(v) => {
+              props.onSelect?.(realIndex);
+              props.onLevelCommit?.(row.key as LevelKey, v);
+            }}
             onCancel={() => props.onLevelCancel?.()}
           />
           <View class="w-[50px] flex-row items-center justify-end">
@@ -195,11 +201,17 @@ export function SettingsPage(props: SettingsPageProps) {
                   : t("settings.connected")
                 : t("settings.disconnected")}
             </Text>
-            {switchControl(raw, () => props.onActivate?.(props.state.selectedIndex))}
+            {switchControl(raw, () => {
+              props.onSelect?.(realIndex);
+              props.onActivate?.(realIndex);
+            })}
           </View>
         );
       }
-      return switchControl(raw, () => props.onActivate?.(props.state.selectedIndex));
+      return switchControl(raw, () => {
+        props.onSelect?.(realIndex);
+        props.onActivate?.(realIndex);
+      });
     }
     if (row.kind === "enum") {
       if (row.key === "language") {
@@ -216,8 +228,9 @@ export function SettingsPage(props: SettingsPageProps) {
                 return (
                   <TouchTarget
                     onPress={() => {
+                      props.onSelect?.(realIndex);
                       if (props.onSetLanguage) props.onSetLanguage(l().code);
-                      else props.onActivate?.(props.state.selectedIndex);
+                      else props.onActivate?.(realIndex);
                     }}
                     class={
                       active()
@@ -252,7 +265,10 @@ export function SettingsPage(props: SettingsPageProps) {
                 const active = () => (props.state.fontSize || "normal") === s().key;
                 return (
                   <TouchTarget
-                    onPress={() => props.onAdjust?.(props.state.selectedIndex, 1)}
+                    onPress={() => {
+                      props.onSelect?.(realIndex);
+                      props.onAdjust?.(realIndex, 1);
+                    }}
                     class={
                       active()
                         ? "px-[12px] h-[30px] rounded-[999px] items-center justify-center"
@@ -277,7 +293,13 @@ export function SettingsPage(props: SettingsPageProps) {
         const key = (props.state.themeColor || "purple") as ThemeColorKey;
         const pal = THEME_PALETTES[key] || THEME_PALETTES.purple;
         return (
-          <View class="px-[14px] h-[34px] items-center justify-center bg-[#36343b] rounded-[999px] flex-row gap-[8px]">
+          <TouchTarget
+            onPress={() => {
+              props.onSelect?.(realIndex);
+              props.onAdjust?.(realIndex, 1);
+            }}
+            class="px-[14px] h-[34px] items-center justify-center bg-[#36343b] rounded-[999px] flex-row gap-[8px]"
+          >
             <View class="w-[12px] h-[12px] rounded-[999px]" style={{ bgColor: pal.primary }} />
             <Text
               class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
@@ -285,24 +307,39 @@ export function SettingsPage(props: SettingsPageProps) {
             >
               {t(`theme.${key}`)}
             </Text>
-          </View>
+          </TouchTarget>
         );
       }
       if (row.key === "autoPoweroff") {
         const index = AUTO_POWEROFF_OPTIONS.findIndex((option) => option.value === raw);
         return (
-          <View class="flex-row items-center gap-[10px]">
+          <TouchTarget
+            onPress={() => {
+              props.onSelect?.(realIndex);
+              props.onAdjust?.(realIndex, 1);
+            }}
+            class="flex-row items-center gap-[10px]"
+          >
             <Text class={isHuge() ? "text-lg text-[#cac4d0]" : "text-base text-[#cac4d0]"}>
               {t("settings.autoPoweroffCharger")}
             </Text>
             {enumPill(
               index >= 0 ? AUTO_POWEROFF_OPTIONS[index].label : raw ?? t("common.unknown"),
             )}
-          </View>
+          </TouchTarget>
         );
       }
       const index = TIMEOUT_OPTIONS.findIndex((option) => option.value === raw);
-      return enumPill(index >= 0 ? TIMEOUT_OPTIONS[index].label : raw ?? t("common.unknown"));
+      return (
+        <TouchTarget
+          onPress={() => {
+            props.onSelect?.(realIndex);
+            props.onAdjust?.(realIndex, 1);
+          }}
+        >
+          {enumPill(index >= 0 ? TIMEOUT_OPTIONS[index].label : raw ?? t("common.unknown"))}
+        </TouchTarget>
+      );
     }
     if (row.kind === "text") {
       return (
@@ -379,7 +416,7 @@ export function SettingsPage(props: SettingsPageProps) {
                     {rowLabel(entry().row)}
                   </Text>
                 </View>
-                {rowValue(entry().row)}
+                {rowValue(entry().row, entry().realIndex)}
               </TouchTarget>
             );
           }}

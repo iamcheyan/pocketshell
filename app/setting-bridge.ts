@@ -115,11 +115,25 @@ export const SETTING_BRIDGE: Record<string, SettingBridge> = {
 
 // A runtime that predates a command answers with this prose instead of an
 // error, and it must never be mistaken for a value.
-const isUnknownArm = (raw: string): boolean => /unknown launcher action/i.test(raw);
+const isUnknownArm = (raw: string): boolean =>
+  !raw ||
+  /^(unknown|error:unsupported|error:unavailable)$/i.test(raw.trim()) ||
+  /unknown launcher action/i.test(raw);
+
+export const localFallbackSettings: Record<string, string> = {
+  showClock: "off",
+  animations: "off",
+  fontSize: "normal",
+  themeColor: "purple",
+};
 
 export const readSetting = (host: LauncherHost | undefined, key: string): string | null => {
   const unified = host?.__launcher?.(`SETTING\t${key}`)?.trim() ?? "";
-  if (unified && !isUnknownArm(unified) && !/^error:/i.test(unified)) return unified;
+  if (unified && !isUnknownArm(unified) && !/^error:/i.test(unified)) {
+    if (key in localFallbackSettings) localFallbackSettings[key] = unified;
+    return unified;
+  }
+  if (key in localFallbackSettings) return localFallbackSettings[key];
   const bridge = SETTING_BRIDGE[key];
   if (!bridge?.read) return null;
   const raw = host?.__launcher?.(bridge.read)?.trim();
@@ -129,6 +143,11 @@ export const readSetting = (host: LauncherHost | undefined, key: string): string
 
 /** Returns the value the host reports afterwards, or null when it refused. */
 export const writeSetting = (host: LauncherHost | undefined, key: string, value: string): string | null => {
+  if (key in localFallbackSettings) {
+    localFallbackSettings[key] = value;
+    host?.__launcher?.(`SETTING\t${key}\t${value}`);
+    return value;
+  }
   const unified = host?.__launcher?.(`SETTING\t${key}\t${value}`)?.trim() ?? "";
   if (unified === "error:reboot-required") return "reboot-required";
   if (unified === "error:starting") return "starting";

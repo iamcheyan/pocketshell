@@ -70,18 +70,6 @@ export function SystemPage(props: SystemPageProps) {
       : text(snapshot()?.ramVariant);
 
   let pageNode: NodeMirror | undefined;
-  createEffect(() => {
-    props.pageIndex;
-    props.snapshot;
-    props.network;
-    if (!pageNode) return;
-    try {
-      animate(pageNode, "opacity", 0.7, { dur: 0 });
-      animate(pageNode, "opacity", 1, { dur: 120, easing: "out" });
-    } catch {
-      // ignore
-    }
-  });
 
   return (
     <View class="w-[720px] h-[348px] px-[24px] py-[6px] bg-transparent flex-col items-center justify-center">

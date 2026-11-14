@@ -1,5 +1,6 @@
 import { Image, Text, View } from "@pocketjs/framework/solid/components";
-import { Index, createSignal, createEffect, onCleanup } from "solid-js";
+import { Index, createSignal, createEffect } from "solid-js";
+import { onFrame } from "@pocketjs/framework/lifecycle";
 import { TouchTarget } from "./touch-target";
 import {
   THEME_PALETTES,
@@ -34,26 +35,41 @@ export function StatusBar(props: StatusBarProps) {
   const fontConfig = () => FONT_SCALE_CONFIGS[props.fontSize || "normal"] || FONT_SCALE_CONFIGS.normal;
 
   const [currentTime, setCurrentTime] = createSignal("");
+  const update = () => {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    setCurrentTime(`${h}:${m}`);
+  };
+
   createEffect(() => {
     if (!props.showClock) {
       setCurrentTime("");
       return;
     }
-    const update = () => {
-      const d = new Date();
-      const h = String(d.getHours()).padStart(2, "0");
-      const m = String(d.getMinutes()).padStart(2, "0");
-      setCurrentTime(`${h}:${m}`);
-    };
     update();
-    const interval = setInterval(update, 5000);
-    onCleanup(() => clearInterval(interval));
   });
 
+  let clockTicks = 0;
+  onFrame(() => {
+    if (!props.showClock) return;
+    clockTicks++;
+    if (clockTicks >= 60) {
+      clockTicks = 0;
+      update();
+    }
+  });
+
+  const isAppScreen = () =>
+    props.currentScreen === 0 ||
+    props.currentScreen === 1 ||
+    props.currentScreen === 2 ||
+    props.currentScreen === 5;
+
   const TABS = [
-    { screen: 0, label: isZh() ? "应用" : isJa() ? "アプリ" : "Apps" },
-    { screen: 3, label: isZh() ? "设置" : isJa() ? "設定" : "Settings" },
-    { screen: 4, label: isZh() ? "系统" : isJa() ? "システム" : "System" },
+    { id: "apps", screen: 0, label: isZh() ? "应用" : isJa() ? "アプリ" : "Apps", active: isAppScreen },
+    { id: "settings", screen: 3, label: isZh() ? "设置" : isJa() ? "設定" : "Settings", active: () => props.currentScreen === 3 },
+    { id: "system", screen: 4, label: isZh() ? "系统" : isJa() ? "システム" : "System", active: () => props.currentScreen === 4 },
   ];
 
   const known = () => props.batteryLevel >= 0 && props.batteryLevel <= 100;
@@ -81,24 +97,28 @@ export function StatusBar(props: StatusBarProps) {
           <View class="flex-row items-center gap-[8px]">
             <Index each={TABS}>
               {(tab) => {
-                const isSelected = () => props.currentScreen === tab().screen;
+                const isSelected = () => tab().active();
                 return (
                   <TouchTarget
                     onPress={() => props.onSelectTab?.(tab().screen)}
                     class={
                       isSelected()
-                        ? "px-[18px] py-[6px] rounded-[999px] items-center justify-center"
+                        ? "px-[18px] py-[6px] rounded-[999px] items-center justify-center border-2"
                         : "px-[14px] py-[6px] rounded-[999px] items-center justify-center bg-transparent"
                     }
-                    style={isSelected() ? { bgColor: theme().container } : undefined}
+                    style={
+                      isSelected()
+                        ? { bgColor: theme().container, borderColor: theme().primary }
+                        : undefined
+                    }
                   >
                     <Text
                       class={
                         isSelected()
                           ? (props.fontSize === "huge" ? "text-2xl font-bold" : "text-xl font-bold")
-                          : (props.fontSize === "huge" ? "text-xl text-[#cac4d0]" : "text-lg text-[#cac4d0]")
+                          : (props.fontSize === "huge" ? "text-xl" : "text-lg")
                       }
-                      style={isSelected() ? { textColor: theme().onContainer } : undefined}
+                      style={{ textColor: isSelected() ? "#ffffff" : "#938f99" }}
                     >
                       {tab().label}
                     </Text>

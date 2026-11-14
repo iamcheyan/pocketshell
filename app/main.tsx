@@ -122,7 +122,7 @@ mount(() => {
 
   const animationsEnabled = () => {
     const val = settingValues().animations;
-    return val !== "false" && val !== "off";
+    return val === "true" || val === "on";
   };
 
   const safeAnimate = (
@@ -133,8 +133,10 @@ mount(() => {
   ): number => {
     if (!node || typeof node.id !== "number" || node.id <= 0) return 0;
     try {
-      const actualOpts = animationsEnabled() ? opts : { ...(opts || {}), dur: 0 };
-      return animate(node, prop, to, actualOpts);
+      if (!animationsEnabled()) {
+        return animate(node, prop, to, { ...(opts || {}), dur: 0 });
+      }
+      return animate(node, prop, to, opts);
     } catch {
       return 0;
     }
@@ -211,9 +213,14 @@ mount(() => {
         updateCardPosition(currentCardIndex(), false);
       }
 
-      safeAnimate(pageNode, "translateX", direction * 24, { dur: 0 });
-      safeAnimate(pageNode, "translateX", 0, { dur: 200, easing: "out" });
-      safeAnimate(pageNode, "opacity", 1, { dur: 180, easing: "out" });
+      if (animationsEnabled()) {
+        safeAnimate(pageNode, "translateX", direction * 24, { dur: 0 });
+        safeAnimate(pageNode, "translateX", 0, { dur: 200, easing: "out" });
+        safeAnimate(pageNode, "opacity", 1, { dur: 180, easing: "out" });
+      } else {
+        safeAnimate(pageNode, "translateX", 0, { dur: 0 });
+        safeAnimate(pageNode, "opacity", 1, { dur: 0 });
+      }
       if (next === 3) {
         syncSettings();
         lastSettingsPoll = Date.now();
@@ -231,12 +238,18 @@ mount(() => {
     const cur = currentCardIndex();
     const next = apps.length >= 5 ? (cur + delta + apps.length) % apps.length : Math.max(0, Math.min(apps.length - 1, cur + delta));
     if (next === cur) return;
+    setHomeCardIndex(next);
+    if (!animationsEnabled()) {
+      setCarouselCenter(next);
+      updateCardPosition(next, false);
+      carouselResetAt = 0;
+      return;
+    }
     if (carouselResetAt) {
       setCarouselCenter(cur);
       updateCardPosition(cur, false);
       carouselResetAt = 0;
     }
-    setHomeCardIndex(next);
     if (apps.length >= 5) {
       safeAnimate(carouselNode, "translateX", CAROUSEL_OFFSET_5 - delta * CAROUSEL_STEP, { dur: 220, easing: "out" });
       carouselResetAt = Date.now() + 220;
@@ -323,6 +336,14 @@ mount(() => {
     const volumeLevel = settleLevel("volume", level(next["volume"]));
     if (brightness !== null) next["brightness"] = String(brightness);
     if (volumeLevel !== null) next["volume"] = String(volumeLevel);
+    const savedTheme = next["themeColor"];
+    if (savedTheme && THEME_COLORS.includes(savedTheme as ThemeColorKey)) {
+      setThemeColor(savedTheme as ThemeColorKey);
+    }
+    const savedFont = next["fontSize"];
+    if (savedFont && FONT_SIZES.includes(savedFont as FontSizeKey)) {
+      setFontSize(savedFont as FontSizeKey);
+    }
     setSettingValues(next);
     setBrightness(brightness);
     setVolume(volumeLevel);
@@ -762,6 +783,8 @@ mount(() => {
     const idx = THEME_COLORS.indexOf(cur);
     const next = THEME_COLORS[(idx + delta + THEME_COLORS.length) % THEME_COLORS.length];
     setThemeColor(next);
+    writeSetting(host, "themeColor", next);
+    syncSettings();
   };
 
   const cycleFontSize = (delta: number) => {
@@ -769,6 +792,8 @@ mount(() => {
     const idx = FONT_SIZES.indexOf(cur);
     const next = FONT_SIZES[(idx + delta + FONT_SIZES.length) % FONT_SIZES.length];
     setFontSize(next);
+    writeSetting(host, "fontSize", next);
+    syncSettings();
   };
 
   const adjustSetting = (index: number, direction: -1 | 1) => {
@@ -1171,7 +1196,7 @@ mount(() => {
     }
     // Long power press: baseos-hotkeys writes /run/power-menu.request instead of
     // cutting power. The bridge consumes the marker, so one press = one dialog.
-    if (now - lastPowerPoll >= 250 && !powerMenuOpen() && !powerBusy()) {
+    if (now - lastPowerPoll >= 1000 && !powerMenuOpen() && !powerBusy()) {
       lastPowerPoll = now;
       if ((host?.__launcher?.("POWER\tmenu") ?? "").trim() === "menu") openPowerMenu();
     }
@@ -1187,7 +1212,7 @@ mount(() => {
       else syncLevels();
     }
 
-    if (currentScreen() === 3 && now - lastSettingsPoll >= 400) {
+    if (currentScreen() === 3 && now - lastSettingsPoll >= 2000) {
       lastSettingsPoll = now;
       syncLevels();
     }
@@ -1351,7 +1376,8 @@ mount(() => {
         }
       }
       if (pressed & BTN.UP) {
-        if (currentScreen() === 3) moveSettingsSelection(-1);
+        if (isCarouselScreen()) switchScreen(3, 1);
+        else if (currentScreen() === 3) moveSettingsSelection(-1);
         else if (currentScreen() === 4) setSystemPageIndex((p) => (p + SYSTEM_PAGES.length - 1) % SYSTEM_PAGES.length);
       }
       if (pressed & BTN.DOWN) {
