@@ -32,7 +32,8 @@ export function StatusBar(props: StatusBarProps) {
   const isJa = () => Boolean(props.language?.startsWith("ja"));
 
   const theme = () => THEME_PALETTES[props.themeColor || "purple"] || THEME_PALETTES.purple;
-  const fontConfig = () => FONT_SCALE_CONFIGS[props.fontSize || "normal"] || FONT_SCALE_CONFIGS.normal;
+  const isHuge = () => props.fontSize === "huge";
+  const isLarge = () => props.fontSize === "large";
 
   const [currentTime, setCurrentTime] = createSignal("");
   const update = () => {
@@ -112,11 +113,7 @@ export function StatusBar(props: StatusBarProps) {
                         }}
                       >
                         <Text
-                          class={
-                            props.fontSize === "huge"
-                              ? "text-2xl font-bold text-white"
-                              : "text-xl font-bold text-white"
-                          }
+                          class={isHuge() ? "text-2xl font-bold text-white" : isLarge() ? "text-2xl font-bold text-white" : "text-xl font-bold text-white"}
                           style={{ textColor: "#ffffff" }}
                         >
                           {tab().label}
@@ -133,11 +130,7 @@ export function StatusBar(props: StatusBarProps) {
                         }}
                       >
                         <Text
-                          class={
-                            props.fontSize === "huge"
-                              ? "text-xl text-[#938f99]"
-                              : "text-lg text-[#938f99]"
-                          }
+                          class={isHuge() ? "text-xl text-[#938f99]" : isLarge() ? "text-xl text-[#938f99]" : "text-lg text-[#938f99]"}
                           style={{ textColor: "#938f99" }}
                         >
                           {tab().label}
@@ -156,7 +149,7 @@ export function StatusBar(props: StatusBarProps) {
       {props.showClock && currentTime() ? (
         <View class="items-center justify-center">
           <Text
-            class={props.fontSize === "huge" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}
+            class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}
           >
             {currentTime()}
           </Text>
@@ -198,7 +191,7 @@ export function StatusBar(props: StatusBarProps) {
         {/* Battery Level */}
         <View class="flex-row items-center gap-[8px] ml-[4px]">
           {known() && (
-            <Text class="text-base font-bold text-[#e6e0e9]">
+            <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>
               {props.batteryLevel}%
             </Text>
           )}

@@ -1545,7 +1545,7 @@ mount(() => {
                     {appName(t, selectedApp()) || "Nintendo Switch"}
                   </Text>
                   {selectedApp() ? (
-                    <Text class="text-base font-bold text-[#cac4d0] text-center">
+                    <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-lg font-bold text-[#cac4d0] text-center" : "text-base font-bold text-[#cac4d0] text-center"}>
                       {selectedApp()?.romPath
                         ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
                         : `${categoryLabel(t, selectedApp()) || "App"} · ${currentCardIndex() + 1} / ${currentApps().length}`}
@@ -1629,7 +1629,7 @@ mount(() => {
           <View class="w-[720px] h-[64px] bg-transparent flex-row items-center justify-between px-[32px]">
             <View class="flex-row items-center gap-[10px]">
               <Text class="text-xl text-[#938f99]">◀ ▶</Text>
-              <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#cac4d0]" : "text-lg font-bold text-[#cac4d0]"}>
+              <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-xl font-bold text-[#cac4d0]" : "text-lg font-bold text-[#cac4d0]"}>
                 {language() === "zh" ? "选择" : language() === "ja" ? "選択" : "Select"}
               </Text>
             </View>
@@ -1637,7 +1637,7 @@ mount(() => {
               {/* (A) Button */}
               <View class="flex-row items-center gap-[8px]">
                 <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>A</Text>
-                <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
                   {language() === "zh" ? "开始" : language() === "ja" ? "決定" : "Start"}
                 </Text>
               </View>
@@ -1645,7 +1645,7 @@ mount(() => {
               {/* (B) Button */}
               <View class="flex-row items-center gap-[8px]">
                 <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>B</Text>
-                <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
                   {language() === "zh" ? "返回" : language() === "ja" ? "戻る" : "Back"}
                 </Text>
               </View>
@@ -1654,7 +1654,7 @@ mount(() => {
               {isCarouselScreen() && (
                 <View class="flex-row items-center gap-[8px]">
                   <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>+</Text>
-                  <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+                  <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
                     {language() === "zh" ? "选项" : language() === "ja" ? "設定" : "Options"}
                   </Text>
                 </View>

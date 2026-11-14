@@ -41,12 +41,14 @@ const compactOs = (snapshot: SystemSnapshot | null) =>
 const compactKernel = (snapshot: SystemSnapshot | null) =>
   text(snapshot?.kernel).replace(/^Linux\s+/i, "").replace(/\s*\(([^)]+)\)\s*$/, " $1");
 
-function InfoRow(props: { label: string; value: string; color?: string; muted?: boolean }) {
+function InfoRow(props: { label: string; value: string; color?: string; muted?: boolean; fontSize?: FontSizeKey }) {
+  const isHuge = () => props.fontSize === "huge";
+  const isLarge = () => props.fontSize === "large";
   return (
     <View class="w-[660px] h-[44px] px-[20px] rounded-[16px] bg-[#211f26] flex-row items-center justify-between mb-[6px] border border-[#2d2938]">
-      <Text class="text-base font-bold text-[#cac4d0]">{props.label}</Text>
+      <Text class={isHuge() ? "text-xl font-bold text-[#cac4d0]" : isLarge() ? "text-lg font-bold text-[#cac4d0]" : "text-base font-bold text-[#cac4d0]"}>{props.label}</Text>
       <Text
-        class="text-base font-bold"
+        class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
         style={{ textColor: props.muted ? "#938f99" : props.color ?? "#e6e0e9" }}
       >
         {props.value}
@@ -61,6 +63,8 @@ export function SystemPage(props: SystemPageProps) {
   const cpu = () => snapshot()?.cpuUsagePercent ?? null;
   const storage = () => snapshot()?.storagePercent ?? null;
   const t = () => translator(props.status.language);
+  const isHuge = () => props.status.fontSize === "huge";
+  const isLarge = () => props.status.fontSize === "large";
 
   const memoryLabel = () =>
     text(snapshot()?.ramVariant) === "--"
@@ -91,8 +95,8 @@ export function SystemPage(props: SystemPageProps) {
               {/* Device Names */}
               <View class="flex-col items-center text-center">
                 <Text class="text-2xl font-bold text-[#e6e0e9]">RG34XX</Text>
-                <Text class="text-xs font-bold text-[#d0bcff] mt-[2px]">{text(snapshot()?.model) || "Allwinner H700"}</Text>
-                <Text class="text-xs text-[#938f99] mt-[2px]">
+                <Text class={isHuge() ? "text-base font-bold text-[#d0bcff] mt-[2px]" : isLarge() ? "text-sm font-bold text-[#d0bcff] mt-[2px]" : "text-xs font-bold text-[#d0bcff] mt-[2px]"}>{text(snapshot()?.model) || "Allwinner H700"}</Text>
+                <Text class={isHuge() ? "text-base text-[#938f99] mt-[2px]" : isLarge() ? "text-sm text-[#938f99] mt-[2px]" : "text-xs text-[#938f99] mt-[2px]"}>
                   {snapshot()?.cpu || "4 Cores @ 1.5 GHz"}
                 </Text>
               </View>
@@ -100,8 +104,8 @@ export function SystemPage(props: SystemPageProps) {
               {/* OS Badge & Services */}
               <View class="w-full flex-col gap-[6px]">
                 <View class="w-full h-[32px] px-[12px] rounded-[10px] bg-[#292633] flex-row items-center justify-between">
-                  <Text class="text-xs text-[#cac4d0]">PJOS</Text>
-                  <Text class="text-xs font-bold text-[#a8efff]">{compactOs(snapshot()) || "1.5.3"}</Text>
+                  <Text class={isHuge() ? "text-base text-[#cac4d0]" : isLarge() ? "text-sm text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>PJOS</Text>
+                  <Text class={isHuge() ? "text-base font-bold text-[#a8efff]" : isLarge() ? "text-sm font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{compactOs(snapshot()) || "1.5.3"}</Text>
                 </View>
                 <View class="w-full flex-row justify-between gap-[6px]">
                   <View
@@ -109,14 +113,14 @@ export function SystemPage(props: SystemPageProps) {
                     style={{ bgColor: props.status.ssh ? "#1e3a2f" : "#292633" }}
                   >
                     <View class="w-[6px] h-[6px] rounded-[3px]" style={{ bgColor: props.status.ssh ? "#a8efff" : "#938f99" }} />
-                    <Text class="text-2xs font-bold" style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}>SSH</Text>
+                    <Text class={isHuge() ? "text-sm font-bold" : isLarge() ? "text-xs font-bold" : "text-2xs font-bold"} style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}>SSH</Text>
                   </View>
                   <View
                     class="flex-1 h-[28px] rounded-[8px] flex-row items-center justify-center gap-[4px]"
                     style={{ bgColor: props.status.adb ? "#1e3a2f" : "#292633" }}
                   >
                     <View class="w-[6px] h-[6px] rounded-[3px]" style={{ bgColor: props.status.adb ? "#a8efff" : "#938f99" }} />
-                    <Text class="text-2xs font-bold" style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}>ADB</Text>
+                    <Text class={isHuge() ? "text-sm font-bold" : isLarge() ? "text-xs font-bold" : "text-2xs font-bold"} style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}>ADB</Text>
                   </View>
                 </View>
               </View>
@@ -129,9 +133,9 @@ export function SystemPage(props: SystemPageProps) {
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[8px]">
                     <View class="w-[10px] h-[10px] rounded-[5px] bg-[#d0bcff]" />
-                    <Text class="text-base font-bold text-[#e6e0e9]">{t()("system.cpu")}</Text>
+                    <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>{t()("system.cpu")}</Text>
                   </View>
-                  <Text class="text-xs text-[#938f99] font-bold">
+                  <Text class={isHuge() ? "text-base text-[#938f99] font-bold" : isLarge() ? "text-sm text-[#938f99] font-bold" : "text-xs text-[#938f99] font-bold"}>
                     {snapshot()?.frequency ? `${snapshot()!.frequency} · ` : ""}{snapshot()?.temperature || ""}
                   </Text>
                 </View>
@@ -144,7 +148,7 @@ export function SystemPage(props: SystemPageProps) {
                         style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, cpu() ?? 0)) / 100) * 260)) }}
                       />
                     </View>
-                    <Text class="text-xs text-[#938f99]">{snapshot()?.cpu || "Quad-Core ARM"}</Text>
+                    <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{snapshot()?.cpu || "Quad-Core ARM"}</Text>
                   </View>
                 </View>
               </View>
@@ -154,9 +158,9 @@ export function SystemPage(props: SystemPageProps) {
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[8px]">
                     <View class="w-[10px] h-[10px] rounded-[5px] bg-[#a8efff]" />
-                    <Text class="text-base font-bold text-[#e6e0e9]">{t()("system.memory")}</Text>
+                    <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>{t()("system.memory")}</Text>
                   </View>
-                  <Text class="text-xs text-[#a8efff] font-bold">{memoryLabel()}</Text>
+                  <Text class={isHuge() ? "text-base font-bold text-[#a8efff]" : isLarge() ? "text-sm font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{memoryLabel()}</Text>
                 </View>
                 <View class="flex-row items-end justify-between">
                   <Text class="text-2xl font-bold" style={{ textColor: "#a8efff" }}>{percentText(ram()?.percent)}</Text>
@@ -167,7 +171,7 @@ export function SystemPage(props: SystemPageProps) {
                         style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, ram()?.percent ?? 0)) / 100) * 260)) }}
                       />
                     </View>
-                    <Text class="text-xs text-[#938f99]">{ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}</Text>
+                    <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}</Text>
                   </View>
                 </View>
               </View>
@@ -177,9 +181,9 @@ export function SystemPage(props: SystemPageProps) {
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[8px]">
                     <View class="w-[10px] h-[10px] rounded-[5px] bg-[#ffd8e4]" />
-                    <Text class="text-base font-bold text-[#e6e0e9]">{t()("system.storage")}</Text>
+                    <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>{t()("system.storage")}</Text>
                   </View>
-                  <Text class="text-xs text-[#ffd8e4] font-bold">
+                  <Text class={isHuge() ? "text-base font-bold text-[#ffd8e4]" : isLarge() ? "text-sm font-bold text-[#ffd8e4]" : "text-xs font-bold text-[#ffd8e4]"}>
                     {snapshot()?.storageTotal ? `TF / Storage` : ""}
                   </Text>
                 </View>
@@ -192,7 +196,7 @@ export function SystemPage(props: SystemPageProps) {
                         style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, storage() ?? 0)) / 100) * 260)) }}
                       />
                     </View>
-                    <Text class="text-xs text-[#938f99]">
+                    <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>
                       {snapshot()?.storageUsed && snapshot()?.storageTotal ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}` : "-- / --"}
                     </Text>
                   </View>
@@ -205,56 +209,63 @@ export function SystemPage(props: SystemPageProps) {
         {props.pageIndex === 1 ? (
           <View class="w-[672px] h-[336px] flex-col justify-between">
             <View class="w-[672px] px-[6px] mb-[4px]">
-              <Text class="text-lg font-bold text-[#d0bcff]">{t()("system.hardware")}</Text>
+              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-xl font-bold text-[#d0bcff]" : "text-lg font-bold text-[#d0bcff]"}>{t()("system.hardware")}</Text>
             </View>
-            <InfoRow label={t()("system.board")} value={text(snapshot()?.hardware)} />
-            <InfoRow label={t()("system.cpu")} value={text(snapshot()?.cpu)} />
-            <InfoRow label={t()("system.frequency")} value={text(snapshot()?.frequency)} />
+            <InfoRow label={t()("system.board")} value={text(snapshot()?.hardware)} fontSize={props.status.fontSize} />
+            <InfoRow label={t()("system.cpu")} value={text(snapshot()?.cpu)} fontSize={props.status.fontSize} />
+            <InfoRow label={t()("system.frequency")} value={text(snapshot()?.frequency)} fontSize={props.status.fontSize} />
             <InfoRow
               label={t()("system.temperature")}
               value={text(snapshot()?.temperature)}
               color="#ffd8e4"
+              fontSize={props.status.fontSize}
             />
-            <InfoRow label={t()("system.memory")} value={memoryLabel()} color="#a8efff" />
+            <InfoRow label={t()("system.memory")} value={memoryLabel()} color="#a8efff" fontSize={props.status.fontSize} />
             <InfoRow
               label={t()("system.display")}
               value={displaySize(snapshot()?.display) ?? "--"}
+              fontSize={props.status.fontSize}
             />
-            <InfoRow label={t()("system.runtime")} value={text(snapshot()?.runtime)} muted />
+            <InfoRow label={t()("system.runtime")} value={text(snapshot()?.runtime)} muted fontSize={props.status.fontSize} />
           </View>
         ) : null}
 
         {props.pageIndex === 2 ? (
           <View class="w-[672px] h-[336px] flex-col justify-between">
             <View class="w-[672px] px-[6px] mb-[4px]">
-              <Text class="text-lg font-bold text-[#d0bcff]">{t()("system.link")}</Text>
+              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-xl font-bold text-[#d0bcff]" : "text-lg font-bold text-[#d0bcff]"}>{t()("system.link")}</Text>
             </View>
             <InfoRow
               label={t()("system.status")}
               value={props.network.connected ? t()("system.connected") : t()("system.disconnected")}
               color={props.network.connected ? "#a8efff" : "#ffd8e4"}
+              fontSize={props.status.fontSize}
             />
             <InfoRow
               label={t()("system.interface")}
               value={text(props.network.interface).toUpperCase()}
+              fontSize={props.status.fontSize}
             />
-            <InfoRow label={t()("system.address")} value={text(props.network.address)} />
+            <InfoRow label={t()("system.address")} value={text(props.network.address)} fontSize={props.status.fontSize} />
 
             <View class="w-[672px] px-[6px] mt-[4px] mb-[4px]">
-              <Text class="text-lg font-bold text-[#d0bcff]">{t()("system.thisDevice")}</Text>
+              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-xl font-bold text-[#d0bcff]" : "text-lg font-bold text-[#d0bcff]"}>{t()("system.thisDevice")}</Text>
             </View>
             <InfoRow
               label={t()("system.battery")}
               value={props.status.battery >= 0 ? `${props.status.battery}%` : "--"}
               color={props.status.battery <= 20 ? "#ffb4ab" : "#a8efff"}
+              fontSize={props.status.fontSize}
             />
             <InfoRow
               label={t()("system.brightness")}
               value={props.status.brightness === null ? "--" : `${props.status.brightness}%`}
+              fontSize={props.status.fontSize}
             />
             <InfoRow
               label={t()("system.volume")}
               value={props.status.volume === null ? "--" : `${props.status.volume}%`}
+              fontSize={props.status.fontSize}
             />
           </View>
         ) : null}
