@@ -30,9 +30,7 @@ export const CAROUSEL_OFFSET_LESS = (idx: number) => 230 - idx * 284;
 
 export function CardCarousel(props: CardCarouselProps) {
   let viewport: NodeMirror | undefined;
-  const indices = () => props.apps.length >= 5
-    ? [-2, -1, 0, 1, 2].map((offset) => (props.windowCenter + offset + props.apps.length) % props.apps.length)
-    : props.apps.map((_, index) => index);
+  const indices = () => props.apps.map((_, index) => index);
 
   createGesture({
     region: { node: () => viewport },

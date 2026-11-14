@@ -16,6 +16,7 @@ import {
   categoryLabel,
   getAppsForScreen,
   type LauncherApp,
+  type SeriesItem,
 } from "./launcher-catalog";
 import { translator } from "./i18n";
 import { StatusBar } from "./status-bar";
@@ -76,6 +77,9 @@ mount(() => {
   let carouselResetAt = 0;
   const [favorites, setFavorites] = createSignal<string[]>([]);
   const [gameOptionsOpen, setGameOptionsOpen] = createSignal(false);
+  const [seriesModalOpen, setSeriesModalOpen] = createSignal(false);
+  const [seriesSelectedApp, setSeriesSelectedApp] = createSignal<LauncherApp | null>(null);
+  const [seriesCursor, setSeriesCursor] = createSignal(0);
   const [libraryRevision, setLibraryRevision] = createSignal(0);
   const [bgSrcA, setBgSrcA] = createSignal(appBlurBgSrc(getAppsForScreen(0)[0]));
   const [bgSrcB, setBgSrcB] = createSignal(appBlurBgSrc(getAppsForScreen(0)[0]));
@@ -183,7 +187,7 @@ mount(() => {
 
   const updateCardPosition = (idx: number, smooth = true) => {
     try {
-      const targetX = currentApps().length >= 5 ? CAROUSEL_OFFSET_5 : CAROUSEL_OFFSET_LESS(idx);
+      const targetX = 230 - idx * CAROUSEL_STEP;
       if (carouselNode) {
         if (smooth) {
           safeAnimate(carouselNode, "translateX", targetX, { dur: 220, easing: "out" });
@@ -236,24 +240,15 @@ mount(() => {
     const apps = currentApps();
     if (apps.length === 0) return;
     const cur = currentCardIndex();
-    const next = apps.length >= 5 ? (cur + delta + apps.length) % apps.length : Math.max(0, Math.min(apps.length - 1, cur + delta));
+    const next = Math.max(0, Math.min(apps.length - 1, cur + delta));
     if (next === cur) return;
     setHomeCardIndex(next);
     if (!animationsEnabled()) {
       setCarouselCenter(next);
       updateCardPosition(next, false);
-      carouselResetAt = 0;
       return;
     }
-    if (carouselResetAt) {
-      setCarouselCenter(cur);
-      updateCardPosition(cur, false);
-      carouselResetAt = 0;
-    }
-    if (apps.length >= 5) {
-      safeAnimate(carouselNode, "translateX", CAROUSEL_OFFSET_5 - delta * CAROUSEL_STEP, { dur: 220, easing: "out" });
-      carouselResetAt = Date.now() + 220;
-    } else updateCardPosition(next, true);
+    updateCardPosition(next, true);
   };
 
   // -------------------------------------------------------------------------
@@ -970,13 +965,49 @@ mount(() => {
     onClose: () => {},
   });
 
+  const launchSeriesItem = (item: SeriesItem) => {
+    writeSetting(host, "zeldaLastRom", item.romPath);
+    host?.__launcher?.(`RESUME\tset\trom\t${item.romPath}`);
+    setSeriesModalOpen(false);
+    showToast(t("toast.launch", { name: item.title }));
+    const answer = host?.__launcher?.(`ROMLAUNCH\t${item.romPath}`) ?? "";
+    if (!answer || /unknown/i.test(answer)) {
+      const legacy = host?.__launcher?.(`ROM\tlaunch\t${item.romPath}`) ?? "";
+      if (!/^launching:/i.test(legacy)) showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
+    } else if (!/^(Starting game|launching:)/i.test(answer)) {
+      showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
+    }
+  };
+
   const launchApp = (app: LauncherApp) => {
     if (app.id === "terminal") {
       setTerminalOpen(true);
       return;
     }
     if (app.id === "pocketfetch" || app.id === "system-info" || app.id === "system") {
-      switchScreen(4, 1);
+      setLauncherOpen(false);
+      syncSettings();
+      syncHardwareStatus();
+      syncSystemStatus();
+      return;
+    }
+    if (app.isSeries && app.seriesItems && app.seriesItems.length > 0) {
+      let lastRom = readSetting(host, "zeldaLastRom") || "";
+      if (!lastRom) {
+        const res = host?.__launcher?.("RESUME\tget") ?? "";
+        if (res.startsWith("rom\t")) lastRom = res.split("\t")[1];
+      }
+      const items = [...app.seriesItems];
+      if (lastRom) {
+        const idx = items.findIndex((it) => it.romPath === lastRom);
+        if (idx > 0) {
+          const [recent] = items.splice(idx, 1);
+          items.unshift(recent);
+        }
+      }
+      setSeriesSelectedApp({ ...app, seriesItems: items });
+      setSeriesCursor(0);
+      setSeriesModalOpen(true);
       return;
     }
     showToast(t("toast.launch", { name: appShortName(t, app) }));
@@ -1103,6 +1134,18 @@ mount(() => {
             setTerminalInput((v) => v + event.key);
             return true;
           }
+        }
+        return true;
+      }
+      if (seriesModalOpen() && event.kind === "key" && event.pressed) {
+        const items = seriesSelectedApp()?.seriesItems || [];
+        if (event.key === "ArrowUp") setSeriesCursor((c) => Math.max(0, c - 1));
+        else if (event.key === "ArrowDown") setSeriesCursor((c) => Math.min(items.length - 1, c + 1));
+        else if (event.key === "Enter" || event.key === " ") {
+          const chosen = items[seriesCursor()];
+          if (chosen) launchSeriesItem(chosen);
+        } else if (event.key === "Escape") {
+          setSeriesModalOpen(false);
         }
         return true;
       }
@@ -1259,6 +1302,18 @@ mount(() => {
     if (gameOptionsOpen()) {
       if (pressed & BTN.CIRCLE) toggleFavorite();
       else if (pressed & (BTN.CROSS | BTN.START)) setGameOptionsOpen(false);
+      return;
+    }
+    if (seriesModalOpen()) {
+      const items = seriesSelectedApp()?.seriesItems || [];
+      if (pressed & BTN.UP) setSeriesCursor((c) => Math.max(0, c - 1));
+      else if (pressed & BTN.DOWN) setSeriesCursor((c) => Math.min(items.length - 1, c + 1));
+      else if (pressed & BTN.CIRCLE) {
+        const chosen = items[seriesCursor()];
+        if (chosen) launchSeriesItem(chosen);
+      } else if (pressed & (BTN.CROSS | BTN.START)) {
+        setSeriesModalOpen(false);
+      }
       return;
     }
     if (wifiOpen()) {
@@ -1546,7 +1601,9 @@ mount(() => {
                   </Text>
                   {selectedApp() ? (
                     <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-lg font-bold text-[#cac4d0] text-center" : "text-base font-bold text-[#cac4d0] text-center"}>
-                      {selectedApp()?.romPath
+                      {selectedApp()?.isSeries
+                        ? `${categoryLabel(t, selectedApp()) || "系列"} · ${selectedApp()?.seriesItems?.length || 0} 个版本`
+                        : selectedApp()?.romPath
                         ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
                         : `${categoryLabel(t, selectedApp()) || "App"} · ${currentCardIndex() + 1} / ${currentApps().length}`}
                     </Text>
@@ -1679,8 +1736,86 @@ mount(() => {
         </View>
       </View>
 
+      {seriesModalOpen() && seriesSelectedApp() ? (
+        <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#000000e0] flex-col items-center justify-center z-50">
+          <View class="w-[640px] h-[440px] rounded-[24px] bg-[#1e1a22] border-2 border-[#d0bcff] flex-col p-[16px] justify-between">
+            {/* Header */}
+            <View class="flex-row items-center gap-[14px] pb-[4px]">
+              <Image src="cover-zelda.png" class="w-[52px] h-[52px] rounded-[8px]" />
+              <View class="flex-col gap-[2px]">
+                <Text class="text-xl font-bold text-[#e6e0e9]">
+                  {seriesSelectedApp()?.label || "塞尔达传说：缩小帽"}
+                </Text>
+                <Text class="text-xs text-[#cac4d0]">
+                  {language() === "zh" ? "请选择游戏版本 · 最近游玩优先" : language() === "ja" ? "バージョン選択 · 最近プレイ優先" : "Select Game Version · Recent First"}
+                </Text>
+              </View>
+            </View>
+            <View class="w-[608px] h-[1px] bg-[#49454f]" />
+
+            {/* Version List */}
+            <View class="flex-col gap-[6px]">
+              <Index each={seriesSelectedApp()?.seriesItems || []}>
+                {(item, idx) => {
+                  const isCur = () => seriesCursor() === idx;
+                  const isMru = () => idx === 0 && ((readSetting(host, "zeldaLastRom") || (host?.__launcher?.("RESUME\tget") ?? "").split("\t")[1]) === item().romPath);
+                  return (
+                    <TouchTarget
+                      onPress={() => launchSeriesItem(item())}
+                      class={
+                        isCur()
+                          ? "w-[608px] h-[46px] rounded-[12px] bg-[#4a4458] border border-[#d0bcff] flex-row items-center justify-between px-[14px]"
+                          : "w-[608px] h-[46px] rounded-[12px] bg-[#2b2930] flex-row items-center justify-between px-[14px]"
+                      }
+                    >
+                      <View class="flex-row items-center gap-[10px]">
+                        <View class="px-[8px] py-[2px] rounded-[6px] bg-[#381e72]">
+                          <Text class="text-xs font-bold text-[#e8def8]">GBA</Text>
+                        </View>
+                        <Text class={isCur() ? "text-base font-bold text-[#ffffff]" : "text-base font-bold text-[#e6e0e9]"}>
+                          {item().title}
+                        </Text>
+                      </View>
+                      {isMru() ? (
+                        <View class="px-[8px] py-[2px] rounded-[8px] bg-[#7d5260]">
+                          <Text class="text-2xs font-bold text-[#ffd8e4]">
+                            {language() === "zh" ? "最近游玩" : language() === "ja" ? "最近プレイ" : "Recent"}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </TouchTarget>
+                  );
+                }}
+              </Index>
+            </View>
+
+            <View class="w-[608px] h-[1px] bg-[#49454f]" />
+            {/* Footer */}
+            <View class="flex-row items-center justify-between pt-[4px]">
+              <Text class="text-xs text-[#cac4d0]">
+                {language() === "zh" ? "▲ ▼ 选择版本" : "▲ ▼ Select Version"}
+              </Text>
+              <View class="flex-row items-center gap-[16px]">
+                <View class="flex-row items-center gap-[6px]">
+                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#d0bcff]">
+                    <Text class="text-2xs font-bold text-[#381e72]">A</Text>
+                  </View>
+                  <Text class="text-xs font-bold text-[#e6e0e9]">{language() === "zh" ? "开始游戏" : "Start"}</Text>
+                </View>
+                <View class="flex-row items-center gap-[6px]">
+                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full bg-[#4a4458]">
+                    <Text class="text-2xs font-bold text-[#ffffff]">B</Text>
+                  </View>
+                  <Text class="text-xs font-bold text-[#cac4d0]">{language() === "zh" ? "返回" : "Back"}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
       {gameOptionsOpen() ? (
-        <View class="absolute inset-0 bg-[#00000099] items-center justify-center">
+        <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#00000099] flex-col items-center justify-center">
           <View class="w-[320px] h-[120px] rounded-[16px] bg-[#1c2028] border-2 border-[#00d2ff] flex-col items-center justify-center gap-[12px] p-[16px]">
             <Text class="text-base font-bold text-white text-center">
               {favorites().includes(selectedApp()?.romPath || "")

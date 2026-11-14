@@ -1,12 +1,19 @@
 import type { Translator } from "./i18n";
 
+export interface SeriesItem {
+  id: string;
+  title: string;
+  romPath: string;
+  coverPath?: string;
+}
+
 export interface LauncherApp {
   id: string;
   nameKey: string;
   shortKey: string;
   descKey: string;
   tagKey: string;
-  kind: "native" | "fetch";
+  kind: "native" | "fetch" | "series";
   category: "home" | "media" | "games" | "system";
   icon: string;
   romPath?: string;
@@ -14,6 +21,8 @@ export interface LauncherApp {
   cover?: string;
   coverPath?: string;
   favorite?: boolean;
+  isSeries?: boolean;
+  seriesItems?: SeriesItem[];
 }
 
 export const LAUNCHER_APPS: readonly LauncherApp[] = [
@@ -51,6 +60,16 @@ function romPriority(path: string): number {
   return 3;
 }
 
+function formatZeldaTitle(path: string): string {
+  const lower = path.toLowerCase();
+  if (path.includes("塞尔达传说_缩小帽")) return "塞尔达传说：缩小帽 (简体中文)";
+  if (path.includes("萨尔达传说-缩小帽")) return "萨尔达传说：缩小帽 (繁体中文)";
+  if (lower.includes("japan") || lower.includes("boushi")) return "塞尔达传说：缩小帽 (日版 Japan)";
+  if (lower.includes("usa")) return "塞尔达传说：缩小帽 (美版 USA)";
+  if (lower.includes("europe") || lower.includes("(en,")) return "塞尔达传说：缩小帽 (欧版 Europe)";
+  return fileTitle(path);
+}
+
 function scanRomApps(host?: Host): LauncherApp[] {
   const raw = host?.__launcher?.("ROMS") ?? host?.__launcher?.("GAMESCAN") ?? host?.__launcher?.("ROMSCAN") ?? "";
   if (!raw) return [];
@@ -73,11 +92,43 @@ function scanRomApps(host?: Host): LauncherApp[] {
     return true;
   });
   cleaned.sort((a, b) => romPriority(a.path) - romPriority(b.path) || fileTitle(a.path).localeCompare(fileTitle(b.path)));
-  return cleaned.map(({ path: romPath, title, cover }) => ({
-    id: `rom:${romPath}`, nameKey: "", shortKey: "", descKey: "",
-    tagKey: "catalog.native", kind: "native", category: "games",
-    icon: "\uf11b", romPath, label: title || fileTitle(romPath), coverPath: cover || undefined,
-  }));
+
+  const zeldaPaths = cleaned.filter(({ path }) => /zelda|缩小帽|minish/i.test(path));
+  const otherPaths = cleaned.filter(({ path }) => !/zelda|缩小帽|minish/i.test(path));
+
+  const result: LauncherApp[] = [];
+  if (zeldaPaths.length > 0) {
+    const seriesItems: SeriesItem[] = zeldaPaths.map(({ path, cover }) => ({
+      id: `rom:${path}`,
+      title: formatZeldaTitle(path),
+      romPath: path,
+      coverPath: cover || undefined,
+    }));
+    result.push({
+      id: "series:zelda-minish-cap",
+      nameKey: "series.title",
+      shortKey: "series.title",
+      descKey: "series.subtitle",
+      tagKey: "catalog.series",
+      kind: "series",
+      isSeries: true,
+      category: "games",
+      icon: "\uf11b",
+      label: "塞尔达传说：缩小帽",
+      cover: "cover-zelda.png",
+      coverPath: zeldaPaths[0].cover || "/storage/content/games/gba/zelda-cap.png",
+      seriesItems,
+    });
+  }
+
+  for (const { path: romPath, title, cover } of otherPaths) {
+    result.push({
+      id: `rom:${romPath}`, nameKey: "", shortKey: "", descKey: "",
+      tagKey: "catalog.native", kind: "native", category: "games",
+      icon: "\uf11b", romPath, label: title || fileTitle(romPath), coverPath: cover || undefined,
+    });
+  }
+  return result;
 }
 
 export function getAppsForScreen(screen: number, host?: Host): LauncherApp[] {
@@ -98,6 +149,7 @@ export const appDescription = (t: Translator, app: LauncherApp | undefined) => a
 export const appTag = (t: Translator, app: LauncherApp | undefined) => app ? (app.tagKey ? t(app.tagKey) : "") : "";
 export function categoryLabel(t: Translator, app: LauncherApp | undefined): string {
   if (!app) return "";
+  if (app.isSeries) return t("catalog.series");
   if (app.category === "games") return t("catalog.games");
   if (app.category === "media") return t("catalog.media");
   if (app.category === "system") return t("catalog.system");
