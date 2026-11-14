@@ -101,27 +101,49 @@ export function StatusBar(props: StatusBarProps) {
                 return (
                   <TouchTarget
                     onPress={() => props.onSelectTab?.(tab().screen)}
-                    class={
-                      isSelected()
-                        ? "px-[18px] py-[6px] rounded-[999px] items-center justify-center border-2"
-                        : "px-[14px] py-[6px] rounded-[999px] items-center justify-center bg-transparent"
-                    }
-                    style={
-                      isSelected()
-                        ? { bgColor: theme().container, borderColor: theme().primary }
-                        : undefined
-                    }
+                    class="h-[40px] items-center justify-center"
                   >
-                    <Text
-                      class={
-                        isSelected()
-                          ? (props.fontSize === "huge" ? "text-2xl font-bold" : "text-xl font-bold")
-                          : (props.fontSize === "huge" ? "text-xl" : "text-lg")
-                      }
-                      style={{ textColor: isSelected() ? "#ffffff" : "#938f99" }}
-                    >
-                      {tab().label}
-                    </Text>
+                    {isSelected() ? (
+                      <View
+                        class="px-[18px] py-[6px] rounded-[999px] items-center justify-center border-2"
+                        style={{
+                          bgColor: theme().container,
+                          borderColor: theme().primary,
+                        }}
+                      >
+                        <Text
+                          class={
+                            props.fontSize === "huge"
+                              ? "text-2xl font-bold text-white"
+                              : "text-xl font-bold text-white"
+                          }
+                          style={{ textColor: "#ffffff" }}
+                        >
+                          {tab().label}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View
+                        class="px-[14px] py-[6px] items-center justify-center bg-transparent"
+                        style={{
+                          bgColor: "#00000000",
+                          borderColor: "#00000000",
+                          borderWidth: 0,
+                          radius: 0,
+                        }}
+                      >
+                        <Text
+                          class={
+                            props.fontSize === "huge"
+                              ? "text-xl text-[#938f99]"
+                              : "text-lg text-[#938f99]"
+                          }
+                          style={{ textColor: "#938f99" }}
+                        >
+                          {tab().label}
+                        </Text>
+                      </View>
+                    )}
                   </TouchTarget>
                 );
               }}
