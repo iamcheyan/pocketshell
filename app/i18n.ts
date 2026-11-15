@@ -43,7 +43,6 @@ const EN: Dict = {
   "catalog.media": "MEDIA",
   "catalog.system": "SYSTEM",
   "catalog.builtin": "Built-in",
-  "series.title": "The Legend of Zelda: The Minish Cap",
   "series.subtitle": "Select Version · Recent First",
   "series.recent": "Recent",
 
@@ -116,6 +115,7 @@ const EN: Dict = {
   "toast.rebootRequired": "Saved. Restart to apply",
   "toast.bluetoothStarting": "Starting Bluetooth…",
   "settings.hostname": "Hostname",
+  "settings.bootResume": "Resume Last App",
   "settings.ntp": "Time Sync",
   "settings.power": "Power Menu",
   "settings.reboot": "Reboot",
@@ -232,7 +232,6 @@ const ZH: Dict = {
   "catalog.media": "媒体",
   "catalog.system": "系统",
   "catalog.builtin": "内置",
-  "series.title": "塞尔达传说：缩小帽",
   "series.subtitle": "请选择游戏版本 · 最近游玩优先",
   "series.recent": "最近游玩",
 
@@ -300,6 +299,7 @@ const ZH: Dict = {
   "toast.rebootRequired": "已保存，重启后生效",
   "toast.bluetoothStarting": "正在启动蓝牙…",
   "settings.hostname": "主机名",
+  "settings.bootResume": "开机恢复上次程序",
   "settings.ntp": "时间同步",
   "settings.power": "电源菜单",
   "settings.reboot": "重启",
@@ -413,7 +413,6 @@ const JA: Dict = {
   "catalog.media": "メディア",
   "catalog.system": "システム",
   "catalog.builtin": "内蔵",
-  "series.title": "ゼルダの伝説 ふしぎのぼうし",
   "series.subtitle": "バージョン選択 · 最近プレイ優先",
   "series.recent": "最近プレイ",
 
@@ -481,6 +480,7 @@ const JA: Dict = {
   "toast.rebootRequired": "保存しました。再起動後に反映",
   "toast.bluetoothStarting": "Bluetoothを起動中…",
   "settings.hostname": "ホスト名",
+  "settings.bootResume": "前回のアプリを再開",
   "settings.ntp": "時刻同期",
   "settings.power": "電源メニュー",
   "settings.reboot": "再起動",

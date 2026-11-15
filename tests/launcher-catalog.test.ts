@@ -23,6 +23,37 @@ describe("game library metadata", () => {
     expect(game?.label).toBe("Example Series");
     expect(game?.seriesItems?.[0]).toMatchObject({ id: "en", title: "English", romPath: "/games/example/gba/example.en.gba" });
   });
+  test("moves the saved variant first and marks it recent", () => {
+    const library = { sections: { games: [{ items: [{
+      kind: "series", id: "example-series", title: "Example Series",
+      variants: [
+        { id: "zh", title: "Chinese", path: "/games/example/gba/a.gba", default: true },
+        { id: "ja", title: "Japanese", path: "/games/example/gba/b.gba" },
+      ],
+    }] }] } };
+    const host = { __launcher: (command: string) => command === "ROMS"
+      ? JSON.stringify(library)
+      : command === "SETTING\tseries.example-series.lastVariant" ? "ja" : "" };
+    const game = getAppsForScreen(0, host).find((item) => item.isSeries);
+    expect(game?.seriesItems?.[0].id).toBe("ja");
+    expect(game?.recentVariant).toBe("ja");
+  });
+
+  test("falls back to the declared default when the saved variant is stale", () => {
+    const library = { sections: { games: [{ items: [{
+      kind: "series", id: "example-series", title: "Example Series",
+      variants: [
+        { id: "ja", title: "Japanese", path: "/games/example/gba/b.gba" },
+        { id: "zh", title: "Chinese", path: "/games/example/gba/a.gba", default: true },
+      ],
+    }] }] } };
+    const host = { __launcher: (command: string) => command === "ROMS"
+      ? JSON.stringify(library)
+      : command === "SETTING\tseries.example-series.lastVariant" ? "removed" : "" };
+    const game = getAppsForScreen(0, host).find((item) => item.isSeries);
+    expect(game?.seriesItems?.[0].id).toBe("zh");
+    expect(game?.recentVariant).toBeUndefined();
+  });
   test("preserves scanned game titles and cover paths", () => {
     const host = { __launcher: () => JSON.stringify({ sections: { games: [{ items: [
       { path: "/storage/roms/gba/game.gba", title: "游戏名称", cover: "/storage/roms/gba/images/game.png" },

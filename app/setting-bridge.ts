@@ -125,7 +125,6 @@ export const localFallbackSettings: Record<string, string> = {
   animations: "off",
   fontSize: "normal",
   themeColor: "purple",
-  zeldaLastRom: "",
 };
 
 export const readSetting = (host: LauncherHost | undefined, key: string): string | null => {

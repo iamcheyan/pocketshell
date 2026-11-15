@@ -1,11 +1,14 @@
 import type { Translator } from "./i18n";
 
-export interface SeriesItem { id: string; title: string; romPath: string; coverPath?: string; }
+export interface SeriesItem {
+  id: string; title: string; romPath: string; coverPath?: string;
+  seriesId: string; default?: boolean;
+}
 export interface LauncherApp {
   id: string; nameKey: string; shortKey: string; descKey: string; tagKey: string;
   kind: "native" | "external" | "series"; category: "home" | "games"; icon: string;
   romPath?: string; label?: string; coverPath?: string; favorite?: boolean;
-  isSeries?: boolean; seriesItems?: SeriesItem[];
+  isSeries?: boolean; seriesItems?: SeriesItem[]; recentVariant?: string;
 }
 
 // The only built-in item. Games are discovered from the card library.
@@ -15,7 +18,7 @@ export const LAUNCHER_APPS: readonly LauncherApp[] = [
 
 type Host = { __launcher?: (cmd: string) => string };
 type RomItem = { path: string; title?: string; cover?: string };
-type LibrarySeries = { kind: "series"; id: string; title: string; cover?: string; variants: Array<{ id: string; title: string; path: string; cover?: string }> };
+type LibrarySeries = { kind: "series"; id: string; title: string; cover?: string; variants: Array<{ id: string; title: string; path: string; cover?: string; default?: boolean }> };
 type LibraryItem = RomItem | LibrarySeries;
 
 function displayAppId(id: string): string {
@@ -71,13 +74,29 @@ function scanRomApps(host?: Host): LauncherApp[] {
   const entries = gameLibrary(host);
   const series = entries.filter((entry): entry is LibrarySeries => "kind" in entry)
     .filter((entry) => /^[a-z0-9][a-z0-9-]{0,63}$/.test(entry.id))
-    .map((entry): LauncherApp => ({
-      id: `series:${entry.id}`, nameKey: "", shortKey: "", descKey: "", tagKey: "catalog.series",
-      kind: "series", category: "games", icon: "\uf11b", isSeries: true, label: entry.title, coverPath: entry.cover,
-      seriesItems: entry.variants
+    .map((entry): LauncherApp => {
+      const variants = entry.variants
         .filter((variant) => typeof variant.id === "string" && typeof variant.title === "string" && typeof variant.path === "string")
-        .map((variant) => ({ id: variant.id, title: variant.title, romPath: variant.path, coverPath: variant.cover })),
-    }))
+        .map((variant) => ({
+          id: variant.id, title: variant.title, romPath: variant.path,
+          coverPath: variant.cover, seriesId: entry.id, default: variant.default === true,
+        }));
+      const saved = host?.__launcher?.(`SETTING\tseries.${entry.id}.lastVariant`)?.trim() ?? "";
+      const savedIndex = variants.findIndex((variant) => variant.id === saved);
+      let recentVariant: string | undefined;
+      if (savedIndex >= 0) {
+        recentVariant = saved;
+        if (savedIndex > 0) variants.unshift(...variants.splice(savedIndex, 1));
+      } else {
+        const defaultIndex = variants.findIndex((variant) => variant.default);
+        if (defaultIndex > 0) variants.unshift(...variants.splice(defaultIndex, 1));
+      }
+      return {
+        id: `series:${entry.id}`, nameKey: "", shortKey: "", descKey: "", tagKey: "catalog.series",
+        kind: "series", category: "games", icon: "\uf11b", isSeries: true, label: entry.title,
+        coverPath: entry.cover, seriesItems: variants, recentVariant,
+      };
+    })
     .filter((entry) => (entry.seriesItems?.length || 0) > 0);
   const seen = new Set<string>();
   const roms = entries.filter((entry): entry is RomItem => "path" in entry)

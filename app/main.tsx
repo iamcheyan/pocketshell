@@ -976,6 +976,7 @@ mount(() => {
   };
 
   const launchSeriesItem = (item: SeriesItem) => {
+    host?.__launcher?.(`SETTING\tseries.${item.seriesId}.lastVariant\t${item.id}`);
     host?.__launcher?.(`RESUME\tset\trom\t${item.romPath}`);
     scheduleLaunch(item.title, () => {
       const answer = host?.__launcher?.(`ROMLAUNCH\t${item.romPath}`) ?? "";
@@ -1575,7 +1576,7 @@ mount(() => {
                   {selectedApp() ? (
                     <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-lg font-bold text-[#cac4d0] text-center" : "text-base font-bold text-[#cac4d0] text-center"}>
                       {selectedApp()?.isSeries
-                        ? `${categoryLabel(t, selectedApp()) || "系列"} · ${selectedApp()?.seriesItems?.length || 0} 个版本`
+                        ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} 个版本`
                         : selectedApp()?.romPath
                         ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
                         : `${categoryLabel(t, selectedApp()) || "App"} · ${currentCardIndex() + 1} / ${currentApps().length}`}
@@ -1737,13 +1738,13 @@ mount(() => {
           <View class="w-[640px] h-[440px] rounded-[24px] bg-[#1e1a22] border-2 flex-col p-[16px] justify-between" style={{ borderColor: theme().primary }}>
             {/* Header */}
             <View class="flex-row items-center gap-[14px] pb-[4px]">
-              <Image src="cover-zelda.png" class="w-[52px] h-[52px] rounded-[8px]" />
+              <Image src={appCoverSrc(seriesSelectedApp() || undefined)} class="w-[52px] h-[52px]" />
               <View class="flex-col gap-[2px]">
                 <Text class="text-xl font-bold text-[#e6e0e9]">
-                  {seriesSelectedApp()?.label || "塞尔达传说：缩小帽"}
+                  {seriesSelectedApp()?.label || ""}
                 </Text>
                 <Text class="text-xs text-[#cac4d0]">
-                  {language() === "zh" ? "请选择游戏版本 · 最近游玩优先" : language() === "ja" ? "バージョン選択 · 最近プレイ優先" : "Select Game Version · Recent First"}
+                  {t("series.subtitle")}
                 </Text>
               </View>
             </View>
@@ -1754,7 +1755,7 @@ mount(() => {
               <Index each={seriesSelectedApp()?.seriesItems || []}>
                 {(item, idx) => {
                   const isCur = () => seriesCursor() === idx;
-                  const isMru = () => idx === 0 && ((readSetting(host, "zeldaLastRom") || (host?.__launcher?.("RESUME\tget") ?? "").split("\t")[1]) === item().romPath);
+                  const isMru = () => idx === 0 && seriesSelectedApp()?.recentVariant === item().id;
                   return (
                     <TouchTarget
                       onPress={() => launchSeriesItem(item())}
@@ -1767,7 +1768,9 @@ mount(() => {
                     >
                       <View class="flex-row items-center gap-[10px]">
                         <View class="px-[8px] py-[2px] rounded-[6px]" style={{ bgColor: theme().container }}>
-                          <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>GBA</Text>
+                          <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>
+                            {item().romPath.split(".").pop()?.toUpperCase() || "ROM"}
+                          </Text>
                         </View>
                         <Text class={isCur() ? "text-base font-bold text-[#ffffff]" : "text-base font-bold text-[#e6e0e9]"}>
                           {item().title}
@@ -1776,7 +1779,7 @@ mount(() => {
                       {isMru() ? (
                         <View class="px-[8px] py-[2px] rounded-[8px]" style={{ bgColor: theme().activeSurface }}>
                           <Text class="text-2xs font-bold" style={{ textColor: theme().primary }}>
-                            {language() === "zh" ? "最近游玩" : language() === "ja" ? "最近プレイ" : "Recent"}
+                            {t("series.recent")}
                           </Text>
                         </View>
                       ) : null}

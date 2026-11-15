@@ -39,6 +39,7 @@ export const SETTING_ROWS: readonly SettingRow[] = [
   { key: "autoPoweroff", label: "autoPoweroff", kind: "enum", group: "system" },
   { key: "hostname", label: "hostname", kind: "text", group: "system" },
   { key: "ntp", label: "ntp", kind: "toggle", group: "system" },
+  { key: "bootResume", label: "bootResume", kind: "toggle", group: "system" },
   // Not a setting: the row opens the power dialog the long power press opens.
   { key: "power", label: "power", kind: "action", group: "system" },
 
