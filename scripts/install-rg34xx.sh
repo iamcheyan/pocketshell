@@ -4,12 +4,13 @@ set -eu
 stage=${1:?missing staging directory}
 root=${PJOS_DEPLOY_ROOT:-/storage/System}
 backup="$root/pocketjs/backups/ui-$(date +%Y%m%d-%H%M%S)-$$"
-files='pocketjs/bin/launcher/pocket-linux-kms
+files='pocketjs/bin/pocketshell/pocket-linux-kms
 pocketjs/apps/boot.pocket
 compat/bin/pocketshell-games
 compat/bin/pocketshell-play
 compat/bin/pocket-game-play
 compat/bin/pocketjs-native-launch
+baseos-screen-idle
 launch_frontend.sh'
 
 [ -d "$root/pocketjs/apps" ] && [ -f "$root/launch_frontend.sh" ] || { echo "PocketShell installation not found" >&2; exit 1; }
@@ -63,14 +64,15 @@ install_file() {
     mv "$temporary" "$destination"
 }
 
-install_file pocket-linux-kms pocketjs/bin/launcher/pocket-linux-kms 0755
+install_file pocket-linux-kms pocketjs/bin/pocketshell/pocket-linux-kms 0755
 install_file pocketshell-games compat/bin/pocketshell-games 0755
 install_file pocketshell-play compat/bin/pocketshell-play 0755
 install_file pocket-game-play compat/bin/pocket-game-play 0755
 install_file pocketjs-native-launch compat/bin/pocketjs-native-launch 0755
+install_file baseos-screen-idle baseos-screen-idle 0755
 install_file launch_frontend.sh launch_frontend.sh 0755
 install_file boot.pocket pocketjs/apps/boot.pocket 0644
-"$root/pocketjs/bin/launcher/pocket-linux-kms" --package "$root/pocketjs/apps/boot.pocket" --check
+"$root/pocketjs/bin/pocketshell/pocket-linux-kms" --package "$root/pocketjs/apps/boot.pocket" --check
 sync
 committed=1
 trap - EXIT

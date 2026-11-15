@@ -9,11 +9,12 @@ import unittest
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/install-rg34xx.sh"
 FILES = {
     "boot.pocket": "pocketjs/apps/boot.pocket",
-    "pocket-linux-kms": "pocketjs/bin/launcher/pocket-linux-kms",
+    "pocket-linux-kms": "pocketjs/bin/pocketshell/pocket-linux-kms",
     "pocketshell-games": "compat/bin/pocketshell-games",
     "pocketshell-play": "compat/bin/pocketshell-play",
     "pocket-game-play": "compat/bin/pocket-game-play",
     "pocketjs-native-launch": "compat/bin/pocketjs-native-launch",
+    "baseos-screen-idle": "baseos-screen-idle",
     "launch_frontend.sh": "launch_frontend.sh",
 }
 
@@ -47,7 +48,8 @@ printf '%s' "$count" > "$TEST_COUNTER"
     def test_install_preserves_legacy_runtime_and_backs_up_replaced_files(self):
         with tempfile.TemporaryDirectory() as temp:
             root, stage, legacy, env = self.fixture(temp)
-            subprocess.run(["sh", str(SCRIPT), str(stage)], env=env, check=True, capture_output=True)
+            result = subprocess.run(["sh", str(SCRIPT), str(stage)], env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(legacy.read_text(), "legacy runtime")
             self.assertEqual((root / FILES["boot.pocket"]).read_text(), "new:boot.pocket")
             backups = list((root / "pocketjs/backups").iterdir())
@@ -83,6 +85,13 @@ printf '%s' "$count" > "$TEST_COUNTER"
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(legacy.read_text(), "legacy runtime")
             self.assertTrue(package.is_symlink())
+
+    def test_installs_the_card_idle_helper_with_the_launcher(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root, stage, _, env = self.fixture(temp)
+            result = subprocess.run(["sh", str(SCRIPT), str(stage)], env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual((root / "baseos-screen-idle").read_text(), "new:baseos-screen-idle")
 
     def test_adb_remote_reports_device_failure_even_if_adb_returns_success(self):
         source = (SCRIPT.parent / "deploy-rg34xx.sh").read_text()

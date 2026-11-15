@@ -23,7 +23,8 @@ for input in "$package" "$runtime" "$repo/scripts/install-rg34xx.sh" \
     "$pjos/overlay/usr/share/pocketshell/System/compat/bin/pocketshell-games" \
     "$pjos/overlay/usr/share/pocketshell/System/compat/bin/pocketshell-play" \
     "$pjos/overlay/usr/share/pocketshell/System/compat/bin/pocket-game-play" \
-    "$pjos/overlay/usr/share/pocketshell/System/compat/bin/pocketjs-native-launch"; do
+    "$pjos/overlay/usr/share/pocketshell/System/compat/bin/pocketjs-native-launch" \
+    "$pjos/overlay/usr/sbin/baseos-screen-idle"; do
     [ -f "$input" ] || { printf 'missing input: %s\n' "$input" >&2; exit 1; }
 done
 file "$runtime" | grep -q 'ARM aarch64.*statically linked' || { echo 'runtime is not a static AArch64 binary' >&2; exit 1; }
@@ -74,12 +75,13 @@ cp "$package" "$local_stage/boot.pocket"
 cp "$runtime" "$local_stage/pocket-linux-kms"
 cp "$repo/scripts/install-rg34xx.sh" "$local_stage/install.sh"
 cp "$pjos/overlay/usr/share/pocketshell/System/launch_frontend.sh" "$local_stage/launch_frontend.sh"
+cp "$pjos/overlay/usr/sbin/baseos-screen-idle" "$local_stage/baseos-screen-idle"
 for name in pocketshell-games pocketshell-play pocket-game-play pocketjs-native-launch; do
     cp "$pjos/overlay/usr/share/pocketshell/System/compat/bin/$name" "$local_stage/$name"
 done
-(cd "$local_stage" && sha256sum boot.pocket pocket-linux-kms install.sh launch_frontend.sh pocketshell-games pocketshell-play pocket-game-play pocketjs-native-launch > SHA256SUMS)
+(cd "$local_stage" && sha256sum boot.pocket pocket-linux-kms install.sh launch_frontend.sh pocketshell-games pocketshell-play pocket-game-play pocketjs-native-launch baseos-screen-idle > SHA256SUMS)
 remote "mkdir '$device_stage'"
-for name in boot.pocket pocket-linux-kms install.sh launch_frontend.sh pocketshell-games pocketshell-play pocket-game-play pocketjs-native-launch SHA256SUMS; do
+for name in boot.pocket pocket-linux-kms install.sh launch_frontend.sh pocketshell-games pocketshell-play pocket-game-play pocketjs-native-launch baseos-screen-idle SHA256SUMS; do
     push "$local_stage/$name" "$device_stage/$name"
 done
 remote "cd '$device_stage' && sha256sum -c SHA256SUMS && chmod 0755 pocket-linux-kms && ./pocket-linux-kms --package '$device_stage/boot.pocket' --check"
@@ -97,7 +99,7 @@ for attempt in $(seq 1 30); do
 done
 [ -n "$new_pids" ] && [ "$new_pids" != "$old_pids" ] || { echo 'launcher restart not verified' >&2; exit 1; }
 command_lines=$(remote 'for pid in $(pidof pocket-linux-kms); do tr "\\000" "\\n" < "/proc/$pid/cmdline"; done')
-[[ "$command_lines" == *'/launcher/pocket-linux-kms'* && "$command_lines" == *'/apps/boot.pocket'* ]] || { echo 'active launcher runtime or package does not match the installation' >&2; exit 1; }
+[[ "$command_lines" == *'/pocketshell/pocket-linux-kms'* && "$command_lines" == *'/apps/boot.pocket'* ]] || { echo 'active launcher runtime or package does not match the installation' >&2; exit 1; }
 remote 'tail -n 8 /tmp/pocketjs-frontend.log'
 pan=$(remote 'cat /sys/class/graphics/fb0/pan')
 case "$pan" in 0,0) page=0 ;; 0,480) page=1 ;; *) echo "unexpected framebuffer pan: $pan" >&2; exit 1 ;; esac

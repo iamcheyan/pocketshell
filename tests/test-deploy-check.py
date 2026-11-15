@@ -24,6 +24,8 @@ elif args[:2] == ["-s", "fixture"] and args[2:] == ["get-state"]:
     print("device")
 elif args[:3] == ["-s", "fixture", "push"]:
     shutil.copyfile(args[3], args[4])
+    with open(os.environ["PUSHED"], "a") as pushed:
+        pushed.write(os.path.basename(args[4]) + "\\n")
 elif args[:3] == ["-s", "fixture", "shell"]:
     command = args[3].replace("hostname; id", "printf 'rg34xx\\\\nuid=0(root)\\\\n'", 1)
     command = command.replace("./pocket-linux-kms --package", "qemu-aarch64 ./pocket-linux-kms --package")
@@ -32,10 +34,12 @@ else:
     sys.exit(2)
 ''')
             fake_adb.chmod(0o755)
-            env = {**os.environ, "PATH": temp + os.pathsep + os.environ["PATH"], "PJOS_ADB_SERIAL": "fixture"}
+            pushed = Path(temp) / "pushed"
+            env = {**os.environ, "PATH": temp + os.pathsep + os.environ["PATH"], "PJOS_ADB_SERIAL": "fixture", "PUSHED": str(pushed)}
             result = subprocess.run(["bash", str(repo / "scripts/deploy-rg34xx.sh"), "--check"], env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("Runtime and package admitted", result.stdout)
+            self.assertIn("baseos-screen-idle", pushed.read_text().splitlines())
 
 
 if __name__ == "__main__":
