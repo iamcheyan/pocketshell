@@ -976,7 +976,6 @@ mount(() => {
   };
 
   const launchSeriesItem = (item: SeriesItem) => {
-    writeSetting(host, "zeldaLastRom", item.romPath);
     host?.__launcher?.(`RESUME\tset\trom\t${item.romPath}`);
     scheduleLaunch(item.title, () => {
       const answer = host?.__launcher?.(`ROMLAUNCH\t${item.romPath}`) ?? "";
@@ -1000,20 +999,7 @@ mount(() => {
       return;
     }
     if (app.isSeries && app.seriesItems && app.seriesItems.length > 0) {
-      let lastRom = readSetting(host, "zeldaLastRom") || "";
-      if (!lastRom) {
-        const res = host?.__launcher?.("RESUME\tget") ?? "";
-        if (res.startsWith("rom\t")) lastRom = res.split("\t")[1];
-      }
-      const items = [...app.seriesItems];
-      if (lastRom) {
-        const idx = items.findIndex((it) => it.romPath === lastRom);
-        if (idx > 0) {
-          const [recent] = items.splice(idx, 1);
-          items.unshift(recent);
-        }
-      }
-      setSeriesSelectedApp({ ...app, seriesItems: items });
+      setSeriesSelectedApp(app);
       setSeriesCursor(0);
       setSeriesModalOpen(true);
       return;
@@ -1673,7 +1659,7 @@ mount(() => {
           </View>
 
           {/* Bottom Action Footer Bar (Material Design 3 borderless, seamless transparent background) */}
-          <View class="w-[720px] h-[64px] bg-[#111019bd] flex-row items-center justify-between px-[32px]">
+          <View class="w-[720px] h-[64px] bg-transparent shadow-md flex-row items-center justify-between px-[32px]">
             <View class="flex-row items-center gap-[10px]">
               <Text class="text-xl text-[#938f99]">◀ ▶</Text>
               <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-xl font-bold text-[#cac4d0]" : "text-lg font-bold text-[#cac4d0]"}>
@@ -1775,7 +1761,9 @@ mount(() => {
                       class={isCur()
                         ? "w-[608px] h-[46px] rounded-[12px] border-2 flex-row items-center justify-between px-[14px]"
                         : "w-[608px] h-[46px] rounded-[12px] bg-[#2b2930] flex-row items-center justify-between px-[14px]"}
-                      style={isCur() ? { bgColor: theme().container, borderColor: theme().primary } : undefined}
+                      style={isCur()
+                        ? { bgColor: theme().container, borderColor: theme().primary }
+                        : { bgColor: "#2b2930", borderColor: "#2b2930" }}
                     >
                       <View class="flex-row items-center gap-[10px]">
                         <View class="px-[8px] py-[2px] rounded-[6px]" style={{ bgColor: theme().container }}>

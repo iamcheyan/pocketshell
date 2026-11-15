@@ -109,7 +109,7 @@ export function BtPage(props: BtPageProps) {
                   props.onActivate(row().realIndex);
                 }}
                 class="w-[229px] h-[13px] flex-row items-center justify-between px-[5px]"
-                style={row().realIndex === props.index ? { bgColor: theme().activeSurface } : undefined}
+                style={{ bgColor: row().realIndex === props.index ? theme().activeSurface : "#00000000" }}
               >
                 <View class="flex-row items-center gap-[5px]">
                   <View

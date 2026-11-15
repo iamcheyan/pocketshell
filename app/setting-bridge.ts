@@ -145,9 +145,21 @@ export const readSetting = (host: LauncherHost | undefined, key: string): string
 /** Returns the value the host reports afterwards, or null when it refused. */
 export const writeSetting = (host: LauncherHost | undefined, key: string, value: string): string | null => {
   if (key in localFallbackSettings) {
-    localFallbackSettings[key] = value;
-    host?.__launcher?.(`SETTING\t${key}\t${value}`);
-    return value;
+    // These values used to be updated optimistically.  An older runtime replies
+    // "Unknown launcher action", so the selection looked correct until the
+    // launcher restarted and read the unchanged/default value again.  Treat a
+    // device-backed preference as saved only after a successful write and
+    // read-back from the same host bridge.
+    if (!host?.__launcher) {
+      localFallbackSettings[key] = value;
+      return value;
+    }
+    const reply = host.__launcher(`SETTING\t${key}\t${value}`)?.trim() ?? "";
+    if (!reply || isUnknownArm(reply) || /^error:/i.test(reply)) return null;
+    const persisted = readSetting(host, key);
+    if (persisted !== value) return null;
+    localFallbackSettings[key] = persisted;
+    return persisted;
   }
   const unified = host?.__launcher?.(`SETTING\t${key}\t${value}`)?.trim() ?? "";
   if (unified === "error:reboot-required") return "reboot-required";

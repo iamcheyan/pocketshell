@@ -10,3 +10,4 @@ app/dist-src/
 # publisher. It stays on local disk for device builds but is not published from
 # this public repository.
 app/zelda-minish.png
+__pycache__/

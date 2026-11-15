@@ -2,6 +2,24 @@ import { describe, expect, test } from "bun:test";
 import { readSetting, writeSetting } from "../app/setting-bridge";
 
 describe("device setting responses", () => {
+  test("does not cache a local font choice when the runtime rejects it", () => {
+    const host = { __launcher: () => "Unknown launcher action" };
+    expect(writeSetting(host, "fontSize", "huge")).toBeNull();
+    expect(readSetting(host, "fontSize")).toBe("normal");
+  });
+  test("confirms a local setting by reading the value persisted by the host", () => {
+    let fontSize = "normal";
+    const host = {
+      __launcher: (command: string) => {
+        const fields = command.split("\t");
+        if (fields[0] !== "SETTING" || fields[1] !== "fontSize") return "Unknown launcher action";
+        if (fields[2]) fontSize = fields[2];
+        return fontSize;
+      },
+    };
+    expect(writeSetting(host, "fontSize", "huge")).toBe("huge");
+    expect(readSetting(host, "fontSize")).toBe("huge");
+  });
   test("an unsupported legacy write cannot report the previous value as success", () => {
     const host = { __launcher: (command: string) => command === "STATE\twifi" ? "on" : "Unknown launcher action" };
     expect(readSetting(host, "wifi")).toBe("on");

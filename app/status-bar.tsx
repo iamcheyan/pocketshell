@@ -85,7 +85,7 @@ export function StatusBar(props: StatusBarProps) {
   };
 
   return (
-    <View class="w-[720px] h-[64px] flex-row items-center justify-between px-[24px] bg-[#111019bd]">
+    <View class="w-[720px] h-[64px] flex-row items-center justify-between px-[24px] bg-transparent shadow-md">
       {/* Left: M3 Navigation Tabs (No L/R badges, borderless pill indicators) */}
       <View class="flex-row items-center gap-[12px]">
         {props.title ? (
