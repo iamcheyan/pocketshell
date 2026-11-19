@@ -24,19 +24,18 @@ export interface SaveManagerProps {
 
 export function SaveManager(props: SaveManagerProps) {
   const theme = () => THEME_PALETTES[props.themeColor || "purple"] || THEME_PALETTES.purple;
-  const isZh = () => !props.language || props.language.startsWith("zh");
   const isJa = () => Boolean(props.language?.startsWith("ja"));
+  const isZh = () => !isJa() && (!props.language || props.language.startsWith("zh"));
   const isHuge = () => props.fontSize === "huge";
   const isLarge = () => props.fontSize === "large";
 
-  const PAGE_SIZE = 5;
+  const PAGE_SIZE = 4;
   const scrollOffset = () => {
     const total = props.entries.length;
     if (total <= PAGE_SIZE) return 0;
-    const half = Math.floor(PAGE_SIZE / 2);
-    if (props.selectedIndex < half) return 0;
-    if (props.selectedIndex >= total - half) return total - PAGE_SIZE;
-    return props.selectedIndex - half;
+    if (props.selectedIndex < 2) return 0;
+    if (props.selectedIndex >= total - 2) return total - PAGE_SIZE;
+    return props.selectedIndex - 1;
   };
 
   const visibleEntries = () => {
@@ -45,10 +44,10 @@ export function SaveManager(props: SaveManagerProps) {
   };
 
   const kindBadge = (kind: SaveEntry["kind"]) => {
-    if (kind === "slot") return isZh() ? "快捷槽位" : "SLOT";
-    if (kind === "auto_state") return isZh() ? "自动存档" : "AUTO";
-    if (kind === "battery") return isZh() ? "卡带记忆" : "SRAM";
-    return isZh() ? "即时存档" : "STATE";
+    if (kind === "slot") return isJa() ? "スロット" : isZh() ? "快捷槽位" : "SLOT";
+    if (kind === "auto_state") return isJa() ? "自動" : isZh() ? "自动存档" : "AUTO";
+    if (kind === "battery") return isJa() ? "SRAM" : isZh() ? "卡带记忆" : "SRAM";
+    return isJa() ? "ステート" : isZh() ? "即时存档" : "STATE";
   };
 
   return (
@@ -65,12 +64,14 @@ export function SaveManager(props: SaveManagerProps) {
                 {"\uf0c7"}
               </Text>
               <Text class={isHuge() ? "text-xs font-bold text-[#ffffff]" : "text-xs font-bold text-[#ffffff]"}>
-                {isZh() ? "存档管理与导出" : isJa() ? "セーブデータ管理" : "Save Manager"}
+                {isJa() ? "セーブデータ管理" : isZh() ? "存档管理与导出" : "Save Manager"}
               </Text>
             </View>
             <View class="px-[5px] py-[2px]" style={{ bgColor: theme().container }}>
               <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>
-                {isZh()
+                {isJa()
+                  ? `${props.entries.length} 件 · X: 全てバックアップ`
+                  : isZh()
                   ? `共 ${props.entries.length} 个存档 · X: 全部备份`
                   : `${props.entries.length} saves · X: Backup All`}
               </Text>
@@ -80,10 +81,10 @@ export function SaveManager(props: SaveManagerProps) {
           {/* Backup Location Plaque */}
           <View class="flex-row items-center px-[6px] py-[2px] overflow-hidden justify-between" style={{ bgColor: theme().activeSurface }}>
             <Text class="text-xs font-mono font-bold" style={{ textColor: theme().primary }}>
-              {isZh() ? "备份目录: /storage/backups/saves/" : "Backup: /storage/backups/saves/"}
+              {isJa() ? "保存先: /storage/backups/saves/" : isZh() ? "备份目录: /storage/backups/saves/" : "Backup: /storage/backups/saves/"}
             </Text>
             <Text class="text-xs font-bold text-[#938f99]">
-              {isZh() ? "即时/SRAM" : "States & SRAM"}
+              {isJa() ? "ステート/SRAM" : isZh() ? "即时/SRAM" : "States & SRAM"}
             </Text>
           </View>
         </View>
@@ -95,7 +96,7 @@ export function SaveManager(props: SaveManagerProps) {
             <View class="w-full h-full items-center justify-center flex-col gap-[4px]">
               <Text class="text-xs" style={{ textColor: theme().primary }}>{"\uf115"}</Text>
               <Text class="text-xs font-bold text-[#8c91a0]">
-                {isZh() ? "未发现游戏存档文件" : isJa() ? "セーブデータがありません" : "No save files found"}
+                {isJa() ? "セーブデータがありません" : isZh() ? "未发现游戏存档文件" : "No save files found"}
               </Text>
             </View>
           ) : (
@@ -108,54 +109,63 @@ export function SaveManager(props: SaveManagerProps) {
                   const progress = () => formatSaveProgress(item().extra);
                   return (
                     <View
-                      class="w-full h-[27px] px-[7px] flex-row items-center justify-between border-2"
+                      class="w-full h-[32px] px-[8px] py-[3px] flex-col justify-between border"
                       style={
                         isSelected()
                           ? { bgColor: theme().container, borderColor: theme().primary }
-                          : { bgColor: theme().activeSurface, borderColor: theme().activeSurface }
+                          : { bgColor: "#1e1b24", borderColor: "#2d2938" }
                       }
                     >
-                      {/* Left: Info */}
-                      <View class="flex-col gap-[1px] flex-1 overflow-hidden mr-[5px]">
-                        <View class="flex-row items-center gap-[4px]">
+                      {/* Line 1: Game Title + Save Label + Kind Badge */}
+                      <View class="flex-row items-center justify-between">
+                        <View class="flex-row items-center gap-[6px] flex-1 overflow-hidden mr-[4px]">
                           <Text
-                            class={isHuge() ? "text-xs font-bold" : "text-xs font-bold"}
+                            class="text-xs font-bold"
                             style={{ textColor: isSelected() ? "#ffffff" : "#e6e0e9" }}
                           >
                             {item().gameTitle}
                           </Text>
                           <Text
-                            class="text-xs font-bold"
+                            class="text-xs"
                             style={{ textColor: isSelected() ? theme().onContainer : theme().primary }}
                           >
                             {item().label}
                           </Text>
                         </View>
-                        {/* Progress or Metadata */}
-                        {progress() ? (
-                          <Text class="text-xs font-bold" style={{ textColor: isSelected() ? "#ffffff" : "#ffcc00" }}>
-                            {progress()}
+                        <View
+                          class="px-[4px] py-[1px]"
+                          style={{ bgColor: isSelected() ? theme().activeSurface : theme().container }}
+                        >
+                          <Text
+                            class="text-xs font-bold"
+                            style={{ textColor: isSelected() ? theme().primary : theme().onContainer }}
+                          >
+                            {kindBadge(item().kind)}
                           </Text>
-                        ) : (
-                          <Text class="text-xs text-[#938f99]">
-                            {formatFileSize(item().size)} · {formatSaveDate(item().mtime)}
-                          </Text>
-                        )}
-                        <Text class="text-xs font-mono text-[#8c91a0]">
-                          {item().path}
-                        </Text>
+                        </View>
                       </View>
 
-                      {/* Right: Kind Pill Badge */}
-                      <View
-                        class="px-[4px] py-[2px]"
-                        style={{ bgColor: isSelected() ? theme().activeSurface : theme().container }}
-                      >
+                      {/* Line 2: Progress (or Size & Date) + Filename */}
+                      <View class="flex-row items-center justify-between">
+                        <View class="flex-1 overflow-hidden mr-[4px]">
+                          {progress() ? (
+                            <Text
+                              class="text-xs font-bold"
+                              style={{ textColor: isSelected() ? "#ffffff" : "#ffd700" }}
+                            >
+                              {progress()}
+                            </Text>
+                          ) : (
+                            <Text class="text-xs text-[#938f99]">
+                              {formatSaveDate(item().mtime)} · {formatFileSize(item().size)}
+                            </Text>
+                          )}
+                        </View>
                         <Text
-                          class="text-xs font-bold"
-                          style={{ textColor: isSelected() ? theme().primary : theme().onContainer }}
+                          class="text-xs font-mono"
+                          style={{ textColor: isSelected() ? "#cac4d0" : "#6c6676" }}
                         >
-                          {kindBadge(item().kind)}
+                          {item().path.split("/").pop()}
                         </Text>
                       </View>
                     </View>
@@ -176,7 +186,7 @@ export function SaveManager(props: SaveManagerProps) {
                   <Text class="text-xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
                 </View>
                 <Text class="text-xs font-bold text-[#e6e0e9]">
-                  {isZh() ? "导出选中存档" : "Export"}
+                  {isJa() ? "保存" : isZh() ? "导出选中存档" : "Export"}
                 </Text>
               </View>
               <View class="flex-row items-center gap-[4px]">
@@ -184,7 +194,7 @@ export function SaveManager(props: SaveManagerProps) {
                   <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>X</Text>
                 </View>
                 <Text class="text-xs font-bold text-[#e6e0e9]">
-                  {isZh() ? "一键全量备份" : "Backup All"}
+                  {isJa() ? "全てバックアップ" : isZh() ? "一键全量备份" : "Backup All"}
                 </Text>
               </View>
               <View class="flex-row items-center gap-[4px]">
@@ -192,12 +202,12 @@ export function SaveManager(props: SaveManagerProps) {
                   <Text class="text-xs font-bold text-white">B</Text>
                 </View>
                 <Text class="text-xs font-bold text-[#cac4d0]">
-                  {isZh() ? "退出" : "Exit"}
+                  {isJa() ? "戻る" : isZh() ? "退出" : "Exit"}
                 </Text>
               </View>
             </View>
             <Text class="text-xs text-[#938f99]">
-              {isZh() ? "▲▼ 选择 · ◀ ▶ 翻页" : "▲▼ Select · ◀ ▶ Page"}
+              {isJa() ? "▲▼ 選択 · ◀ ▶ ページ" : isZh() ? "▲▼ 选择 · ◀ ▶ 翻页" : "▲▼ Select · ◀ ▶ Page"}
             </Text>
           </View>
         </View>

@@ -23,8 +23,8 @@ export interface FileBrowserProps {
 
 export function FileBrowser(props: FileBrowserProps) {
   const theme = () => THEME_PALETTES[props.themeColor || "purple"] || THEME_PALETTES.purple;
-  const isZh = () => !props.language || props.language.startsWith("zh");
   const isJa = () => Boolean(props.language?.startsWith("ja"));
+  const isZh = () => !isJa() && (!props.language || props.language.startsWith("zh"));
   const isHuge = () => props.fontSize === "huge";
   const isLarge = () => props.fontSize === "large";
 
@@ -116,7 +116,7 @@ export function FileBrowser(props: FileBrowserProps) {
               </View>
               <View class="flex-row justify-end">
                 <Text class="text-xs font-bold text-[#cac4d0]">
-                  {isZh() ? "↑↓ 滚动 · 按 B 返回文件列表" : "↑↓ Scroll · B to Back"}
+                  {isJa() ? "↑↓ スクロール · B 一覧に戻る" : isZh() ? "↑↓ 滚动 · 按 B 返回文件列表" : "↑↓ Scroll · B to Back"}
                 </Text>
               </View>
             </View>
@@ -202,10 +202,10 @@ export function FileBrowser(props: FileBrowserProps) {
                 </View>
                 <Text class="text-xs font-bold text-[#cac4d0]">
                   {props.previewContent !== null
-                    ? (isZh() ? "返回列表" : "Back to list")
+                    ? (isJa() ? "一覧に戻る" : isZh() ? "返回列表" : "Back to list")
                     : props.currentPath !== "/" && props.currentPath !== "/storage"
-                    ? (isZh() ? "上一级" : "Up")
-                    : (isZh() ? "退出" : "Exit")}
+                    ? (isJa() ? "上へ" : isZh() ? "上一级" : "Up")
+                    : (isJa() ? "戻る" : isZh() ? "退出" : "Exit")}
                 </Text>
               </View>
               <View class="flex-row items-center gap-[4px]">
@@ -213,12 +213,12 @@ export function FileBrowser(props: FileBrowserProps) {
                   <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>X</Text>
                 </View>
                 <Text class="text-xs font-bold text-[#cac4d0]">
-                  {isZh() ? "切盘" : "Drive"}
+                  {isJa() ? "切替" : isZh() ? "切盘" : "Drive"}
                 </Text>
               </View>
             </View>
             <Text class="text-xs text-[#938f99]">
-              {isZh() ? "▲▼ 选择 · ◀ ▶ 翻页" : "▲▼ Select · ◀ ▶ Page"}
+              {isJa() ? "▲▼ 選択 · ◀ ▶ ページ" : isZh() ? "▲▼ 选择 · ◀ ▶ 翻页" : "▲▼ Select · ◀ ▶ Page"}
             </Text>
           </View>
         </View>

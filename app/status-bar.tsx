@@ -29,8 +29,8 @@ export interface StatusBarProps {
 }
 
 export function StatusBar(props: StatusBarProps) {
-  const isZh = () => !props.language || props.language.startsWith("zh");
   const isJa = () => Boolean(props.language?.startsWith("ja"));
+  const isZh = () => !isJa() && (!props.language || props.language.startsWith("zh"));
 
   const theme = () => THEME_PALETTES[props.themeColor || "purple"] || THEME_PALETTES.purple;
   const isHuge = () => props.fontSize === "huge";
@@ -68,10 +68,10 @@ export function StatusBar(props: StatusBarProps) {
     props.currentScreen === 2 ||
     props.currentScreen === 5;
 
-  const TABS = [
-    { id: "apps", screen: 0, label: isZh() ? "应用" : isJa() ? "アプリ" : "Apps", active: isAppScreen },
-    { id: "settings", screen: 3, label: isZh() ? "设置" : isJa() ? "設定" : "Settings", active: () => props.currentScreen === 3 },
-    { id: "system", screen: 4, label: isZh() ? "系统" : isJa() ? "システム" : "System", active: () => props.currentScreen === 4 },
+  const TABS = () => [
+    { id: "apps", screen: 0, label: isJa() ? "アプリ" : isZh() ? "应用" : "Apps", active: isAppScreen },
+    { id: "settings", screen: 3, label: isJa() ? "設定" : isZh() ? "设置" : "Settings", active: () => props.currentScreen === 3 },
+    { id: "system", screen: 4, label: isJa() ? "システム" : isZh() ? "系统" : "System", active: () => props.currentScreen === 4 },
   ];
 
   const known = () => props.batteryLevel >= 0 && props.batteryLevel <= 100;
@@ -97,7 +97,7 @@ export function StatusBar(props: StatusBarProps) {
           </View>
         ) : (
           <View class="flex-row items-center gap-[4px]">
-            <Index each={TABS}>
+            <Index each={TABS()}>
               {(tab) => {
                 const isSelected = () => tab().active();
                 return (

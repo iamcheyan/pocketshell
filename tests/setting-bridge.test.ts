@@ -34,6 +34,10 @@ describe("device setting responses", () => {
     const host = { __launcher: (command: string) => command.startsWith("SETTING") ? "Unknown launcher action" : "1" };
     expect(readSetting(host, "wifi")).toBe("on");
   });
+  test("parses quoted language returned by baseos runtime", () => {
+    const host = { __launcher: (command: string) => command === "LANGUAGE" ? '"ja"\n' : "Unknown launcher action" };
+    expect(readSetting(host, "language")).toBe("ja");
+  });
   test("unknown commands cannot become a power-off timeout", () => {
     const host = { __launcher: () => "Unknown launcher action" };
     expect(readSetting(host, "autoPoweroff")).toBeNull();

@@ -90,7 +90,7 @@ export const SETTING_BRIDGE: Record<string, SettingBridge> = {
     read: "LANGUAGE",
     write: (value) => `LANGUAGE\t${value}`,
     parse: (raw) => {
-      const text = raw.trim().toLowerCase();
+      const text = raw.trim().replace(/^["']+|["']+$/g, "").trim().toLowerCase();
       return ["en", "zh", "ja"].includes(text) ? text : null;
     },
   },

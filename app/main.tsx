@@ -254,7 +254,10 @@ mount(() => {
   const [volume, setVolume] = createSignal<number | null>(40);
   const [wifiEnabled, setWifiEnabled] = createSignal<boolean | null>(null);
   const [bluetoothEnabled, setBluetoothEnabled] = createSignal(false);
-  const [language, setLanguage] = createSignal("zh");
+  const initialLang = readSetting(host, "language");
+  const [language, setLanguage] = createSignal(
+    initialLang && ["en", "zh", "ja"].includes(initialLang) ? initialLang : "zh"
+  );
   const [timeoutIndex, setTimeoutIndex] = createSignal(0); // 10s, matches the saved default
   const [autoPoweroffIndex, setAutoPoweroffIndex] = createSignal(0); // never
   // Raw bridge answers per settings key; null means "the host did not answer".
