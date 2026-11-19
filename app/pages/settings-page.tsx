@@ -1,3 +1,4 @@
+import { SegBar } from "../pixel-ui";
 import { View, Text, type NodeMirror } from "@pocketjs/framework/solid/components";
 import { Index } from "solid-js";
 import { createGesture } from "@pocketjs/framework/gesture";
@@ -82,15 +83,9 @@ function LevelMeter(props: {
   return (
     <View
       ref={(node: NodeMirror) => { track = node; }}
-      class="w-[90px] h-[9px] rounded-[999px] bg-[#36343b] overflow-hidden flex-row items-center p-[1px]"
+      class="w-[90px] h-[9px] flex-row items-center"
     >
-      <View
-        class="h-full rounded-[999px]"
-        style={{
-          width: Math.round((percent() / 100) * 176),
-          bgColor: props.fillColor,
-        }}
-      />
+      <SegBar value={percent()} width={90} height={9} segs={18} fill={props.fillColor} />
     </View>
   );
 }
@@ -130,13 +125,13 @@ export function SettingsPage(props: SettingsPageProps) {
         }}
         class={
           on
-            ? "w-[26px] h-[15px] rounded-[999px] flex-row items-center justify-end px-[2px]"
-            : "w-[26px] h-[15px] rounded-[999px] bg-[#36343b] flex-row items-center justify-start px-[2px]"
+            ? "w-[26px] h-[15px] flex-row items-center justify-end px-[2px]"
+            : "w-[26px] h-[15px] bg-[#36343b] flex-row items-center justify-start px-[2px]"
         }
         style={on ? { bgColor: theme().primary } : undefined}
       >
         <View
-          class="w-[12px] h-[12px] rounded-[999px]"
+          class="w-[12px] h-[12px]"
           style={{ bgColor: on ? theme().switchThumb : "#938f99" }}
         />
       </TouchTarget>
@@ -145,7 +140,7 @@ export function SettingsPage(props: SettingsPageProps) {
 
   // M3 Chip
   const enumPill = (text: string) => (
-    <View class="px-[8px] h-[17px] items-center justify-center bg-[#36343b] rounded-[999px]">
+    <View class="px-[8px] h-[17px] items-center justify-center bg-[#36343b]">
       <Text
         class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
         style={{ textColor: theme().onContainer }}
@@ -221,7 +216,7 @@ export function SettingsPage(props: SettingsPageProps) {
           { code: "ja", label: "日本語" },
         ];
         return (
-          <View class="h-[17px] rounded-[999px] bg-[#36343b] flex-row items-center p-[1px]">
+          <View class="h-[17px] bg-[#36343b] flex-row items-center p-[1px]">
             <Index each={langs}>
               {(l) => {
                 const active = () => props.state.language === l().code;
@@ -234,8 +229,8 @@ export function SettingsPage(props: SettingsPageProps) {
                     }}
                     class={
                       active()
-                        ? "px-[6px] h-[15px] rounded-[999px] items-center justify-center"
-                        : "px-[5px] h-[15px] rounded-[999px] items-center justify-center bg-transparent"
+                        ? "px-[6px] h-[15px] items-center justify-center"
+                        : "px-[5px] h-[15px] items-center justify-center bg-transparent"
                     }
                     style={active() ? { bgColor: theme().primary } : undefined}
                   >
@@ -259,7 +254,7 @@ export function SettingsPage(props: SettingsPageProps) {
           { key: "huge", label: t("fontSize.huge") },
         ];
         return (
-          <View class="h-[17px] rounded-[999px] bg-[#36343b] flex-row items-center p-[1px]">
+          <View class="h-[17px] bg-[#36343b] flex-row items-center p-[1px]">
             <Index each={sizes}>
               {(s) => {
                 const active = () => (props.state.fontSize || "normal") === s().key;
@@ -271,8 +266,8 @@ export function SettingsPage(props: SettingsPageProps) {
                     }}
                     class={
                       active()
-                        ? "px-[6px] h-[15px] rounded-[999px] items-center justify-center"
-                        : "px-[5px] h-[15px] rounded-[999px] items-center justify-center bg-transparent"
+                        ? "px-[6px] h-[15px] items-center justify-center"
+                        : "px-[5px] h-[15px] items-center justify-center bg-transparent"
                     }
                     style={active() ? { bgColor: theme().primary } : undefined}
                   >
@@ -298,9 +293,9 @@ export function SettingsPage(props: SettingsPageProps) {
               props.onSelect?.(realIndex);
               props.onAdjust?.(realIndex, 1);
             }}
-            class="px-[7px] h-[17px] items-center justify-center bg-[#36343b] rounded-[999px] flex-row gap-[4px]"
+            class="px-[7px] h-[17px] items-center justify-center bg-[#36343b] flex-row gap-[4px]"
           >
-            <View class="w-[6px] h-[6px] rounded-[999px]" style={{ bgColor: pal.primary }} />
+            <View class="w-[6px] h-[6px]" style={{ bgColor: pal.primary }} />
             <Text
               class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
               style={{ textColor: pal.primary }}
@@ -352,7 +347,7 @@ export function SettingsPage(props: SettingsPageProps) {
       );
     }
     return (
-      <View class="px-[7px] py-[3px] rounded-[999px] bg-[#36343b]">
+      <View class="px-[7px] py-[3px] bg-[#36343b]">
         <Text
           class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
           style={{ textColor: theme().primary }}
@@ -391,8 +386,8 @@ export function SettingsPage(props: SettingsPageProps) {
                 }}
                 class={
                   selected()
-                    ? "w-[330px] px-[8px] flex-row items-center justify-between rounded-[8px]"
-                    : "w-[330px] px-[8px] flex-row items-center justify-between rounded-[8px] bg-transparent"
+                    ? "w-[330px] px-[8px] flex-row items-center justify-between"
+                    : "w-[330px] px-[8px] flex-row items-center justify-between bg-transparent"
                 }
                 style={{
                   height: rowHeight(),
@@ -401,7 +396,7 @@ export function SettingsPage(props: SettingsPageProps) {
               >
                 <View class="flex-row items-center gap-[6px]">
                   <View
-                    class="w-[2px] h-[12px] rounded-[999px]"
+                    class="w-[2px] h-[12px]"
                     style={{ bgColor: selected() ? theme().primary : "#00000000" }}
                   />
                   <Text

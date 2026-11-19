@@ -85,12 +85,12 @@ export function StatusBar(props: StatusBarProps) {
   };
 
   return (
-    <View class="w-[360px] h-[32px] flex-row items-center justify-between px-[12px] bg-transparent shadow-md">
+    <View class="w-[360px] h-[32px] flex-row items-center justify-between px-[12px] bg-transparent">
       {/* Left: M3 Navigation Tabs (No L/R badges, borderless pill indicators) */}
       <View class="flex-row items-center gap-[6px]">
         {props.title ? (
           <View class="flex-row items-center gap-[5px]">
-            <View class="w-[2px] h-[12px] rounded-[999px]" style={{ bgColor: theme().primary }} />
+            <View class="w-[2px] h-[12px]" style={{ bgColor: theme().primary }} />
             <Text class="text-xs font-bold text-[#e6e0e9] tracking-wide">
               {props.title}
             </Text>
@@ -107,7 +107,7 @@ export function StatusBar(props: StatusBarProps) {
                   >
                     {isSelected() ? (
                       <View
-                        class="px-[9px] py-[3px] rounded-[999px] items-center justify-center border-2"
+                        class="px-[9px] py-[3px] items-center justify-center border-2"
                         style={{
                           bgColor: theme().container,
                           borderColor: theme().primary,
@@ -173,9 +173,9 @@ export function StatusBar(props: StatusBarProps) {
               {props.batteryLevel}%
             </Text>
           )}
-          <View class="w-[10px] h-[6px] rounded-[1px] bg-[#36343b] p-[1px] flex-row items-center">
+          <View class="w-[10px] h-[6px] bg-[#36343b] p-[1px] flex-row items-center">
             <View
-              class="h-full rounded-[1px]"
+              class="h-full"
               style={{
                 width: Math.max(1, Math.min(16, Math.round((props.batteryLevel / 100) * 16))),
                 bgColor: batteryColor(),

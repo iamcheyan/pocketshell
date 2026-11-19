@@ -45,13 +45,13 @@ const barsFor = (signal: number): number => {
 function SignalBars(props: { signal: number; dim: boolean; accent: string }) {
   const level = () => barsFor(props.signal);
   return (
-    <View class="w-[6px] h-[4px] flex-row items-end gap-[1px]">
+    <View class="w-[16px] h-[12px] flex-row items-end gap-[2px]">
       <Index each={[0, 1, 2]}>
         {(bar) => (
           <View
-            class="w-[1px]"
+            class="w-[3px]"
             style={{
-              height: 2 + bar() * 3,
+              height: 4 + bar() * 3,
               bgColor: props.dim ? "#2c3d4a" : bar() < level() ? props.accent : "#233441",
             }}
           />
@@ -93,13 +93,13 @@ export function WifiPage(props: WifiPageProps) {
   const selected = () => props.rows[props.index];
 
   return (
-    <View class="w-[120px] h-[66px] relative flex-col">
+    <View class="w-[360px] h-[174px] relative flex-col">
       {/* The keyboard is positioned against this root, so the side margin lives
           on the content column: padding on the root would clip the panel by
           exactly that padding. */}
-      <View class="w-[120px] flex-1 flex-col px-[2px] py-[2px]">
-        <View class="w-[114px] h-[8px] flex-row items-center justify-between">
-          <View class="flex-row items-center gap-[2px]">
+      <View class="w-[360px] flex-1 flex-col px-[8px] py-[4px]">
+        <View class="w-[344px] h-[22px] flex-row items-center justify-between">
+          <View class="flex-row items-center gap-[8px]">
             <PixelStatus kind="wifi" color={theme().primary} />
             <Text class="text-xs font-bold text-white">{t()("wifi.title")}</Text>
           </View>
@@ -113,13 +113,13 @@ export function WifiPage(props: WifiPageProps) {
         </View>
 
         {props.phase === "psk" ? (
-          <View class="w-[114px] flex-1 flex-col gap-[2px] pt-[2px]">
+          <View class="w-[344px] flex-1 flex-col gap-[4px] pt-[4px]">
             <Text class="text-xs" style={{ textColor: "#f5eddb" }}>
               {t()("wifi.password", { ssid: props.pskFor })}
             </Text>
             {/* A password must not sit legible on the panel, so the field draws
                 dots; the keyboard behind it still edits the real text. */}
-            <TouchTarget onPress={() => props.osk.open()} class="w-[114px] h-[8px] px-[2px] items-center bg-[#211d33]">
+            <TouchTarget onPress={() => props.osk.open()} class="w-[344px] h-[22px] px-[8px] items-center bg-[#211d33]">
               <Text class="text-xs" style={{ textColor: "#EAF7FF" }}>
                 {props.psk ? "•".repeat(props.psk.length) : t()("wifi.passwordEmpty")}
               </Text>
@@ -132,14 +132,14 @@ export function WifiPage(props: WifiPageProps) {
             </Text>
           </View>
         ) : (
-          <View class="w-[114px] flex-1 flex-col">
+          <View class="w-[344px] flex-1 flex-col">
             {props.phase === "scanning" || props.phase === "connecting" ? (
-              <View class="w-[114px] h-[24px] flex-col items-center justify-center gap-[2px]">
-                <View class="w-[32px] h-[2px] flex-row gap-[1px]">
+              <View class="w-[344px] h-[70px] flex-col items-center justify-center gap-[8px]">
+                <View class="w-[96px] h-[6px] flex-row gap-[2px]">
                   <Index each={Array.from({ length: TRACK }, (_, i) => i)}>
                     {(cell) => (
                       <View
-                        class="w-[2px] h-[2px]"
+                        class="w-[6px] h-[6px]"
                         style={{ bgColor: lit(cell()) ? theme().primary : "#233240" }}
                       />
                     )}
@@ -150,7 +150,7 @@ export function WifiPage(props: WifiPageProps) {
                 </Text>
               </View>
             ) : props.rows.length === 0 ? (
-              <View class="w-[114px] h-[24px] items-center justify-center">
+              <View class="w-[344px] h-[70px] items-center justify-center">
                 <Text class="text-xs" style={{ textColor: "#9893ad" }}>{t()("wifi.empty")}</Text>
               </View>
             ) : (
@@ -161,12 +161,12 @@ export function WifiPage(props: WifiPageProps) {
                       props.onSelect(row().realIndex);
                       props.onActivate(row().realIndex);
                     }}
-                    class="w-[114px] h-[6px] flex-row items-center justify-between px-[2px]"
+                    class="w-[344px] h-[20px] flex-row items-center justify-between px-[8px]"
                     style={{ bgColor: row().realIndex === props.index ? theme().activeSurface : "#00000000" }}
                   >
-                    <View class="flex-row items-center gap-[2px]">
+                    <View class="flex-row items-center gap-[8px]">
                       <View
-                        class="w-[2px] h-[2px]"
+                        class="w-[8px] h-[8px]"
                         style={{
                           bgColor: row().active
                             ? theme().primary
@@ -183,7 +183,7 @@ export function WifiPage(props: WifiPageProps) {
                         <PixelStatus kind="lock" color="#9893ad" />
                       )}
                     </View>
-                    <View class="flex-row items-center gap-[2px]">
+                    <View class="flex-row items-center gap-[8px]">
                       {row().active ? (
                         <Text class="text-xs" style={{ textColor: theme().primary }}>{t()("wifi.current")}</Text>
                       ) : row().saved ? (
@@ -198,22 +198,22 @@ export function WifiPage(props: WifiPageProps) {
           </View>
         )}
 
-        <View class="w-[114px] h-[6px] flex-row items-center justify-between">
+        <View class="w-[344px] h-[18px] flex-row items-center justify-between">
           <Text class="text-xs" style={{ textColor: "#9893ad" }}>{props.status}</Text>
-          <View class="flex-row items-center gap-[2px]">
+          <View class="flex-row items-center gap-[8px]">
             {props.phase === "list" && selected()?.active ? (
-              <TouchTarget onPress={props.onDisconnect} class="h-[6px] px-[2px] items-center justify-center">
+              <TouchTarget onPress={props.onDisconnect} class="h-[18px] px-[8px] items-center justify-center">
                 <Text class="text-xs" style={{ textColor: theme().primary }}>{t()("wifi.disconnect")}</Text>
               </TouchTarget>
             ) : props.phase === "list" && selected()?.saved ? (
-              <TouchTarget onPress={() => selected() && props.onForget(selected().ssid)} class="h-[6px] px-[2px] items-center justify-center">
+              <TouchTarget onPress={() => selected() && props.onForget(selected().ssid)} class="h-[18px] px-[8px] items-center justify-center">
                 <Text class="text-xs" style={{ textColor: theme().primary }}>{t()("wifi.forget")}</Text>
               </TouchTarget>
             ) : null}
-            <TouchTarget onPress={props.onRescan} class="h-[6px] px-[2px] items-center justify-center">
+            <TouchTarget onPress={props.onRescan} class="h-[18px] px-[8px] items-center justify-center">
               <Text class="text-xs" style={{ textColor: theme().primary }}>{t()("wifi.rescan")}</Text>
             </TouchTarget>
-            <TouchTarget onPress={props.onBack} class="h-[6px] px-[2px] items-center justify-center">
+            <TouchTarget onPress={props.onBack} class="h-[18px] px-[8px] items-center justify-center">
               <Text class="text-xs" style={{ textColor: "#9893ad" }}>{t()("wifi.back")}</Text>
             </TouchTarget>
           </View>
@@ -223,7 +223,7 @@ export function WifiPage(props: WifiPageProps) {
       {/* Docked over the page's lower half while open; the OSK blocks the panel
           beneath it itself, so nothing here needs a scrim. */}
       <View class="absolute left-0 bottom-0 w-[360px]">
-        <Osk osk={props.osk} theme={props.oskTheme} keyHeight={40} />
+        <Osk osk={props.osk} theme={props.oskTheme} keyHeight={22} />
       </View>
     </View>
   );

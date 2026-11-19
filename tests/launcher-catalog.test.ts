@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getAppsForScreen } from "../app/launcher-catalog";
+import { getAppsForScreen, appName, seriesItemTitle } from "../app/launcher-catalog";
 
 describe("game library metadata", () => {
   test("discovers an installed app and same-name cover without an app-specific rule", () => {
@@ -73,5 +73,50 @@ describe("game library metadata", () => {
     expect(games.map((item) => item.romPath)).toEqual([
       "/storage/roms/gba/Greatest.gba", "/storage/roms/gbc/Greatest.GBC",
     ]);
+  });
+
+  test("switches series title and variant titles by device language", () => {
+    const library = { sections: { games: [{ items: [{
+      kind: "series", id: "fe-binding-blade", title: "火焰之纹章：封印之剑",
+      title_zh: "火焰之纹章：封印之剑",
+      title_en: "Fire Emblem: The Binding Blade",
+      title_ja: "ファイアーエムブレム 封印の剣",
+      variants: [
+        {
+          id: "zh-Hans", title: "简体中文（CGP汉化版）",
+          title_zh: "简体中文（CGP汉化版）",
+          title_en: "Simplified Chinese (CGP)",
+          title_ja: "簡体字中国語（CGP版）",
+          path: "/storage/games/fe6_cn.gba",
+        },
+        {
+          id: "ja", title: "日版",
+          title_zh: "日版",
+          title_en: "Japanese",
+          title_ja: "日本語版",
+          path: "/storage/games/fe6_ja.gba",
+        },
+      ],
+    }] }] } };
+    const host = { __launcher: () => JSON.stringify(library) };
+    const dummyTranslator = (key: string) => key;
+
+    const game = getAppsForScreen(0, host).find((item) => item.isSeries);
+    expect(game).toBeDefined();
+
+    // Chinese
+    expect(appName(dummyTranslator, game, "zh")).toBe("火焰之纹章：封印之剑");
+    expect(seriesItemTitle(game!.seriesItems![0], "zh")).toBe("简体中文（CGP汉化版）");
+    expect(seriesItemTitle(game!.seriesItems![1], "zh")).toBe("日版");
+
+    // English
+    expect(appName(dummyTranslator, game, "en")).toBe("Fire Emblem: The Binding Blade");
+    expect(seriesItemTitle(game!.seriesItems![0], "en")).toBe("Simplified Chinese (CGP)");
+    expect(seriesItemTitle(game!.seriesItems![1], "en")).toBe("Japanese");
+
+    // Japanese
+    expect(appName(dummyTranslator, game, "ja")).toBe("ファイアーエムブレム 封印の剣");
+    expect(seriesItemTitle(game!.seriesItems![0], "ja")).toBe("簡体字中国語（CGP版）");
+    expect(seriesItemTitle(game!.seriesItems![1], "ja")).toBe("日本語版");
   });
 });

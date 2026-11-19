@@ -29,7 +29,7 @@ export function PowerMenu(props: PowerMenuProps) {
   const t = () => translator(props.language);
   return (
     <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000bf] flex-col items-center justify-center">
-      <View class="w-[230px] h-[120px] rounded-[8px] bg-[#1a1c24] border border-[#303644] flex-col justify-between p-[12px] shadow-lg">
+      <View class="w-[230px] h-[120px] bg-[#1a1c24] border border-[#303644] flex-col justify-between p-[12px]">
         <View class="w-[206px] flex-row items-center justify-between">
           <Text class="text-xs font-bold text-white">{t()("powerMenu.title")}</Text>
           <Text class="text-xs text-[#8c94a4]">{t()("powerMenu.hint")}</Text>
@@ -46,8 +46,8 @@ export function PowerMenu(props: PowerMenuProps) {
                     props.onConfirm(item().action);
                   }}
                   class={armed()
-                    ? "flex-1 h-[50px] flex-col items-center justify-center rounded-[6px] border-2"
-                    : "flex-1 h-[50px] flex-col items-center justify-center rounded-[6px] border"}
+                    ? "flex-1 h-[50px] flex-col items-center justify-center border-2"
+                    : "flex-1 h-[50px] flex-col items-center justify-center border"}
                   style={armed()
                     ? { bgColor: theme().activeSurface, borderColor: theme().primary }
                     : { bgColor: "#1e222a", borderColor: "#303644" }}

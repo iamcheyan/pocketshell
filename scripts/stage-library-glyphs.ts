@@ -12,6 +12,14 @@ for (let high = 0xb0; high <= 0xf7; high++) {
   }
 }
 for (let codepoint = 0x3041; codepoint <= 0x30ff; codepoint++) characters.add(String.fromCodePoint(codepoint));
+for (const file of ["launcher-catalog.ts", "i18n.ts", "main.tsx", "save-manager.tsx", "file-browser.tsx"]) {
+  try {
+    const src = readFileSync(join(__dirname, "../app", file), "utf8");
+    for (const char of src) {
+      if (char.codePointAt(0)! > 127) characters.add(char);
+    }
+  } catch {}
+}
 writeFileSync(join(directory, "library-characters.txt"), [...characters].join(""));
 const configPath = join(directory, "fonts.json");
 const config = JSON.parse(readFileSync(configPath, "utf8"));

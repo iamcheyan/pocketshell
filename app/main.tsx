@@ -1,4 +1,5 @@
 import { createSignal, createEffect, createMemo, onMount, Index } from "solid-js";
+import { PxEdge, SegBar } from "./pixel-ui";
 import { mount } from "@pocketjs/framework/solid";
 import { Text, View, Image, type NodeMirror } from "@pocketjs/framework/solid/components";
 import { getOps } from "@pocketjs/framework/host";
@@ -15,6 +16,7 @@ import {
   appTag,
   categoryLabel,
   getAppsForScreen,
+  seriesItemTitle,
   type LauncherApp,
   type SeriesItem,
 } from "./launcher-catalog";
@@ -24,6 +26,10 @@ import { CardCarousel, CAROUSEL_OFFSET_5, CAROUSEL_OFFSET_LESS, CAROUSEL_STEP, a
 import { libraryTexture } from "./library-images";
 import { PixelStatus } from "./pixel-status";
 import { TouchTarget } from "./touch-target";
+import { FileBrowser } from "./file-browser";
+import type { FileItem } from "./file-browser-model";
+import { SaveManager, type SaveEntry } from "./save-manager";
+import { parseSaveEntries } from "./save-manager-model";
 import { SettingsPage, type SettingsState } from "./pages/settings-page";
 import { SETTING_ROWS, SETTINGS_COUNT, TIMEOUT_OPTIONS, AUTO_POWEROFF_OPTIONS, parseToggle } from "./settings-model";
 import { readSetting, writeSetting } from "./setting-bridge";
@@ -85,6 +91,162 @@ mount(() => {
   let bgNodeA: NodeMirror | undefined;
   let bgNodeB: NodeMirror | undefined;
   const [systemPageIndex, setSystemPageIndex] = createSignal(0);
+
+  // File Browser State
+  const [fileBrowserOpen, setFileBrowserOpen] = createSignal(false);
+  const [fileBrowserPath, setFileBrowserPath] = createSignal("/storage");
+  const [fileBrowserEntries, setFileBrowserEntries] = createSignal<FileItem[]>([]);
+  const [fileBrowserCursor, setFileBrowserCursor] = createSignal(0);
+  const [fileBrowserPreview, setFileBrowserPreview] = createSignal<string | null>(null);
+  const [fileBrowserPreviewPath, setFileBrowserPreviewPath] = createSignal<string | null>(null);
+  const [fileBrowserPreviewScroll, setFileBrowserPreviewScroll] = createSignal(0);
+
+  // Save Manager State
+  const [saveManagerOpen, setSaveManagerOpen] = createSignal(false);
+  const [saveEntries, setSaveEntries] = createSignal<SaveEntry[]>([]);
+  const [saveCursor, setSaveCursor] = createSignal(0);
+  const [saveExportResult, setSaveExportResult] = createSignal<string | null>(null);
+
+  const loadSaves = () => {
+    try {
+      const raw = host?.__launcher?.("SAVES\tlist") ?? "";
+      setSaveEntries(parseSaveEntries(raw));
+      setSaveCursor(0);
+      setSaveExportResult(null);
+    } catch {
+      setSaveEntries([]);
+    }
+  };
+
+  const exportCurrentSave = () => {
+    const entries = saveEntries();
+    const item = entries[saveCursor()];
+    if (!item) return;
+    try {
+      const res = host?.__launcher?.(`SAVES\texport\t${item.path}`) ?? "";
+      if (res.startsWith("ok\t")) {
+        const dest = res.split("\t")[1];
+        setSaveExportResult(`已备份至: ${dest}`);
+        showToast(language() === "zh" ? "存档导出成功" : "Save exported");
+      } else {
+        showToast(language() === "zh" ? "存档导出失败" : "Export failed");
+      }
+    } catch {
+      showToast(language() === "zh" ? "存档导出失败" : "Export failed");
+    }
+  };
+
+  const exportAllSaves = () => {
+    try {
+      const res = host?.__launcher?.("SAVES\texport_all") ?? "";
+      if (res.startsWith("ok\t")) {
+        const parts = res.split("\t");
+        const count = parts[1];
+        const dest = parts[2];
+        setSaveExportResult(`已打包 ${count} 个存档至: ${dest}`);
+        showToast(language() === "zh" ? `成功备份 ${count} 个存档` : `Backed up ${count} saves`);
+      } else {
+        showToast(language() === "zh" ? "全量备份失败" : "Backup failed");
+      }
+    } catch {
+      showToast(language() === "zh" ? "全量备份失败" : "Backup failed");
+    }
+  };
+
+  const FS_ROOTS = ["/storage", "/", "/data"];
+  const cycleFsRoot = () => {
+    const cur = fileBrowserPath();
+    let next = FS_ROOTS[0];
+    if (cur.startsWith("/storage")) next = FS_ROOTS[1];
+    else if (cur === "/" || cur.startsWith("/bin") || cur.startsWith("/etc") || cur.startsWith("/usr") || cur.startsWith("/tmp")) next = FS_ROOTS[2];
+    else next = FS_ROOTS[0];
+    loadDirectory(next);
+  };
+
+  const loadDirectory = (targetPath: string) => {
+    try {
+      const cleanPath = targetPath.trim() || "/storage";
+      const raw = host?.__launcher?.(`FS\tlist\t${cleanPath}`) ?? "";
+      if (!raw || raw.startsWith("error:")) {
+        const fallback: FileItem[] = cleanPath !== "/" && cleanPath !== "" ? [{ name: "..", isDir: true, size: 0 }] : [];
+        setFileBrowserEntries(fallback);
+        setFileBrowserPath(cleanPath);
+        setFileBrowserCursor(0);
+        return;
+      }
+      const lines = raw.split("\n").filter(Boolean);
+      const items: FileItem[] = [];
+      if (cleanPath !== "/" && cleanPath !== "") {
+        items.push({ name: "..", isDir: true, size: 0 });
+      }
+      for (const line of lines) {
+        const [kind, name, sizeStr] = line.split("\t");
+        if (name) {
+          items.push({
+            name,
+            isDir: kind === "dir",
+            size: parseInt(sizeStr, 10) || 0,
+          });
+        }
+      }
+      setFileBrowserEntries(items);
+      setFileBrowserPath(cleanPath);
+      setFileBrowserCursor(0);
+      setFileBrowserPreview(null);
+      setFileBrowserPreviewPath(null);
+      setFileBrowserPreviewScroll(0);
+    } catch {
+      setFileBrowserEntries([]);
+    }
+  };
+
+  const openSelectedFileItem = () => {
+    try {
+      const entries = fileBrowserEntries();
+      const selected = entries[fileBrowserCursor()];
+      if (!selected) return;
+      if (selected.isDir) {
+        if (selected.name === "..") {
+          const parent = fileBrowserPath().replace(/\/[^/]+$/, "") || "/";
+          loadDirectory(parent);
+        } else {
+          const nextPath = fileBrowserPath() === "/" ? `/${selected.name}` : `${fileBrowserPath()}/${selected.name}`;
+          loadDirectory(nextPath);
+        }
+        return;
+      }
+      const filePath = fileBrowserPath() === "/" ? `/${selected.name}` : `${fileBrowserPath()}/${selected.name}`;
+      const content = host?.__launcher?.(`FS\tread\t${filePath}`) ?? "";
+      if (!content || content.startsWith("error:binary")) {
+        showToast(language() === "zh" ? "二进制文件，不支持预览" : "Binary file, cannot preview");
+        return;
+      }
+      if (content.startsWith("error:")) {
+        showToast(content);
+        return;
+      }
+      setFileBrowserPreview(content);
+      setFileBrowserPreviewPath(filePath);
+      setFileBrowserPreviewScroll(0);
+    } catch {
+      showToast("Error opening file");
+    }
+  };
+
+  const closeOrBackFileBrowser = () => {
+    if (fileBrowserPreview() !== null) {
+      setFileBrowserPreview(null);
+      setFileBrowserPreviewPath(null);
+      return;
+    }
+    const cur = fileBrowserPath();
+    if (cur !== "/" && cur !== "/storage") {
+      const parent = cur.replace(/\/[^/]+$/, "") || "/";
+      loadDirectory(parent);
+      return;
+    }
+    setFileBrowserOpen(false);
+  };
 
   // Settings State
   const [settingsIndex, setSettingsIndex] = createSignal(0);
@@ -189,7 +351,7 @@ mount(() => {
 
   const updateCardPosition = (idx: number, smooth = true) => {
     try {
-      const targetX = 115 - idx * CAROUSEL_STEP;
+      const targetX = 114 - idx * CAROUSEL_STEP;
       if (carouselNode) {
         if (smooth) {
           safeAnimate(carouselNode, "translateX", targetX, { dur: 220, easing: "out" });
@@ -995,6 +1157,16 @@ mount(() => {
   };
 
   const launchApp = (app: LauncherApp) => {
+    if (app.id === "files") {
+      loadDirectory("/storage");
+      setFileBrowserOpen(true);
+      return;
+    }
+    if (app.id === "saves") {
+      loadSaves();
+      setSaveManagerOpen(true);
+      return;
+    }
     if (app.id === "terminal") {
       setTerminalOpen(true);
       return;
@@ -1118,6 +1290,40 @@ mount(() => {
             return true;
           }
         }
+        return true;
+      }
+      if (fileBrowserOpen() && event.kind === "key" && event.pressed) {
+        if (event.key === "ArrowUp") {
+          if (fileBrowserPreview() !== null) setFileBrowserPreviewScroll((s) => Math.max(0, s - 1));
+          else setFileBrowserCursor((c) => Math.max(0, c - 1));
+        } else if (event.key === "ArrowDown") {
+          if (fileBrowserPreview() !== null) setFileBrowserPreviewScroll((s) => s + 1);
+          else setFileBrowserCursor((c) => Math.min(fileBrowserEntries().length - 1, c + 1));
+        } else if (event.key === "ArrowLeft") {
+          if (fileBrowserPreview() !== null) setFileBrowserPreviewScroll((s) => Math.max(0, s - 10));
+          else setFileBrowserCursor((c) => Math.max(0, c - 8));
+        } else if (event.key === "ArrowRight") {
+          if (fileBrowserPreview() !== null) setFileBrowserPreviewScroll((s) => s + 10);
+          else setFileBrowserCursor((c) => Math.min(fileBrowserEntries().length - 1, c + 8));
+        } else if (event.key === "Enter" || event.key === " ") {
+          if (fileBrowserPreview() !== null) setFileBrowserPreviewScroll((s) => s + 5);
+          else openSelectedFileItem();
+        } else if (event.key === "Escape" || event.key === "Backspace") {
+          closeOrBackFileBrowser();
+        } else if (event.key === "x" || event.key === "X" || event.key === "Tab") {
+          cycleFsRoot();
+        }
+        return true;
+      }
+      if (saveManagerOpen() && event.kind === "key" && event.pressed) {
+        const items = saveEntries();
+        if (event.key === "ArrowUp") setSaveCursor((c) => Math.max(0, c - 1));
+        else if (event.key === "ArrowDown") setSaveCursor((c) => Math.min(items.length - 1, c + 1));
+        else if (event.key === "ArrowLeft") setSaveCursor((c) => Math.max(0, c - 5));
+        else if (event.key === "ArrowRight") setSaveCursor((c) => Math.min(items.length - 1, c + 5));
+        else if (event.key === "Enter" || event.key === " ") exportCurrentSave();
+        else if (event.key === "x" || event.key === "X") exportAllSaves();
+        else if (event.key === "Escape" || event.key === "Backspace") setSaveManagerOpen(false);
         return true;
       }
       if (seriesModalOpen() && event.kind === "key" && event.pressed) {
@@ -1285,6 +1491,68 @@ mount(() => {
       else if (pressed & BTN.RIGHT) powerMenuKey("right");
       else if (pressed & BTN.CIRCLE) powerMenuKey("ok");
       else if (pressed & BTN.CROSS) powerMenuKey("back");
+      return;
+    }
+    if (fileBrowserOpen()) {
+      if (pressed & BTN.UP) {
+        if (fileBrowserPreview() !== null) {
+          setFileBrowserPreviewScroll((s) => Math.max(0, s - 1));
+        } else {
+          setFileBrowserCursor((c) => Math.max(0, c - 1));
+        }
+        return;
+      }
+      if (pressed & BTN.DOWN) {
+        if (fileBrowserPreview() !== null) {
+          setFileBrowserPreviewScroll((s) => s + 1);
+        } else {
+          setFileBrowserCursor((c) => Math.min(fileBrowserEntries().length - 1, c + 1));
+        }
+        return;
+      }
+      if (pressed & BTN.LEFT) {
+        if (fileBrowserPreview() !== null) {
+          setFileBrowserPreviewScroll((s) => Math.max(0, s - 10));
+        } else {
+          setFileBrowserCursor((c) => Math.max(0, c - 8));
+        }
+        return;
+      }
+      if (pressed & BTN.RIGHT) {
+        if (fileBrowserPreview() !== null) {
+          setFileBrowserPreviewScroll((s) => s + 10);
+        } else {
+          setFileBrowserCursor((c) => Math.min(fileBrowserEntries().length - 1, c + 8));
+        }
+        return;
+      }
+      if (pressed & BTN.CIRCLE) {
+        if (fileBrowserPreview() !== null) {
+          setFileBrowserPreviewScroll((s) => s + 5);
+        } else {
+          openSelectedFileItem();
+        }
+        return;
+      }
+      if (pressed & (BTN.CROSS | BTN.START)) {
+        closeOrBackFileBrowser();
+        return;
+      }
+      if (pressed & (BTN.TRIANGLE | BTN.SQUARE)) {
+        cycleFsRoot();
+        return;
+      }
+      return;
+    }
+    if (saveManagerOpen()) {
+      const items = saveEntries();
+      if (pressed & BTN.UP) setSaveCursor((c) => Math.max(0, c - 1));
+      else if (pressed & BTN.DOWN) setSaveCursor((c) => Math.min(items.length - 1, c + 1));
+      else if (pressed & BTN.LEFT) setSaveCursor((c) => Math.max(0, c - 5));
+      else if (pressed & BTN.RIGHT) setSaveCursor((c) => Math.min(items.length - 1, c + 5));
+      else if (pressed & BTN.CIRCLE) exportCurrentSave(); // A button
+      else if (pressed & (BTN.TRIANGLE | BTN.SQUARE)) exportAllSaves(); // X / Y button
+      else if (pressed & (BTN.CROSS | BTN.START)) setSaveManagerOpen(false); // B button
       return;
     }
     if (gameOptionsOpen()) {
@@ -1509,6 +1777,9 @@ mount(() => {
       />
       {/* Keep pale cover art visible but force predictable contrast for every label and status icon. */}
       <View class="absolute inset-0 bg-[#0b0a10a8]" />
+      {/* Ordered-dither stipple: turns the smooth cover-derived glow into visible pixels. */}
+      <Image class="absolute left-0 top-0 w-[256px] h-[256px]" src="pixel-dither-a.png" />
+      <Image class="absolute left-[256px] top-0 w-[128px] h-[256px]" src="pixel-dither-b.png" />
       {/* The status bar stays readable over light and dark cover art. */}
       <StatusBar
         currentScreen={currentScreen()}
@@ -1561,7 +1832,7 @@ mount(() => {
                   onMove={(delta) => moveCard(delta)}
                 />
               ) : (
-                <View class="w-[170px] h-[70px] items-center justify-center rounded-[8px] bg-[#211f26]">
+                <View class="w-[170px] h-[70px] items-center justify-center bg-[#211f26]">
                   <Text class="text-xs text-[#cac4d0]">
                     {language() === "zh" ? (currentScreen() === 5 ? "暂无收藏游戏" : "暂无内容") : language() === "ja" ? "項目がありません" : (currentScreen() === 5 ? "No favorites" : "Nothing here")}
                   </Text>
@@ -1571,14 +1842,14 @@ mount(() => {
                 {/* Modern Game Title & Metadata Plaque (Material Design 3 typography) */}
                 <View class="w-[320px] flex-col items-center justify-center gap-[2px] mb-[3px]">
                   <Text class="text-xs font-bold text-[#e6e0e9] text-center tracking-wide">
-                    {appName(t, selectedApp()) || "Nintendo Switch"}
+                    {appName(t, selectedApp(), language()) || "Nintendo Switch"}
                   </Text>
                   {selectedApp() ? (
                     <Text class={fontSize() === "huge" ? "text-base font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-sm font-bold text-[#cac4d0] text-center" : "text-xs font-bold text-[#cac4d0] text-center"}>
                       {selectedApp()?.isSeries
-                        ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} 个版本`
+                        ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} ${language() === "zh" ? "个版本" : language() === "ja" ? "バージョン" : "VERSIONS"}`
                         : selectedApp()?.romPath
-                        ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
+                        ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : language() === "ja" ? "ゲーム" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
                         : `${categoryLabel(t, selectedApp()) || "App"} · ${currentCardIndex() + 1} / ${currentApps().length}`}
                     </Text>
                   ) : null}
@@ -1660,7 +1931,7 @@ mount(() => {
           </View>
 
           {/* Bottom Action Footer Bar (Material Design 3 borderless, seamless transparent background) */}
-          <View class="w-[360px] h-[32px] bg-transparent shadow-md flex-row items-center justify-between px-[16px]">
+          <View class="w-[360px] h-[32px] bg-transparent flex-row items-center justify-between px-[16px]">
             <View class="flex-row items-center gap-[5px]">
               <Text class="text-xs text-[#938f99]">◀ ▶</Text>
               <Text class={fontSize() === "huge" ? "text-base font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-sm font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
@@ -1698,57 +1969,38 @@ mount(() => {
         </View>
 
       {launchingLabel() && (
-        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000d9] flex-col items-center justify-center z-50">
-          <View class="w-[215px] h-[125px] rounded-[14px] border-2 flex-col items-center justify-between p-[11px]"
-            style={{ bgColor: "#17151e", borderColor: theme().primary }}>
-            <View class="w-[193px] flex-row items-center gap-[8px]">
-              <View class="w-[48px] h-[48px] rounded-[9px] items-center justify-center overflow-hidden" style={{ bgColor: theme().container }}>
-                <Image src={appCoverSrc(selectedApp())} class="w-[48px] h-[48px]" />
-              </View>
-              <View class="flex-1 flex-col gap-[3px]">
-                <Text class="text-xs font-bold tracking-wide" style={{ textColor: theme().primary }}>
-                  {language() === "zh" ? "正在打开" : language() === "ja" ? "起動中" : "LAUNCHING"}
-                </Text>
-                <Text class="text-xs font-bold text-[#ffffff]">
-                  {launchingLabel()}
-                </Text>
-                <Text class="text-xs text-[#cac4d0]">
-                  {language() === "zh" ? "请稍候，操作将在启动完成后恢复" : language() === "ja" ? "起動が終わるまでお待ちください" : "Please wait until the app is ready"}
-                </Text>
-              </View>
-            </View>
-            <View class="w-[193px] h-[6px] rounded-[999px] bg-[#2b2930] overflow-hidden flex-row items-center p-[1px]">
-              <View class="h-full rounded-[999px]" style={{ width: Math.round((launchingPhase() / 100) * 191), bgColor: theme().primary }} />
-            </View>
-            <Text class="text-xs font-bold text-[#938f99]">
-              {language() === "zh" ? "正在进入应用…" : language() === "ja" ? "アプリを準備しています…" : "Starting the app…"}
+        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000e6] flex-col items-center justify-center z-50">
+          <View class="w-[180px] flex-col items-center gap-[7px]">
+            <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>
+              {language() === "zh" ? "正在载入…" : language() === "ja" ? "読み込み中…" : "Loading…"}
             </Text>
+            <SegBar value={launchingPhase()} width={180} height={8} segs={30} fill={theme().primary} empty={theme().activeSurface} />
           </View>
         </View>
       )}
 
       <View ref={(node: NodeMirror) => { toastNode = node; }} class="absolute bottom-[30px] left-[90px] w-[180px] h-[18px] items-center opacity-0">
-        <View class="w-[180px] h-[18px] rounded-full bg-[#1e222a] border border-[#3e4555] items-center justify-center shadow-lg">
+        <View class="w-[180px] h-[18px] bg-[#1e222a] border border-[#3e4555] items-center justify-center">
           <Text class="text-xs font-bold text-white text-center">{toastMessage()}</Text>
         </View>
       </View>
 
       {seriesModalOpen() && seriesSelectedApp() ? (
         <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000e0] flex-col items-center justify-center z-50">
-          <View class="w-[320px] h-[220px] rounded-[12px] bg-[#1e1a22] border-2 flex-col p-[8px] justify-between" style={{ borderColor: theme().primary }}>
+          <View class="w-[320px] h-[220px] relative flex-col p-[8px] justify-between">
+            <PxEdge fill="#181a20" edge={theme().primary} />
             {/* Header */}
-            <View class="flex-row items-center gap-[7px] pb-[2px]">
-              <Image src={appCoverSrc(seriesSelectedApp() || undefined)} class="w-[26px] h-[26px]" />
-              <View class="flex-col gap-[1px]">
-                <Text class="text-xs font-bold text-[#e6e0e9]">
-                  {seriesSelectedApp()?.label || ""}
-                </Text>
-                <Text class="text-xs text-[#cac4d0]">
-                  {t("series.subtitle")}
+            <View class="flex-row items-center justify-between pb-[3px]">
+              <Text class="text-xs font-bold text-[#ffffff]">
+                {appName(t, seriesSelectedApp() || undefined, language()) || ""}
+              </Text>
+              <View class="px-[5px] py-[2px]" style={{ bgColor: theme().container }}>
+                <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>
+                  {seriesSelectedApp()?.seriesItems?.length || 0} {language() === "zh" ? "个版本" : language() === "ja" ? "バージョン" : "VERSIONS"}
                 </Text>
               </View>
             </View>
-            <View class="w-[304px] h-[1px] bg-[#49454f]" />
+            <View class="w-[304px] h-[1px]" style={{ bgColor: theme().activeSurface }} />
 
             {/* Version List */}
             <View class="flex-col gap-[3px]">
@@ -1760,24 +2012,24 @@ mount(() => {
                     <TouchTarget
                       onPress={() => launchSeriesItem(item())}
                       class={isCur()
-                        ? "w-[304px] h-[23px] rounded-[6px] border-2 flex-row items-center justify-between px-[7px]"
-                        : "w-[304px] h-[23px] rounded-[6px] bg-[#2b2930] flex-row items-center justify-between px-[7px]"}
+                        ? "w-[304px] h-[24px] border-2 flex-row items-center justify-between px-[7px]"
+                        : "w-[304px] h-[24px] flex-row items-center justify-between px-[7px] border"}
                       style={isCur()
                         ? { bgColor: theme().container, borderColor: theme().primary }
-                        : { bgColor: "#2b2930", borderColor: "#2b2930" }}
+                        : { bgColor: theme().activeSurface, borderColor: theme().activeSurface }}
                     >
-                      <View class="flex-row items-center gap-[5px]">
-                        <View class="px-[4px] py-[1px] rounded-[3px]" style={{ bgColor: theme().container }}>
+                      <View class="flex-row items-center gap-[6px]">
+                        <View class="px-[4px] py-[1px]" style={{ bgColor: theme().container }}>
                           <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>
                             {item().romPath.split(".").pop()?.toUpperCase() || "ROM"}
                           </Text>
                         </View>
                         <Text class={isCur() ? "text-xs font-bold text-[#ffffff]" : "text-xs font-bold text-[#e6e0e9]"}>
-                          {item().title}
+                          {seriesItemTitle(item(), language())}
                         </Text>
                       </View>
                       {isMru() ? (
-                        <View class="px-[4px] py-[1px] rounded-[4px]" style={{ bgColor: theme().activeSurface }}>
+                        <View class="px-[4px] py-[1px]" style={{ bgColor: theme().activeSurface }}>
                           <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>
                             {t("series.recent")}
                           </Text>
@@ -1789,24 +2041,24 @@ mount(() => {
               </Index>
             </View>
 
-            <View class="w-[304px] h-[1px] bg-[#49454f]" />
+            <View class="w-[304px] h-[1px]" style={{ bgColor: theme().activeSurface }} />
             {/* Footer */}
             <View class="flex-row items-center justify-between pt-[2px]">
               <Text class="text-xs text-[#cac4d0]">
-                {language() === "zh" ? "▲ ▼ 选择版本" : "▲ ▼ Select Version"}
+                {language() === "zh" ? "▲▼ 选择版本" : language() === "ja" ? "▲▼ バージョン選択" : "▲▼ Select Version"}
               </Text>
-              <View class="flex-row items-center gap-[8px]">
-                <View class="flex-row items-center gap-[3px]">
-                  <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
+              <View class="flex-row items-center gap-[9px]">
+                <View class="flex-row items-center gap-[4px]">
+                  <View class="w-[11px] h-[11px] items-center justify-center" style={{ bgColor: theme().primary }}>
                     <Text class="text-xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
                   </View>
-                  <Text class="text-xs font-bold text-[#e6e0e9]">{language() === "zh" ? "开始游戏" : "Start"}</Text>
+                  <Text class="text-sm font-bold text-[#e6e0e9]">{language() === "zh" ? "开始游戏" : language() === "ja" ? "ゲーム起動" : "Start"}</Text>
                 </View>
-                <View class="flex-row items-center gap-[3px]">
-                  <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
-                    <Text class="text-xs font-bold text-[#ffffff]">B</Text>
+                <View class="flex-row items-center gap-[4px]">
+                  <View class="w-[11px] h-[11px] items-center justify-center" style={{ bgColor: theme().activeSurface }}>
+                    <Text class="text-xs font-bold text-white">B</Text>
                   </View>
-                  <Text class="text-xs font-bold text-[#cac4d0]">{language() === "zh" ? "返回" : "Back"}</Text>
+                  <Text class="text-sm font-bold text-[#cac4d0]">{language() === "zh" ? "返回" : language() === "ja" ? "戻る" : "Back"}</Text>
                 </View>
               </View>
             </View>
@@ -1815,25 +2067,26 @@ mount(() => {
       ) : null}
 
       {gameOptionsOpen() ? (
-        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#00000099] flex-col items-center justify-center">
-          <View class="w-[160px] h-[60px] rounded-[8px] bg-[#1c2028] border-2 flex-col items-center justify-center gap-[6px] p-[8px]" style={{ borderColor: theme().primary }}>
+        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#00000099] flex-col items-center justify-center z-50">
+          <View class="w-[170px] relative flex-col items-center justify-center gap-[8px] p-[10px]">
+            <PxEdge fill="#181a20" edge={theme().primary} />
             <Text class="text-xs font-bold text-white text-center">
               {favorites().includes(selectedApp()?.romPath || "")
                 ? (language() === "zh" ? "取消收藏" : language() === "ja" ? "お気に入り解除" : "Remove Favorite")
                 : (language() === "zh" ? "加入收藏" : language() === "ja" ? "お気に入り追加" : "Add Favorite")}
             </Text>
-            <View class="flex-row items-center gap-[8px]">
-              <View class="flex-row items-center gap-[3px]">
-                <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
+            <View class="flex-row items-center gap-[10px]">
+              <View class="flex-row items-center gap-[4px]">
+                <View class="w-[11px] h-[11px] items-center justify-center" style={{ bgColor: theme().primary }}>
                   <Text class="text-xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
                 </View>
-                <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "确定" : "OK"}</Text>
+                <Text class="text-sm font-bold text-[#e6e0e9]">{language() === "zh" ? "确定" : "OK"}</Text>
               </View>
-              <View class="flex-row items-center gap-[3px]">
-                <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
+              <View class="flex-row items-center gap-[4px]">
+                <View class="w-[11px] h-[11px] items-center justify-center" style={{ bgColor: theme().activeSurface }}>
                   <Text class="text-xs font-bold text-white">B</Text>
                 </View>
-                <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "返回" : "Back"}</Text>
+                <Text class="text-sm font-bold text-[#cac4d0]">{language() === "zh" ? "返回" : "Back"}</Text>
               </View>
             </View>
           </View>
@@ -1855,23 +2108,46 @@ mount(() => {
 
       {/* Floating Volume / Brightness OSD */}
       {osd().visible && (
-        <View class="absolute top-[7px] left-[100px] w-[160px] h-[23px] rounded-[999px] bg-[#211f26] border border-[#49454f] flex-row items-center justify-between px-[9px] shadow-lg">
+        <View class="absolute top-[7px] left-[100px] w-[160px] h-[23px] bg-[#211f26] border border-[#49454f] flex-row items-center justify-between px-[9px]">
           <Text class="text-xs font-bold text-[#e6e0e9]">
             {osd().type === "brightness" ? "☼" : "🔊"}
           </Text>
-          <View class="w-[90px] h-[4px] rounded-[999px] bg-[#36343b] overflow-hidden">
-            <View
-              class="h-full rounded-[999px]"
-              style={{
-                width: Math.round((Math.max(0, Math.min(100, osd().value)) / 100) * 180),
-                bgColor: theme().primary,
-              }}
-            />
-          </View>
+          <SegBar value={osd().value} width={90} height={5} segs={15} fill={theme().primary} />
           <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>
             {`${Math.round(osd().value)}%`}
           </Text>
         </View>
+      )}
+
+      {/* File Browser Modal View */}
+      {fileBrowserOpen() && (
+        <FileBrowser
+          open={fileBrowserOpen()}
+          onClose={() => setFileBrowserOpen(false)}
+          currentPath={fileBrowserPath()}
+          entries={fileBrowserEntries()}
+          selectedIndex={fileBrowserCursor()}
+          previewContent={fileBrowserPreview()}
+          previewPath={fileBrowserPreviewPath()}
+          previewScroll={fileBrowserPreviewScroll()}
+          themeColor={themeColor()}
+          fontSize={fontSize()}
+          language={language()}
+        />
+      )}
+
+      {/* Save Manager Modal View */}
+      {saveManagerOpen() && (
+        <SaveManager
+          open={saveManagerOpen()}
+          onClose={() => setSaveManagerOpen(false)}
+          entries={saveEntries()}
+          selectedIndex={saveCursor()}
+          themeColor={themeColor()}
+          fontSize={fontSize()}
+          language={language()}
+          exportResult={saveExportResult()}
+        />
       )}
 
       {/* Terminal View with Scaled Virtual Keyboard */}
@@ -1879,16 +2155,16 @@ mount(() => {
         <View class="absolute inset-0 bg-[#0a0c10] flex-col justify-between z-50">
           <View class="px-[8px] pt-[6px] pb-[2px] flex-col gap-[4px] flex-1">
             {/* Terminal Window Header */}
-            <View class="w-[344px] h-[20px] flex-row items-center justify-between px-[7px] bg-[#161a23] rounded-[6px] border border-[#232936]">
+            <View class="w-[344px] h-[20px] flex-row items-center justify-between px-[7px] bg-[#161a23] border border-[#232936]">
               <View class="flex-row items-center gap-[5px]">
-                <View class="w-[6px] h-[6px] rounded-[999px] bg-[#ff5f56]" />
-                <View class="w-[6px] h-[6px] rounded-[999px] bg-[#ffbd2e]" />
-                <View class="w-[6px] h-[6px] rounded-[999px] bg-[#27c93f]" />
+                <View class="w-[6px] h-[6px] bg-[#ff5f56]" />
+                <View class="w-[6px] h-[6px] bg-[#ffbd2e]" />
+                <View class="w-[6px] h-[6px] bg-[#27c93f]" />
                 <Text class="text-xs font-bold text-[#e6e0e9] ml-[5px]">
                   bash - root@rg34xx: ~ (720×480)
                 </Text>
               </View>
-              <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[6px] py-[3px] rounded-[4px] bg-[#262c3a] border border-[#363e52]">
+              <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[6px] py-[3px] bg-[#262c3a] border border-[#363e52]">
                 <Text class="text-xs font-bold text-[#e6e0e9]">B {language() === "zh" ? "退出" : "Exit"}</Text>
               </TouchTarget>
             </View>
@@ -1897,8 +2173,8 @@ mount(() => {
             <View
               class={
                 terminalOsk.isOpen()
-                  ? "w-[344px] h-[64px] bg-[#10131a] rounded-[6px] border border-[#1e2330] p-[6px] flex-col justify-start gap-[1px] overflow-hidden"
-                  : "w-[344px] flex-1 bg-[#10131a] rounded-[6px] border border-[#1e2330] p-[7px] flex-col justify-start gap-[2px] overflow-hidden"
+                  ? "w-[344px] h-[64px] bg-[#10131a] border border-[#1e2330] p-[6px] flex-col justify-start gap-[1px] overflow-hidden"
+                  : "w-[344px] flex-1 bg-[#10131a] border border-[#1e2330] p-[7px] flex-col justify-start gap-[2px] overflow-hidden"
               }
             >
               <Index each={terminalLines()}>
@@ -1937,7 +2213,7 @@ mount(() => {
                   }
                 }
               }}
-              class="w-[344px] h-[22px] px-[7px] bg-[#161a23] rounded-[6px] border border-[#2d3546] flex-row items-center justify-between"
+              class="w-[344px] h-[22px] px-[7px] bg-[#161a23] border border-[#2d3546] flex-row items-center justify-between"
             >
               <View class="flex-row items-center gap-[5px] flex-1 overflow-hidden">
                 <Text class="text-xs font-bold text-[#5af78e]">root@rg34xx:~#</Text>
@@ -1946,7 +2222,7 @@ mount(() => {
                 </Text>
                 <Text class="text-xs font-mono font-bold text-[#5af78e]">_</Text>
               </View>
-              <View class="px-[6px] py-[3px] rounded-[4px] bg-[#5af78e2b] border border-[#5af78e55]">
+              <View class="px-[6px] py-[3px] bg-[#5af78e2b] border border-[#5af78e55]">
                 <Text class="text-xs font-bold text-[#5af78e]">
                   {terminalOsk.isOpen() ? (language() === "zh" ? "↵ 执行 / B 收起" : "↵ Run / B Hide") : (language() === "zh" ? "A 键盘" : "A Keyboard")}
                 </Text>

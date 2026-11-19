@@ -1,3 +1,4 @@
+import { SegBar } from "../pixel-ui";
 import { createEffect, Index } from "solid-js";
 import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/solid/components";
 import { animate } from "@pocketjs/framework/animation";
@@ -45,7 +46,7 @@ function InfoRow(props: { label: string; value: string; color?: string; muted?: 
   const isHuge = () => props.fontSize === "huge";
   const isLarge = () => props.fontSize === "large";
   return (
-    <View class="w-[330px] h-[22px] px-[10px] rounded-[8px] bg-[#211f26] flex-row items-center justify-between mb-[3px] border border-[#2d2938]">
+    <View class="w-[330px] h-[22px] px-[10px] bg-[#211f26] flex-row items-center justify-between mb-[3px] border border-[#2d2938]">
       <Text class={isHuge() ? "text-base font-bold text-[#cac4d0]" : isLarge() ? "text-sm font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>{props.label}</Text>
       <Text
         class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
@@ -86,14 +87,14 @@ export function SystemPage(props: SystemPageProps) {
         {props.pageIndex === 0 ? (
           <View class="w-[336px] h-[168px] flex-row items-center justify-between">
             {/* Left Column: Device Identity Card */}
-            <View class="w-[115px] h-[168px] rounded-[12px] bg-[#1e1b24] p-[8px] flex-col items-center justify-between border border-[#2d2938]">
+            <View class="w-[115px] h-[168px] bg-[#1e1b24] p-[8px] flex-col items-center justify-between border border-[#2d2938]">
               {/* Device Image (Vector Flat Handheld Illustration) */}
               <View class="w-[62px] h-[62px] items-center justify-center">
-                <Image src="cover-handheld.png" style={{ width: 58, height: 58 }} />
+                <Image src="cover-handheld-64.png" style={{ width: 64, height: 64 }} />
               </View>
 
               {/* Device Names */}
-              <View class="flex-col items-center text-center">
+              <View class="flex-col items-center text-center w-full overflow-hidden">
                 <Text class="text-xs font-bold text-[#e6e0e9]">RG34XX</Text>
                 <Text class={isHuge() ? "text-base font-bold text-[#d0bcff] mt-[1px]" : isLarge() ? "text-sm font-bold text-[#d0bcff] mt-[1px]" : "text-xs font-bold text-[#d0bcff] mt-[1px]"}>{text(snapshot()?.model) || "Allwinner H700"}</Text>
                 <Text class={isHuge() ? "text-base text-[#938f99] mt-[1px]" : isLarge() ? "text-sm text-[#938f99] mt-[1px]" : "text-xs text-[#938f99] mt-[1px]"}>
@@ -102,24 +103,24 @@ export function SystemPage(props: SystemPageProps) {
               </View>
 
               {/* OS Badge & Services */}
-              <View class="w-full flex-col gap-[3px]">
-                <View class="w-full h-[16px] px-[6px] rounded-[5px] bg-[#292633] flex-row items-center justify-between">
-                  <Text class={isHuge() ? "text-base text-[#cac4d0]" : isLarge() ? "text-sm text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>PJOS</Text>
-                  <Text class={isHuge() ? "text-base font-bold text-[#a8efff]" : isLarge() ? "text-sm font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{compactOs(snapshot()) || "1.5.3"}</Text>
+              <View class="w-full flex-col gap-[3px] overflow-hidden">
+                <View class="w-full h-[16px] px-[6px] bg-[#292633] flex-row items-center justify-between overflow-hidden">
+                  <Text class={isHuge() ? "text-base text-[#cac4d0]" : isLarge() ? "text-sm text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>OS</Text>
+                  <Text class={isHuge() ? "text-base font-bold text-[#a8efff]" : isLarge() ? "text-sm font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{compactOs(snapshot())?.replace(/^PJOS\s*/i, "") || "1.5.3"}</Text>
                 </View>
                 <View class="w-full flex-row justify-between gap-[3px]">
                   <View
-                    class="flex-1 h-[14px] rounded-[4px] flex-row items-center justify-center gap-[2px]"
+                    class="flex-1 h-[14px] flex-row items-center justify-center gap-[2px]"
                     style={{ bgColor: props.status.ssh ? "#1e3a2f" : "#292633" }}
                   >
-                    <View class="w-[3px] h-[3px] rounded-[2px]" style={{ bgColor: props.status.ssh ? "#a8efff" : "#938f99" }} />
+                    <View class="w-[3px] h-[3px]" style={{ bgColor: props.status.ssh ? "#a8efff" : "#938f99" }} />
                     <Text class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"} style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}>SSH</Text>
                   </View>
                   <View
-                    class="flex-1 h-[14px] rounded-[4px] flex-row items-center justify-center gap-[2px]"
+                    class="flex-1 h-[14px] flex-row items-center justify-center gap-[2px]"
                     style={{ bgColor: props.status.adb ? "#1e3a2f" : "#292633" }}
                   >
-                    <View class="w-[3px] h-[3px] rounded-[2px]" style={{ bgColor: props.status.adb ? "#a8efff" : "#938f99" }} />
+                    <View class="w-[3px] h-[3px]" style={{ bgColor: props.status.adb ? "#a8efff" : "#938f99" }} />
                     <Text class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"} style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}>ADB</Text>
                   </View>
                 </View>
@@ -129,10 +130,10 @@ export function SystemPage(props: SystemPageProps) {
             {/* Right Column: 3 Large Metric Cards */}
             <View class="w-[213px] h-[168px] flex-col justify-between">
               {/* CPU Card */}
-              <View class="w-[213px] h-[52px] p-[8px] rounded-[10px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class="w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[4px]">
-                    <View class="w-[5px] h-[5px] rounded-[2px] bg-[#d0bcff]" />
+                    <View class="w-[5px] h-[5px] bg-[#d0bcff]" />
                     <Text class={isHuge() ? "text-base font-bold text-[#e6e0e9]" : isLarge() ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>{t()("system.cpu")}</Text>
                   </View>
                   <Text class={isHuge() ? "text-base text-[#938f99] font-bold" : isLarge() ? "text-sm text-[#938f99] font-bold" : "text-xs text-[#938f99] font-bold"}>
@@ -141,23 +142,18 @@ export function SystemPage(props: SystemPageProps) {
                 </View>
                 <View class="flex-row items-end justify-between">
                   <Text class="text-xs font-bold" style={{ textColor: "#d0bcff" }}>{percentText(cpu())}</Text>
-                  <View class="flex-col items-end gap-[3px]">
-                    <View class="w-[130px] h-[5px] rounded-[2px] bg-[#36343b] overflow-hidden">
-                      <View
-                        class="h-[5px] rounded-[2px] bg-[#d0bcff]"
-                        style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, cpu() ?? 0)) / 100) * 260)) }}
-                      />
-                    </View>
+                  <View class="flex-col items-end gap-[3px] w-[130px] overflow-hidden">
+                    <SegBar value={cpu() ?? 0} width={130} height={5} segs={26} fill="#d0bcff" />
                     <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{snapshot()?.cpu || "Quad-Core ARM"}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Memory Card */}
-              <View class="w-[213px] h-[52px] p-[8px] rounded-[10px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class="w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[4px]">
-                    <View class="w-[5px] h-[5px] rounded-[2px] bg-[#a8efff]" />
+                    <View class="w-[5px] h-[5px] bg-[#a8efff]" />
                     <Text class={isHuge() ? "text-base font-bold text-[#e6e0e9]" : isLarge() ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>{t()("system.memory")}</Text>
                   </View>
                   <Text class={isHuge() ? "text-base font-bold text-[#a8efff]" : isLarge() ? "text-sm font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{memoryLabel()}</Text>
@@ -165,22 +161,17 @@ export function SystemPage(props: SystemPageProps) {
                 <View class="flex-row items-end justify-between">
                   <Text class="text-xs font-bold" style={{ textColor: "#a8efff" }}>{percentText(ram()?.percent)}</Text>
                   <View class="flex-col items-end gap-[3px]">
-                    <View class="w-[130px] h-[5px] rounded-[2px] bg-[#36343b] overflow-hidden">
-                      <View
-                        class="h-[5px] rounded-[2px] bg-[#a8efff]"
-                        style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, ram()?.percent ?? 0)) / 100) * 260)) }}
-                      />
-                    </View>
+                    <SegBar value={ram()?.percent ?? 0} width={130} height={5} segs={26} fill="#a8efff" />
                     <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Storage Card */}
-              <View class="w-[213px] h-[52px] p-[8px] rounded-[10px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class="w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[4px]">
-                    <View class="w-[5px] h-[5px] rounded-[2px] bg-[#ffd8e4]" />
+                    <View class="w-[5px] h-[5px] bg-[#ffd8e4]" />
                     <Text class={isHuge() ? "text-base font-bold text-[#e6e0e9]" : isLarge() ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>{t()("system.storage")}</Text>
                   </View>
                   <Text class={isHuge() ? "text-base font-bold text-[#ffd8e4]" : isLarge() ? "text-sm font-bold text-[#ffd8e4]" : "text-xs font-bold text-[#ffd8e4]"}>
@@ -190,12 +181,7 @@ export function SystemPage(props: SystemPageProps) {
                 <View class="flex-row items-end justify-between">
                   <Text class="text-xs font-bold" style={{ textColor: "#ffd8e4" }}>{percentText(storage())}</Text>
                   <View class="flex-col items-end gap-[3px]">
-                    <View class="w-[130px] h-[5px] rounded-[2px] bg-[#36343b] overflow-hidden">
-                      <View
-                        class="h-[5px] rounded-[2px] bg-[#ffd8e4]"
-                        style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, storage() ?? 0)) / 100) * 260)) }}
-                      />
-                    </View>
+                    <SegBar value={storage() ?? 0} width={130} height={5} segs={26} fill="#ffd8e4" />
                     <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>
                       {snapshot()?.storageUsed && snapshot()?.storageTotal ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}` : "-- / --"}
                     </Text>

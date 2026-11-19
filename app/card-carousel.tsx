@@ -20,15 +20,15 @@ export interface CardCarouselProps {
   onMove?: (delta: -1 | 1) => void;
 }
 
-export const CARD_WIDTH = 130;
-export const CARD_INACTIVE_WIDTH = 102;
+export const CARD_WIDTH = 132;
+export const CARD_INACTIVE_WIDTH = 98;
 export const CARD_GAP = 12;
-export const CAROUSEL_STEP = 114; // 102 + 12
+export const CAROUSEL_STEP = 110; // 98 + 12
 // Symmetrical center in 720px: active slot 2 starts at 228 + 228 = 456px inside row.
 // Desired active card start: (720 - 260) / 2 = 230px.
 // Row offset = 230 - 456 = -226px.
-export const CAROUSEL_OFFSET_5 = -113;
-export const CAROUSEL_OFFSET_LESS = (idx: number) => 115 - idx * 142;
+export const CAROUSEL_OFFSET_5 = -106;
+export const CAROUSEL_OFFSET_LESS = (idx: number) => 114 - idx * 144;
 
 export function CardCarousel(props: CardCarouselProps) {
   let viewport: NodeMirror | undefined;
@@ -60,15 +60,15 @@ export function CardCarousel(props: CardCarouselProps) {
                 onMount={(node) => props.onMountCard?.(index(), node)}
                 class={
                   isSelected()
-                    ? "w-[130px] h-[130px] mr-[12px] flex-col items-center justify-center overflow-hidden border-2 p-[1px] relative"
-                    : "w-[102px] h-[102px] mr-[12px] flex-col items-center justify-center overflow-hidden bg-[#1d1b20] opacity-40 p-[1px] relative"
+                    ? "w-[132px] h-[132px] mr-[12px] flex-col items-center justify-center overflow-hidden border-2 relative"
+                    : "w-[98px] h-[98px] mr-[12px] flex-col items-center justify-center overflow-hidden opacity-40 relative"
                 }
                 style={isSelected()
                   ? { bgColor: theme().container, borderColor: theme().primary }
-                  : { bgColor: "#1d1b20", borderColor: "#1d1b20" }}
+                  : { bgColor: theme().activeSurface, borderColor: theme().activeSurface }}
               >
                 {/* Modern Material 3 Square Game Tile (Right-Angled / 直角, No harsh borders) */}
-                <View class={isSelected() ? "w-[126px] h-[126px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[100px] h-[100px] items-center justify-center overflow-hidden bg-[#141218]"}>
+                <View class={isSelected() ? "w-[128px] h-[128px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[96px] h-[96px] items-center justify-center overflow-hidden bg-[#141218]"}>
                   <CoverImage app={app} active={() => true} isSelected={isSelected} />
                 </View>
 
@@ -89,12 +89,16 @@ export function CardCarousel(props: CardCarouselProps) {
 
 export function appCoverSrc(app: LauncherApp | undefined): string {
   if (!app) return "cover-game-default.png";
+  if (app.id === "files" || app.id === "disk") return "cover-disk.png";
+  if (app.id === "saves") return "cover-saves.png";
   if (app.id === "terminal") return "cover-terminal.png";
   return "cover-game-default.png";
 }
 
 export function appBlurBgSrc(app: LauncherApp | undefined): string {
   if (!app) return "bg-blur-default.png";
+  if (app.id === "files" || app.id === "disk") return "bg-blur-disk.png";
+  if (app.id === "saves") return "bg-blur-saves.png";
   if (app.id === "terminal") return "bg-blur-terminal.png";
   return "bg-blur-default.png";
 }
@@ -112,7 +116,7 @@ function CoverImage(props: { app: () => LauncherApp; active: () => boolean; isSe
   return (
     <Image
       ref={(value: NodeMirror) => { node = value; }}
-      class={props.isSelected() ? "w-[126px] h-[126px]" : "w-[100px] h-[100px]"}
+      class={props.isSelected() ? "w-[128px] h-[128px]" : "w-[96px] h-[96px]"}
       src={appCoverSrc(props.app())}
     />
   );
