@@ -160,11 +160,11 @@ export function StatusBar(props: StatusBarProps) {
       {/* Right: Modern Vector Status Icons (Bright when enabled, dim when disabled) */}
       <View class="flex-row items-center gap-[6px]">
         {/* Wi-Fi */}
-        <PixelStatus kind="wifi" color={props.wifiConnected ? theme().primary : "#756f7d"} scale={2} />
-        <PixelStatus kind="bluetooth" color={props.bluetoothOn ? theme().primary : "#756f7d"} scale={2} />
-        <PixelStatus kind="ssh" color={props.sshEnabled ? theme().primary : "#756f7d"} scale={2} />
-        <PixelStatus kind="lock" color={props.adbEnabled ? theme().primary : "#756f7d"} scale={2} />
-        <PixelStatus kind="usb" color={props.mtpEnabled ? theme().primary : "#756f7d"} scale={2} />
+        <PixelStatus kind="wifi" color={props.wifiConnected ? theme().primary : "#756f7d"} />
+        <PixelStatus kind="bluetooth" color={props.bluetoothOn ? theme().primary : "#756f7d"} />
+        <PixelStatus kind="ssh" color={props.sshEnabled ? theme().primary : "#756f7d"} />
+        <PixelStatus kind="lock" color={props.adbEnabled ? theme().primary : "#756f7d"} />
+        <PixelStatus kind="usb" color={props.mtpEnabled ? theme().primary : "#756f7d"} />
 
         {/* Battery Level */}
         <View class="flex-row items-center gap-[4px] ml-[2px]">
@@ -173,11 +173,11 @@ export function StatusBar(props: StatusBarProps) {
               {props.batteryLevel}%
             </Text>
           )}
-          <View class="w-[17px] h-[9px] rounded-[2px] bg-[#36343b] p-[1px] flex-row items-center">
+          <View class="w-[10px] h-[6px] rounded-[1px] bg-[#36343b] p-[1px] flex-row items-center">
             <View
               class="h-full rounded-[1px]"
               style={{
-                width: Math.max(2, Math.min(30, Math.round((props.batteryLevel / 100) * 30))),
+                width: Math.max(1, Math.min(16, Math.round((props.batteryLevel / 100) * 16))),
                 bgColor: batteryColor(),
               }}
             />

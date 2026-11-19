@@ -1,40 +1,60 @@
-# CPR-163 — bitmap font scaling evidence
+# CPR-163 — bitmap font and icon scaling evidence
 
 The package uses a 360×240 logical canvas with integer 2× presentation on the
-720×480 panel. Text classes use logical pixels, so 24px logical text appears as
-48px on the panel.
+720×480 panel. Text classes and icons use logical pixels, so anything authored
+for the old 720-wide layout must be halved.
 
-## Before correction — device capture
+## Final desktop renderer capture
+
+![Bitmap fonts and status icons](bitmap-font-and-icons-720.png)
+
+Built from the current source with the Linux desktop renderer. The window is
+360×240; this image is nearest-neighbour scaled to 720×480 to show the exact 2×
+presentation. Text is a hard 1-bit atlas (no gray antialiasing), and the status
+icons render at 9px logical / 18px panel, matching the 12px logical body text.
+
+### Status bar close-up
+
+![Status bar close-up](status-bar-closeup-720.png)
+
+Top 32 logical pixels, scaled 2×.
+
+## What changed
+
+- **Font coverage is thresholded to 1-bit.** The compiler's 9×3 supersampling
+  produced 0–255 gray coverage; magnified 2× that read as blurry Latin text.
+  `scripts/patch-pocketjs-bitmap-font.py` thresholds each cell at 128.
+- **Status icons are 9px logical again.** They carried `scale={2}` from the
+  720-wide layout, so they rendered 18px logical / 36px panel — 50% taller than
+  the body text.
+- **Battery gauge halved** from 17×9 to 10×6 logical pixels to sit in the same
+  weight class as the icons.
+
+## Earlier stage captures
+
+### Before the font-class correction
 
 ![Device main screen before font correction](device-main.png)
 
-Captured from `/dev/fb0` before the font-class rescale was corrected. The
-navigation, title and footer retained 24px logical classes and doubled on the
-panel.
+Device framebuffer capture before the font classes were rescaled.
 
-## After correction — desktop renderer
+### After the font-class correction, before 1-bit coverage
 
-![Updated font sizes in the desktop renderer](font-scale-fixed-desktop-720.png)
+![Font sizes corrected](font-scale-fixed-desktop-720.png)
 
-Built from the updated PocketShell source with the Linux desktop renderer. The
-renderer window is 360×240; this image is nearest-neighbour scaled to 720×480
-to show the exact 2× presentation. This screenshot is from the simulator, not a
-new capture from the handheld.
-
-## Supporting captures from the earlier review
+Same desktop renderer with corrected font classes, still using the compiler's
+antialiased coverage.
 
 ### Library render fixture
 
 ![Library render sample](render-library-6.png)
 
-### 1:1 text crop
+### 1:1 text crop from the pre-fix build
 
 ![Text zoom crop](text-zoom.png)
 
-The crop shows the doubled pixel blocks before the font correction.
+## Still open
 
-## Remaining visual coverage
-
-The updated screenshot covers the launcher home screen. Settings and system
-pages still need fresh captures, and the corrected package has not been flashed
-to the handheld.
+- Settings and system pages have not been re-captured.
+- The corrected package has not been flashed to the handheld; these captures are
+  from the Linux desktop renderer, not `/dev/fb0`.

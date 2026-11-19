@@ -29,6 +29,7 @@ FONT="$REPO/app/fonts/fusion-pixel-12px-monospaced-ja.ttf"
 
 mkdir -p "$APP_DIR" "$PROGRAM_DIR" "$REPO/dist"
 python3 "$REPO/scripts/patch-pocketjs-font-args.py" "$SDK"
+python3 "$REPO/scripts/patch-pocketjs-bitmap-font.py" "$SDK"
 rsync -a --delete "$REPO/app/" "$APP_DIR/"
 "$BUN" "$REPO/scripts/stage-library-glyphs.ts" "$APP_DIR"
 cp "$REPO/config/profile.ts" "$PROGRAM_DIR/profile.ts"
