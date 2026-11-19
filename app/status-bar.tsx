@@ -8,7 +8,7 @@ import {
   type ThemeColorKey,
   type FontSizeKey,
 } from "./theme-model";
-import { PixelStatus } from "./pixel-status";
+import { PixelStatus, PixelBattery } from "./pixel-status";
 
 export interface StatusBarProps {
   currentScreen?: number;
@@ -157,7 +157,7 @@ export function StatusBar(props: StatusBarProps) {
         </View>
       ) : null}
 
-      {/* Right: Modern Vector Status Icons (Bright when enabled, dim when disabled) */}
+      {/* Right: Pixel Status Icons & Battery (All 9px tall, aligned) */}
       <View class="flex-row items-center gap-[6px]">
         {/* Wi-Fi */}
         <PixelStatus kind="wifi" color={props.wifiConnected ? theme().primary : "#756f7d"} />
@@ -166,22 +166,17 @@ export function StatusBar(props: StatusBarProps) {
         <PixelStatus kind="lock" color={props.adbEnabled ? theme().primary : "#756f7d"} />
         <PixelStatus kind="usb" color={props.mtpEnabled ? theme().primary : "#756f7d"} />
 
-        {/* Battery Level */}
-        <View class="flex-row items-center gap-[4px] ml-[2px]">
-          {known() && (
-            <Text class={isHuge() ? "text-base font-bold text-[#e6e0e9]" : isLarge() ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>
-              {props.batteryLevel}%
-            </Text>
-          )}
-          <View class="w-[10px] h-[6px] bg-[#36343b] p-[1px] flex-row items-center">
-            <View
-              class="h-full"
-              style={{
-                width: Math.max(1, Math.min(16, Math.round((props.batteryLevel / 100) * 16))),
-                bgColor: batteryColor(),
-              }}
-            />
-          </View>
+        {/* Battery: Classic 5-cell retro meter, no percentage text */}
+        <View class="flex-row items-center gap-[3px] ml-[2px]">
+          {isCharging() ? (
+            <PixelStatus kind="bolt" color="#ffd700" />
+          ) : null}
+          <PixelBattery
+            level={props.batteryLevel}
+            charging={isCharging()}
+            color={batteryColor()}
+            outline={isLow() ? "#ffb4ab" : isCharging() ? "#a8e6cf" : "#cac4d0"}
+          />
         </View>
       </View>
     </View>

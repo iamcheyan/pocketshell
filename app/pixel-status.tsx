@@ -18,9 +18,10 @@ const MASKS = {
   lock: ["001111000","010001000","010001000","111111110","100000010","100110010","100110010","100000010","111111110"],
   power: ["000010000","000010000","010010010","100000001","100000001","100000001","010000010","001000100","000111000"],
   reboot: ["001111000","010000100","100000010","100000110","100000000","100000010","010000100","001111000","000000000"],
-  bolt: ["00010","00110","01100","11111","00110","01100","01000"],
+  bolt: ["00000","00010","00110","01100","11111","00110","01100","01000","00000"],
 };
 export function PixelStatus(props: { kind: keyof typeof MASKS; color: string; scale?: number }) {
+  const scale = () => props.scale || 1;
   const runs = () => MASKS[props.kind].flatMap((row, y) => {
     const result: {x: number; y: number; width: number}[] = [];
     for (let x = 0; x < row.length;) {
@@ -30,20 +31,147 @@ export function PixelStatus(props: { kind: keyof typeof MASKS; color: string; sc
     }
     return result;
   });
-  return <View class="relative" style={{ width: (props.kind === "bolt" ? 5 : 9) * (props.scale || 1), height: 2 * (props.scale || 1) }}>
-    <Index each={runs()}>{(run) => <View class="absolute" style={{ insetL: run().x * (props.scale || 1), insetT: run().y * (props.scale || 1), width: run().width * (props.scale || 1), height: props.scale || 1, bgColor: props.color }} />}</Index>
-  </View>;
-}
-export function PixelBattery(props: { level: number; charging: boolean; color: string; outline: string }) {
-  const cells = () => props.level < 0 ? 0 : Math.ceil(Math.max(0, Math.min(100, props.level)) / 25);
-  return <View class="flex-row items-center">
-    <View class="relative w-[6px] h-[4px]">
-      <View class="absolute left-0 top-0 w-[6px] h-[1px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-0 top-[3px] w-[6px] h-[1px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-0 top-0 w-[1px] h-[4px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-[5px] top-0 w-[1px] h-[4px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-[6px] top-[1px] w-[1px] h-[2px]" style={{ bgColor: props.outline }} />
-      {props.charging ? <View class="absolute left-[2px] top-0"><PixelStatus kind="bolt" color={props.color} /></View> : <Index each={[0,1,2,3]}>{(cell) => <View class="absolute" style={{ insetL: 1 + cell() * 2, insetT: 1, width: 1, height: 2, bgColor: cell() < cells() ? props.color : "#38334f" }} />}</Index>}
+  return (
+    <View
+      class="relative"
+      style={{
+        width: (props.kind === "bolt" ? 5 : 9) * scale(),
+        height: 9 * scale(),
+      }}
+    >
+      <Index each={runs()}>
+        {(run) => (
+          <View
+            class="absolute"
+            style={{
+              insetL: run().x * scale(),
+              insetT: run().y * scale(),
+              width: run().width * scale(),
+              height: scale(),
+              bgColor: props.color,
+            }}
+          />
+        )}
+      </Index>
     </View>
-  </View>;
+  );
+}
+
+export function PixelBattery(props: {
+  level: number;
+  charging?: boolean;
+  color?: string;
+  outline?: string;
+  scale?: number;
+}) {
+  const scale = () => props.scale || 1;
+  const known = () => props.level >= 0 && props.level <= 100;
+  const isLow = () => known() && props.level <= 20;
+
+  // 5 classic cells proportional to battery level:
+  // 81-100%: 5 cells
+  // 61-80%:  4 cells
+  // 41-60%:  3 cells
+  // 21-40%:  2 cells
+  // 1-20%:   1 cell
+  // <=0%:    0 cells
+  const activeCells = () => {
+    if (!known() || props.level <= 0) return 0;
+    if (props.level <= 20) return 1;
+    if (props.level <= 40) return 2;
+    if (props.level <= 60) return 3;
+    if (props.level <= 80) return 4;
+    return 5;
+  };
+
+  const outlineColor = () =>
+    props.outline || (isLow() ? "#ffb4ab" : props.charging ? "#a8e6cf" : "#cac4d0");
+  const cellColor = () =>
+    props.color || (isLow() ? "#ff5555" : props.charging ? "#a8e6cf" : "#e6e0e9");
+  const ghostColor = () => "#2b2735";
+
+  return (
+    <View
+      class="relative"
+      style={{
+        width: 19 * scale(),
+        height: 9 * scale(),
+      }}
+    >
+      {/* Outer Shell Top (x: 0..17, width 18) */}
+      <View
+        class="absolute"
+        style={{
+          insetL: 0,
+          insetT: 0,
+          width: 18 * scale(),
+          height: scale(),
+          bgColor: outlineColor(),
+        }}
+      />
+      {/* Outer Shell Bottom (x: 0..17, width 18) */}
+      <View
+        class="absolute"
+        style={{
+          insetL: 0,
+          insetT: 8 * scale(),
+          width: 18 * scale(),
+          height: scale(),
+          bgColor: outlineColor(),
+        }}
+      />
+      {/* Outer Shell Left Border (y: 0..8, height 9) */}
+      <View
+        class="absolute"
+        style={{
+          insetL: 0,
+          insetT: 0,
+          width: scale(),
+          height: 9 * scale(),
+          bgColor: outlineColor(),
+        }}
+      />
+      {/* Outer Shell Right Border (y: 0..8, height 9) */}
+      <View
+        class="absolute"
+        style={{
+          insetL: 17 * scale(),
+          insetT: 0,
+          width: scale(),
+          height: 9 * scale(),
+          bgColor: outlineColor(),
+        }}
+      />
+      {/* Positive Terminal Nipple on right (x: 18, y: 3..5, height 3) */}
+      <View
+        class="absolute"
+        style={{
+          insetL: 18 * scale(),
+          insetT: 3 * scale(),
+          width: scale(),
+          height: 3 * scale(),
+          bgColor: outlineColor(),
+        }}
+      />
+
+      {/* 5 Classic Cells (x = 2, 5, 8, 11, 14; width = 2, height = 5, y: 2..6) */}
+      <Index each={[0, 1, 2, 3, 4]}>
+        {(idx) => {
+          const filled = () => idx() < activeCells();
+          return (
+            <View
+              class="absolute"
+              style={{
+                insetL: (2 + idx() * 3) * scale(),
+                insetT: 2 * scale(),
+                width: 2 * scale(),
+                height: 5 * scale(),
+                bgColor: filled() ? cellColor() : ghostColor(),
+              }}
+            />
+          );
+        }}
+      </Index>
+    </View>
+  );
 }
