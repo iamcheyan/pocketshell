@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Rescale PocketShell class literals from a 720x480 canvas to 360x240.
+"""Rescale PocketShell class literals from 720x480 to a 360x240 logical canvas.
 
-Only quoted literals whose tokens are all recognised utilities are touched, so
-labels, paths and prose are left alone. Geometry halves; text sizes snap to the
-baked 12 px font grid. Run once, then review the diff.
+Only utility literals are changed. Geometry halves; text classes are scaled to
+logical font slots for 2x presentation. Use --fonts-only to correct typography
+in an app whose geometry has already been converted.
 """
 from __future__ import annotations
 
@@ -11,7 +11,9 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
+FONT_ONLY = "--fonts-only" in sys.argv[1:]
+ROOT_ARGS = [arg for arg in sys.argv[1:] if arg != "--fonts-only"]
+ROOT = Path(ROOT_ARGS[0]).resolve() if ROOT_ARGS else Path.cwd()
 
 SPACING = {
     "p": "p", "px": "px", "py": "py", "pt": "pt", "pb": "pb", "pl": "pl", "pr": "pr",
@@ -20,8 +22,10 @@ SPACING = {
 }
 SIZING = {"w", "h", "min-w", "min-h", "max-w", "max-h", "basis", "translate-x", "translate-y"}
 EDGE = {"left", "right", "top", "bottom", "inset", "inset-x", "inset-y"}
-TEXT = {"2xs": "xs", "xs": "xs", "sm": "xs", "base": "xs", "lg": "2xl",
-        "xl": "2xl", "2xl": "2xl", "4xl": "4xl", "5xl": "5xl"}
+# The launcher is rendered on a 360x240 logical canvas and presented at 2x.
+# Clamp small classes to the readable 12px bitmap slot and halve larger classes.
+TEXT = {"2xs": "xs", "xs": "xs", "sm": "xs", "base": "xs", "lg": "xs",
+        "xl": "xs", "2xl": "xs", "4xl": "lg", "5xl": "2xl"}
 
 KEYWORDS = {
     "flex", "flex-row", "flex-col", "flex-wrap", "flex-1", "grow", "shrink-0",
@@ -96,6 +100,19 @@ def convert_literal(lit: str) -> str:
     return " ".join(out) if out != toks else lit
 
 
+def convert_font_literal(lit: str) -> str:
+    """Convert typography tokens only, after geometry has already been scaled."""
+    out = []
+    for token in lit.split(" "):
+        prefix, base = "", token
+        if VARIANT.match(token):
+            prefix, base = token.split(":", 1)
+            prefix += ":"
+        match = re.fullmatch(r"text-(2xs|xs|sm|base|lg|xl|2xl|4xl|5xl)", base)
+        out.append(prefix + "text-" + TEXT[match.group(1)] if match else token)
+    return " ".join(out)
+
+
 STYLE_KEYS = ("width", "height", "insetL", "insetT", "left", "top", "right", "bottom",
               "gap", "padding", "paddingX", "paddingY", "margin", "marginX", "marginY",
               "radius", "borderWidth")
@@ -103,7 +120,8 @@ STYLE_KEYS = ("width", "height", "insetL", "insetT", "left", "top", "right", "bo
 
 def main() -> None:
     touched = []
-    for path in sorted(ROOT.glob("app/**/*.tsx")):
+    paths = set(ROOT.glob("app/**/*.tsx")) | set(ROOT.glob("app/**/*.ts"))
+    for path in sorted(paths):
         if "showcase" in path.parts:
             continue
         src = path.read_text()
@@ -111,17 +129,18 @@ def main() -> None:
 
         def repl(m: re.Match[str]) -> str:
             lit = m.group(1)
-            conv = convert_literal(lit)
+            conv = convert_font_literal(lit) if FONT_ONLY else convert_literal(lit)
             return m.group(0)[:1] + conv + m.group(0)[-1:]
 
         src = re.sub(r'"([^"\n]*)"', repl, src)
-        src = re.sub(
-            r"\b(" + "|".join(STYLE_KEYS) + r"):\s*([0-9.]+)(?![\w.])",
-            lambda m: f"{m.group(1)}: {half(float(m.group(2)))}",
-            src,
-        )
-        src = re.sub(r"(\d+)\s*\*\s*\((props\.scale \|\| 1)\)",
-                     lambda m: f"{half(float(m.group(1)))} * ({m.group(2)})", src)
+        if not FONT_ONLY:
+            src = re.sub(
+                r"\b(" + "|".join(STYLE_KEYS) + r"):\s*([0-9.]+)(?![\w.])",
+                lambda m: f"{m.group(1)}: {half(float(m.group(2)))}",
+                src,
+            )
+            src = re.sub(r"(\d+)\s*\*\s*\((props\.scale \|\| 1)\)",
+                         lambda m: f"{half(float(m.group(1)))} * ({m.group(2)})", src)
         if src != before:
             path.write_text(src)
             touched.append(path.name)

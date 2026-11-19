@@ -1562,7 +1562,7 @@ mount(() => {
                 />
               ) : (
                 <View class="w-[170px] h-[70px] items-center justify-center rounded-[8px] bg-[#211f26]">
-                  <Text class="text-2xl text-[#cac4d0]">
+                  <Text class="text-xs text-[#cac4d0]">
                     {language() === "zh" ? (currentScreen() === 5 ? "暂无收藏游戏" : "暂无内容") : language() === "ja" ? "項目がありません" : (currentScreen() === 5 ? "No favorites" : "Nothing here")}
                   </Text>
                 </View>
@@ -1570,11 +1570,11 @@ mount(() => {
 
                 {/* Modern Game Title & Metadata Plaque (Material Design 3 typography) */}
                 <View class="w-[320px] flex-col items-center justify-center gap-[2px] mb-[3px]">
-                  <Text class="text-2xl font-bold text-[#e6e0e9] text-center tracking-wide">
+                  <Text class="text-xs font-bold text-[#e6e0e9] text-center tracking-wide">
                     {appName(t, selectedApp()) || "Nintendo Switch"}
                   </Text>
                   {selectedApp() ? (
-                    <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-2xl font-bold text-[#cac4d0] text-center" : "text-xs font-bold text-[#cac4d0] text-center"}>
+                    <Text class={fontSize() === "huge" ? "text-base font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-sm font-bold text-[#cac4d0] text-center" : "text-xs font-bold text-[#cac4d0] text-center"}>
                       {selectedApp()?.isSeries
                         ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} 个版本`
                         : selectedApp()?.romPath
@@ -1662,24 +1662,24 @@ mount(() => {
           {/* Bottom Action Footer Bar (Material Design 3 borderless, seamless transparent background) */}
           <View class="w-[360px] h-[32px] bg-transparent shadow-md flex-row items-center justify-between px-[16px]">
             <View class="flex-row items-center gap-[5px]">
-              <Text class="text-2xl text-[#938f99]">◀ ▶</Text>
-              <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-2xl font-bold text-[#cac4d0]" : "text-2xl font-bold text-[#cac4d0]"}>
+              <Text class="text-xs text-[#938f99]">◀ ▶</Text>
+              <Text class={fontSize() === "huge" ? "text-base font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-sm font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
                 {language() === "zh" ? "选择" : language() === "ja" ? "選択" : "Select"}
               </Text>
             </View>
             <View class="flex-row items-center gap-[14px]">
               {/* (A) Button */}
               <View class="flex-row items-center gap-[4px]">
-                <Text class="text-2xl font-bold" style={{ textColor: theme().primary }}>A</Text>
-                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl font-bold text-[#e6e0e9]"}>
+                <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>A</Text>
+                <Text class={fontSize() === "huge" ? "text-base font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>
                   {language() === "zh" ? "开始" : language() === "ja" ? "決定" : "Start"}
                 </Text>
               </View>
 
               {/* (B) Button */}
               <View class="flex-row items-center gap-[4px]">
-                <Text class="text-2xl font-bold" style={{ textColor: theme().primary }}>B</Text>
-                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl font-bold text-[#e6e0e9]"}>
+                <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>B</Text>
+                <Text class={fontSize() === "huge" ? "text-base font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>
                   {language() === "zh" ? "返回" : language() === "ja" ? "戻る" : "Back"}
                 </Text>
               </View>
@@ -1687,8 +1687,8 @@ mount(() => {
               {/* (+) Button */}
               {isCarouselScreen() && (
                 <View class="flex-row items-center gap-[4px]">
-                  <Text class="text-2xl font-bold" style={{ textColor: theme().primary }}>+</Text>
-                  <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl font-bold text-[#e6e0e9]"}>
+                  <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>+</Text>
+                  <Text class={fontSize() === "huge" ? "text-base font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>
                     {language() === "zh" ? "选项" : language() === "ja" ? "設定" : "Options"}
                   </Text>
                 </View>
@@ -1709,7 +1709,7 @@ mount(() => {
                 <Text class="text-xs font-bold tracking-wide" style={{ textColor: theme().primary }}>
                   {language() === "zh" ? "正在打开" : language() === "ja" ? "起動中" : "LAUNCHING"}
                 </Text>
-                <Text class="text-2xl font-bold text-[#ffffff]">
+                <Text class="text-xs font-bold text-[#ffffff]">
                   {launchingLabel()}
                 </Text>
                 <Text class="text-xs text-[#cac4d0]">
@@ -1740,7 +1740,7 @@ mount(() => {
             <View class="flex-row items-center gap-[7px] pb-[2px]">
               <Image src={appCoverSrc(seriesSelectedApp() || undefined)} class="w-[26px] h-[26px]" />
               <View class="flex-col gap-[1px]">
-                <Text class="text-2xl font-bold text-[#e6e0e9]">
+                <Text class="text-xs font-bold text-[#e6e0e9]">
                   {seriesSelectedApp()?.label || ""}
                 </Text>
                 <Text class="text-xs text-[#cac4d0]">
@@ -1856,7 +1856,7 @@ mount(() => {
       {/* Floating Volume / Brightness OSD */}
       {osd().visible && (
         <View class="absolute top-[7px] left-[100px] w-[160px] h-[23px] rounded-[999px] bg-[#211f26] border border-[#49454f] flex-row items-center justify-between px-[9px] shadow-lg">
-          <Text class="text-2xl font-bold text-[#e6e0e9]">
+          <Text class="text-xs font-bold text-[#e6e0e9]">
             {osd().type === "brightness" ? "☼" : "🔊"}
           </Text>
           <View class="w-[90px] h-[4px] rounded-[999px] bg-[#36343b] overflow-hidden">

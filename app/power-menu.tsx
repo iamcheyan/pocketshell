@@ -31,7 +31,7 @@ export function PowerMenu(props: PowerMenuProps) {
     <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000bf] flex-col items-center justify-center">
       <View class="w-[230px] h-[120px] rounded-[8px] bg-[#1a1c24] border border-[#303644] flex-col justify-between p-[12px] shadow-lg">
         <View class="w-[206px] flex-row items-center justify-between">
-          <Text class="text-2xl font-bold text-white">{t()("powerMenu.title")}</Text>
+          <Text class="text-xs font-bold text-white">{t()("powerMenu.title")}</Text>
           <Text class="text-xs text-[#8c94a4]">{t()("powerMenu.hint")}</Text>
         </View>
 
@@ -52,7 +52,7 @@ export function PowerMenu(props: PowerMenuProps) {
                     ? { bgColor: theme().activeSurface, borderColor: theme().primary }
                     : { bgColor: "#1e222a", borderColor: "#303644" }}
                 >
-                  <Text class="text-2xl font-bold mb-[3px]" style={{ textColor: armed() ? theme().primary : "#6c7484" }}>
+                  <Text class="text-xs font-bold mb-[3px]" style={{ textColor: armed() ? theme().primary : "#6c7484" }}>
                     {item().icon}
                   </Text>
                   <Text class={armed() ? "text-xs font-bold text-white" : "text-xs text-[#8c94a4]"}>

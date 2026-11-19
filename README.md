@@ -19,11 +19,11 @@ frontend-session                     (BaseOS /mnt/sdcard frontend contract)
 ```
 
 The runtime is native Rust with an embedded QuickJS guest. This package is the
-guest: 480×320 logical canvas presented at 720×480, 60 Hz tick,
-capabilities `input.buttons` + `text.glyphs.baked`.
-The PJOS runtime applies the matching 1.5× software presentation patch. Its
-profile differs from older packages, so those packages still need the legacy
-runtime.
+guest: a 360×240 logical canvas presented at 720×480 (integer 2×), 60 Hz tick,
+capabilities `input.buttons` + `text.glyphs.baked`. Font classes are expressed
+in logical pixels too, so their compiled sizes must account for the 2× output.
+The PJOS runtime applies this package's matching profile. Its profile differs
+from older packages, so those packages still need the legacy runtime.
 
 **There is no network, filesystem or database API in the guest.** Every piece of
 data (battery, volume, brightness, services, system snapshot, launching apps)
@@ -47,7 +47,7 @@ There are two views, both fed by that bridge:
 |---|---|
 | `app/` | the PocketJS application: `main.tsx`, `card-carousel.tsx`, `pages/`, fonts, `pocket.json` |
 | `app/fonts/` | FusionPixel zh_hans subset (baked), FusionPixel ja + Nerd Font (fallbacks, see `fonts.json`) |
-| `config/profile.ts` | the `rocknix-h700-kms` runtime profile (720×480 / 480×320, 60 Hz, capabilities) |
+| `config/profile.ts` | the `rocknix-h700-kms` runtime profile (720×480 / 360×240, 60 Hz, capabilities) |
 | `config/pocket.runtime-config.ts` | runtime config the compiler binds the package to (this hash is what admission checks) |
 | `scripts/build.sh` | stages the app into the PocketJS SDK, compiles, prints sections + sha256 |
 | `scripts/check.sh` | stages and admission-checks the paired package and runtime |

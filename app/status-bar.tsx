@@ -91,7 +91,7 @@ export function StatusBar(props: StatusBarProps) {
         {props.title ? (
           <View class="flex-row items-center gap-[5px]">
             <View class="w-[2px] h-[12px] rounded-[999px]" style={{ bgColor: theme().primary }} />
-            <Text class="text-2xl font-bold text-[#e6e0e9] tracking-wide">
+            <Text class="text-xs font-bold text-[#e6e0e9] tracking-wide">
               {props.title}
             </Text>
           </View>
@@ -114,7 +114,7 @@ export function StatusBar(props: StatusBarProps) {
                         }}
                       >
                         <Text
-                          class={isHuge() ? "text-2xl font-bold text-white" : isLarge() ? "text-2xl font-bold text-white" : "text-2xl font-bold text-white"}
+                          class={isHuge() ? "text-base font-bold text-white" : isLarge() ? "text-sm font-bold text-white" : "text-xs font-bold text-white"}
                           style={{ textColor: "#ffffff" }}
                         >
                           {tab().label}
@@ -131,7 +131,7 @@ export function StatusBar(props: StatusBarProps) {
                         }}
                       >
                         <Text
-                          class={isHuge() ? "text-2xl text-[#938f99]" : isLarge() ? "text-2xl text-[#938f99]" : "text-2xl text-[#938f99]"}
+                          class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}
                           style={{ textColor: "#938f99" }}
                         >
                           {tab().label}
@@ -150,7 +150,7 @@ export function StatusBar(props: StatusBarProps) {
       {props.showClock && currentTime() ? (
         <View class="items-center justify-center">
           <Text
-            class={isHuge() ? "text-2xl font-bold text-[#e6e0e9]" : isLarge() ? "text-2xl font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}
+            class={isHuge() ? "text-base font-bold text-[#e6e0e9]" : isLarge() ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}
           >
             {currentTime()}
           </Text>
@@ -169,7 +169,7 @@ export function StatusBar(props: StatusBarProps) {
         {/* Battery Level */}
         <View class="flex-row items-center gap-[4px] ml-[2px]">
           {known() && (
-            <Text class={isHuge() ? "text-2xl font-bold text-[#e6e0e9]" : isLarge() ? "text-2xl font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>
+            <Text class={isHuge() ? "text-base font-bold text-[#e6e0e9]" : isLarge() ? "text-sm font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>
               {props.batteryLevel}%
             </Text>
           )}

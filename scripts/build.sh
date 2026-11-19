@@ -21,10 +21,10 @@ OSK_THEME_PATCH=${PJOS_OSK_THEME_PATCH:-"$REPO/../PJOS-LINUX/src/apply-pocketjs-
 [ -f "$OSK_THEME_PATCH" ] || { echo "build: PJOS OSK theme patch not found at $OSK_THEME_PATCH" >&2; exit 1; }
 python3 "$OSK_THEME_PATCH" "$SDK/framework/src/osk.tsx"
 
-# Keep every text slot on Fusion Pixel's 12 px grid. The glyph atlas is
-# rasterized at native 12 px, then the complete 360x240 frame is presented at
-# 2x on the 720x480 panel. The Japanese face covers Latin and Japanese; the
-# zh-Hans subset fills missing Chinese glyphs, and Nerd Font supplies symbols.
+# Text utility sizes are authored for the 360x240 logical canvas. The compiler
+# rasterizes the requested bitmap slots; the completed frame is presented at 2x
+# on the 720x480 panel. The Japanese face covers Latin and Japanese; zh-Hans
+# fills missing Chinese glyphs, and Nerd Font supplies symbols.
 FONT="$REPO/app/fonts/fusion-pixel-12px-monospaced-ja.ttf"
 
 mkdir -p "$APP_DIR" "$PROGRAM_DIR" "$REPO/dist"

@@ -1,35 +1,40 @@
-# CPR-163 — bitmap font rendering evidence
+# CPR-163 — bitmap font scaling evidence
 
-Work-in-progress evidence for issue #163. The interface now renders on a
-360×240 logical canvas presented 2× on the 720×480 panel, with Fusion Pixel 12 px
-glyphs baked at native size (no `rasterDensity` up-sampling).
+The package uses a 360×240 logical canvas with integer 2× presentation on the
+720×480 panel. Text classes use logical pixels, so 24px logical text appears as
+48px on the panel.
 
-## Device main screen
+## Before correction — device capture
 
-![Device main screen](device-main.png)
+![Device main screen before font correction](device-main.png)
 
-Captured from `/dev/fb0` on the handheld after deploying the new runtime and
-package. The text is a 12 px bitmap glyph doubled by the 2× presentation; the
-card and covers draw at half the old 720-width coordinates.
+Captured from `/dev/fb0` before the font-class rescale was corrected. The
+navigation, title and footer retained 24px logical classes and doubled on the
+panel.
 
-## Library render (six-item fixture)
+## After correction — desktop renderer
 
-![Library render](render-library-6.png)
+![Updated font sizes in the desktop renderer](font-scale-fixed-desktop-720.png)
 
-Headless render of the same package with a six-item game library, used to check
-card spacing and the carousel offsets without touching the device.
+Built from the updated PocketShell source with the Linux desktop renderer. The
+renderer window is 360×240; this image is nearest-neighbour scaled to 720×480
+to show the exact 2× presentation. This screenshot is from the simulator, not a
+new capture from the handheld.
 
-## Text at 1:1
+## Supporting captures from the earlier review
 
-![Text zoom](text-zoom.png)
+### Library render fixture
 
-Unscaled crop of the title/footer line: every glyph pixel is a uniform 2×2
-block, i.e. the framebuffer doubles the whole 360×240 canvas instead of smoothing
-glyph outlines.
+![Library render sample](render-library-6.png)
 
-## Still open
+### 1:1 text crop
 
-- Settings and system pages have not been re-captured since the layout rescale.
-- A few rows still crowd the right/bottom edge; spacing needs a second pass.
-- The launcher's own library listing on the device shows the cards, but the
-  capture above was taken while the previous frame was still on screen.
+![Text zoom crop](text-zoom.png)
+
+The crop shows the doubled pixel blocks before the font correction.
+
+## Remaining visual coverage
+
+The updated screenshot covers the launcher home screen. Settings and system
+pages still need fresh captures, and the corrected package has not been flashed
+to the handheld.

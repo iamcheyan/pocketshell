@@ -147,7 +147,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const enumPill = (text: string) => (
     <View class="px-[8px] h-[17px] items-center justify-center bg-[#36343b] rounded-[999px]">
       <Text
-        class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
+        class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
         style={{ textColor: theme().onContainer }}
       >
         {text}
@@ -179,7 +179,7 @@ export function SettingsPage(props: SettingsPageProps) {
           />
           <View class="w-[25px] flex-row items-center justify-end">
             <Text
-              class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
+              class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
               style={{ textColor: theme().primary }}
             >
               {shown}
@@ -193,7 +193,7 @@ export function SettingsPage(props: SettingsPageProps) {
         return (
           <View class="flex-row items-center gap-[6px]">
             <Text
-              class={isHuge() ? "text-2xl text-[#cac4d0]" : "text-xs text-[#cac4d0]"}
+              class={isHuge() ? "text-base text-[#cac4d0]" : "text-xs text-[#cac4d0]"}
             >
               {props.state.wifiConnected
                 ? props.state.ipAddress && props.state.ipAddress !== "--"
@@ -302,7 +302,7 @@ export function SettingsPage(props: SettingsPageProps) {
           >
             <View class="w-[6px] h-[6px] rounded-[999px]" style={{ bgColor: pal.primary }} />
             <Text
-              class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
+              class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
               style={{ textColor: pal.primary }}
             >
               {t(`theme.${key}`)}
@@ -320,7 +320,7 @@ export function SettingsPage(props: SettingsPageProps) {
             }}
             class="flex-row items-center gap-[5px]"
           >
-            <Text class={isHuge() ? "text-2xl text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>
+            <Text class={isHuge() ? "text-base text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>
               {t("settings.autoPoweroffCharger")}
             </Text>
             {enumPill(
@@ -344,7 +344,7 @@ export function SettingsPage(props: SettingsPageProps) {
     if (row.kind === "text") {
       return (
         <Text
-          class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
+          class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
           style={{ textColor: "#e6e0e9" }}
         >
           {raw || t("common.unknown")}
@@ -354,7 +354,7 @@ export function SettingsPage(props: SettingsPageProps) {
     return (
       <View class="px-[7px] py-[3px] rounded-[999px] bg-[#36343b]">
         <Text
-          class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
+          class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
           style={{ textColor: theme().primary }}
         >
           {t("settings.pressA")}
@@ -368,12 +368,12 @@ export function SettingsPage(props: SettingsPageProps) {
       {/* Category heading (M3 Title Large) */}
       <View class="w-[330px] h-[15px] flex-row items-center justify-between px-[3px]">
         <Text
-          class={isHuge() ? "text-2xl font-bold tracking-wide" : "text-2xl font-bold tracking-wide"}
+          class={isHuge() ? "text-base font-bold tracking-wide" : "text-xs font-bold tracking-wide"}
           style={{ textColor: theme().primary }}
         >
           {t(`settings.group.${windowGroup()}`)}
         </Text>
-        <Text class={isHuge() ? "text-2xl font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
+        <Text class={isHuge() ? "text-base font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
           {`${props.state.selectedIndex + 1} / ${SETTINGS_COUNT}`}
         </Text>
       </View>
@@ -407,10 +407,10 @@ export function SettingsPage(props: SettingsPageProps) {
                   <Text
                     class={
                       isHuge()
-                        ? (selected() ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl text-[#cac4d0]")
+                        ? (selected() ? "text-xs font-bold text-[#e6e0e9]" : "text-xs text-[#cac4d0]")
                         : isLarge()
-                        ? (selected() ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl text-[#cac4d0]")
-                        : (selected() ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl text-[#cac4d0]")
+                        ? (selected() ? "text-xs font-bold text-[#e6e0e9]" : "text-xs text-[#cac4d0]")
+                        : (selected() ? "text-xs font-bold text-[#e6e0e9]" : "text-xs text-[#cac4d0]")
                     }
                   >
                     {rowLabel(entry().row)}
