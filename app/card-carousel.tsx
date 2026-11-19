@@ -20,15 +20,15 @@ export interface CardCarouselProps {
   onMove?: (delta: -1 | 1) => void;
 }
 
-export const CARD_WIDTH = 260;
-export const CARD_INACTIVE_WIDTH = 204;
-export const CARD_GAP = 24;
-export const CAROUSEL_STEP = 228; // 204 + 24
+export const CARD_WIDTH = 130;
+export const CARD_INACTIVE_WIDTH = 102;
+export const CARD_GAP = 12;
+export const CAROUSEL_STEP = 114; // 102 + 12
 // Symmetrical center in 720px: active slot 2 starts at 228 + 228 = 456px inside row.
 // Desired active card start: (720 - 260) / 2 = 230px.
 // Row offset = 230 - 456 = -226px.
-export const CAROUSEL_OFFSET_5 = -226;
-export const CAROUSEL_OFFSET_LESS = (idx: number) => 230 - idx * 284;
+export const CAROUSEL_OFFSET_5 = -113;
+export const CAROUSEL_OFFSET_LESS = (idx: number) => 115 - idx * 142;
 
 export function CardCarousel(props: CardCarouselProps) {
   let viewport: NodeMirror | undefined;
@@ -45,10 +45,10 @@ export function CardCarousel(props: CardCarouselProps) {
   });
 
   return (
-    <View ref={(node: NodeMirror) => { viewport = node; }} class="w-[720px] h-[270px] overflow-hidden relative items-center justify-center">
+    <View ref={(node: NodeMirror) => { viewport = node; }} class="w-[360px] h-[135px] overflow-hidden relative items-center justify-center">
       <View
         ref={(node: NodeMirror) => props.onMountCarousel?.(node)}
-        class="flex-row items-center absolute left-0 top-0 h-[270px]"
+        class="flex-row items-center absolute left-0 top-0 h-[135px]"
       >
         <Index each={indices()}>
           {(index) => {
@@ -60,22 +60,22 @@ export function CardCarousel(props: CardCarouselProps) {
                 onMount={(node) => props.onMountCard?.(index(), node)}
                 class={
                   isSelected()
-                    ? "w-[260px] h-[260px] mr-[24px] flex-col items-center justify-center overflow-hidden border-2 p-[2px] relative"
-                    : "w-[204px] h-[204px] mr-[24px] flex-col items-center justify-center overflow-hidden bg-[#1d1b20] opacity-40 p-[2px] relative"
+                    ? "w-[130px] h-[130px] mr-[12px] flex-col items-center justify-center overflow-hidden border-2 p-[1px] relative"
+                    : "w-[102px] h-[102px] mr-[12px] flex-col items-center justify-center overflow-hidden bg-[#1d1b20] opacity-40 p-[1px] relative"
                 }
                 style={isSelected()
                   ? { bgColor: theme().container, borderColor: theme().primary }
                   : { bgColor: "#1d1b20", borderColor: "#1d1b20" }}
               >
                 {/* Modern Material 3 Square Game Tile (Right-Angled / 直角, No harsh borders) */}
-                <View class={isSelected() ? "w-[252px] h-[252px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[200px] h-[200px] items-center justify-center overflow-hidden bg-[#141218]"}>
+                <View class={isSelected() ? "w-[126px] h-[126px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[100px] h-[100px] items-center justify-center overflow-hidden bg-[#141218]"}>
                   <CoverImage app={app} active={() => true} isSelected={isSelected} />
                 </View>
 
                 {/* Favorite Badge if pinned */}
                 {app()?.favorite && (
-                  <View class="absolute top-[8px] right-[8px] px-[10px] py-[4px] bg-[#7d5260] items-center justify-center">
-                    <Text class="text-sm font-bold text-[#ffd8e4]">★</Text>
+                  <View class="absolute top-[4px] right-[4px] px-[5px] py-[2px] bg-[#7d5260] items-center justify-center">
+                    <Text class="text-xs font-bold text-[#ffd8e4]">★</Text>
                   </View>
                 )}
               </TouchTarget>
@@ -112,7 +112,7 @@ function CoverImage(props: { app: () => LauncherApp; active: () => boolean; isSe
   return (
     <Image
       ref={(value: NodeMirror) => { node = value; }}
-      class={props.isSelected() ? "w-[252px] h-[252px]" : "w-[200px] h-[200px]"}
+      class={props.isSelected() ? "w-[126px] h-[126px]" : "w-[100px] h-[100px]"}
       src={appCoverSrc(props.app())}
     />
   );

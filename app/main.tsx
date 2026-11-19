@@ -189,7 +189,7 @@ mount(() => {
 
   const updateCardPosition = (idx: number, smooth = true) => {
     try {
-      const targetX = 230 - idx * CAROUSEL_STEP;
+      const targetX = 115 - idx * CAROUSEL_STEP;
       if (carouselNode) {
         if (smooth) {
           safeAnimate(carouselNode, "translateX", targetX, { dur: 220, easing: "out" });
@@ -1493,17 +1493,17 @@ mount(() => {
   });
 
   return (
-    <View class="w-[720px] h-[480px] bg-[#141218] relative flex-col justify-between overflow-hidden">
+    <View class="w-[360px] h-[240px] bg-[#141218] relative flex-col justify-between overflow-hidden">
       {/* Dynamic Gaussian-Blurred Ambient Background with Smooth Cross-fade */}
       <Image
         ref={(node: NodeMirror) => { bgNodeA = node; }}
-        class="absolute left-0 top-0 w-[720px] h-[480px]"
+        class="absolute left-0 top-0 w-[360px] h-[240px]"
         src={bgSrcA()}
         style={{ opacity: 0.85 }}
       />
       <Image
         ref={(node: NodeMirror) => { bgNodeB = node; }}
-        class="absolute left-0 top-0 w-[720px] h-[480px]"
+        class="absolute left-0 top-0 w-[360px] h-[240px]"
         src={bgSrcB()}
         style={{ opacity: 0 }}
       />
@@ -1527,11 +1527,11 @@ mount(() => {
         batteryStatus={batteryStatus()}
       />
 
-      <View class="w-[720px] h-[416px] flex-col justify-between">
+      <View class="w-[360px] h-[208px] flex-col justify-between">
         {/* Animated Page Container */}
-        <View class="w-[720px] flex-1 flex-col justify-between overflow-hidden relative">
+        <View class="w-[360px] flex-1 flex-col justify-between overflow-hidden relative">
           {isCarouselScreen() ? (
-            <View class="w-[720px] h-[348px] flex-col justify-between items-center py-[2px]">
+            <View class="w-[360px] h-[174px] flex-col justify-between items-center py-[1px]">
               {/* Horizontal Switch-Style Card Carousel */}
               {currentApps().length ? (
                 <CardCarousel
@@ -1561,20 +1561,20 @@ mount(() => {
                   onMove={(delta) => moveCard(delta)}
                 />
               ) : (
-                <View class="w-[340px] h-[140px] items-center justify-center rounded-[16px] bg-[#211f26]">
-                  <Text class="text-xl text-[#cac4d0]">
+                <View class="w-[170px] h-[70px] items-center justify-center rounded-[8px] bg-[#211f26]">
+                  <Text class="text-2xl text-[#cac4d0]">
                     {language() === "zh" ? (currentScreen() === 5 ? "暂无收藏游戏" : "暂无内容") : language() === "ja" ? "項目がありません" : (currentScreen() === 5 ? "No favorites" : "Nothing here")}
                   </Text>
                 </View>
               )}
 
                 {/* Modern Game Title & Metadata Plaque (Material Design 3 typography) */}
-                <View class="w-[640px] flex-col items-center justify-center gap-[4px] mb-[6px]">
+                <View class="w-[320px] flex-col items-center justify-center gap-[2px] mb-[3px]">
                   <Text class="text-2xl font-bold text-[#e6e0e9] text-center tracking-wide">
                     {appName(t, selectedApp()) || "Nintendo Switch"}
                   </Text>
                   {selectedApp() ? (
-                    <Text class={fontSize() === "huge" ? "text-xl font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-lg font-bold text-[#cac4d0] text-center" : "text-base font-bold text-[#cac4d0] text-center"}>
+                    <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-2xl font-bold text-[#cac4d0] text-center" : "text-xs font-bold text-[#cac4d0] text-center"}>
                       {selectedApp()?.isSeries
                         ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} 个版本`
                         : selectedApp()?.romPath
@@ -1660,35 +1660,35 @@ mount(() => {
           </View>
 
           {/* Bottom Action Footer Bar (Material Design 3 borderless, seamless transparent background) */}
-          <View class="w-[720px] h-[64px] bg-transparent shadow-md flex-row items-center justify-between px-[32px]">
-            <View class="flex-row items-center gap-[10px]">
-              <Text class="text-xl text-[#938f99]">◀ ▶</Text>
-              <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-xl font-bold text-[#cac4d0]" : "text-lg font-bold text-[#cac4d0]"}>
+          <View class="w-[360px] h-[32px] bg-transparent shadow-md flex-row items-center justify-between px-[16px]">
+            <View class="flex-row items-center gap-[5px]">
+              <Text class="text-2xl text-[#938f99]">◀ ▶</Text>
+              <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-2xl font-bold text-[#cac4d0]" : "text-2xl font-bold text-[#cac4d0]"}>
                 {language() === "zh" ? "选择" : language() === "ja" ? "選択" : "Select"}
               </Text>
             </View>
-            <View class="flex-row items-center gap-[28px]">
+            <View class="flex-row items-center gap-[14px]">
               {/* (A) Button */}
-              <View class="flex-row items-center gap-[8px]">
-                <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>A</Text>
-                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+              <View class="flex-row items-center gap-[4px]">
+                <Text class="text-2xl font-bold" style={{ textColor: theme().primary }}>A</Text>
+                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl font-bold text-[#e6e0e9]"}>
                   {language() === "zh" ? "开始" : language() === "ja" ? "決定" : "Start"}
                 </Text>
               </View>
 
               {/* (B) Button */}
-              <View class="flex-row items-center gap-[8px]">
-                <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>B</Text>
-                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+              <View class="flex-row items-center gap-[4px]">
+                <Text class="text-2xl font-bold" style={{ textColor: theme().primary }}>B</Text>
+                <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl font-bold text-[#e6e0e9]"}>
                   {language() === "zh" ? "返回" : language() === "ja" ? "戻る" : "Back"}
                 </Text>
               </View>
 
               {/* (+) Button */}
               {isCarouselScreen() && (
-                <View class="flex-row items-center gap-[8px]">
-                  <Text class="text-xl font-bold" style={{ textColor: theme().primary }}>+</Text>
-                  <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-xl font-bold text-[#e6e0e9]" : "text-lg font-bold text-[#e6e0e9]"}>
+                <View class="flex-row items-center gap-[4px]">
+                  <Text class="text-2xl font-bold" style={{ textColor: theme().primary }}>+</Text>
+                  <Text class={fontSize() === "huge" ? "text-2xl font-bold text-[#e6e0e9]" : fontSize() === "large" ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl font-bold text-[#e6e0e9]"}>
                     {language() === "zh" ? "选项" : language() === "ja" ? "設定" : "Options"}
                   </Text>
                 </View>
@@ -1698,18 +1698,18 @@ mount(() => {
         </View>
 
       {launchingLabel() && (
-        <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#000000d9] flex-col items-center justify-center z-50">
-          <View class="w-[430px] h-[250px] rounded-[28px] border-2 flex-col items-center justify-between p-[22px]"
+        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000d9] flex-col items-center justify-center z-50">
+          <View class="w-[215px] h-[125px] rounded-[14px] border-2 flex-col items-center justify-between p-[11px]"
             style={{ bgColor: "#17151e", borderColor: theme().primary }}>
-            <View class="w-[386px] flex-row items-center gap-[16px]">
-              <View class="w-[96px] h-[96px] rounded-[18px] items-center justify-center overflow-hidden" style={{ bgColor: theme().container }}>
-                <Image src={appCoverSrc(selectedApp())} class="w-[96px] h-[96px]" />
+            <View class="w-[193px] flex-row items-center gap-[8px]">
+              <View class="w-[48px] h-[48px] rounded-[9px] items-center justify-center overflow-hidden" style={{ bgColor: theme().container }}>
+                <Image src={appCoverSrc(selectedApp())} class="w-[48px] h-[48px]" />
               </View>
-              <View class="flex-1 flex-col gap-[6px]">
+              <View class="flex-1 flex-col gap-[3px]">
                 <Text class="text-xs font-bold tracking-wide" style={{ textColor: theme().primary }}>
                   {language() === "zh" ? "正在打开" : language() === "ja" ? "起動中" : "LAUNCHING"}
                 </Text>
-                <Text class="text-xl font-bold text-[#ffffff]">
+                <Text class="text-2xl font-bold text-[#ffffff]">
                   {launchingLabel()}
                 </Text>
                 <Text class="text-xs text-[#cac4d0]">
@@ -1717,30 +1717,30 @@ mount(() => {
                 </Text>
               </View>
             </View>
-            <View class="w-[386px] h-[12px] rounded-[999px] bg-[#2b2930] overflow-hidden flex-row items-center p-[2px]">
-              <View class="h-full rounded-[999px]" style={{ width: Math.round((launchingPhase() / 100) * 382), bgColor: theme().primary }} />
+            <View class="w-[193px] h-[6px] rounded-[999px] bg-[#2b2930] overflow-hidden flex-row items-center p-[1px]">
+              <View class="h-full rounded-[999px]" style={{ width: Math.round((launchingPhase() / 100) * 191), bgColor: theme().primary }} />
             </View>
-            <Text class="text-2xs font-bold text-[#938f99]">
+            <Text class="text-xs font-bold text-[#938f99]">
               {language() === "zh" ? "正在进入应用…" : language() === "ja" ? "アプリを準備しています…" : "Starting the app…"}
             </Text>
           </View>
         </View>
       )}
 
-      <View ref={(node: NodeMirror) => { toastNode = node; }} class="absolute bottom-[60px] left-[180px] w-[360px] h-[36px] items-center opacity-0">
-        <View class="w-[360px] h-[36px] rounded-full bg-[#1e222a] border border-[#3e4555] items-center justify-center shadow-lg">
-          <Text class="text-sm font-bold text-white text-center">{toastMessage()}</Text>
+      <View ref={(node: NodeMirror) => { toastNode = node; }} class="absolute bottom-[30px] left-[90px] w-[180px] h-[18px] items-center opacity-0">
+        <View class="w-[180px] h-[18px] rounded-full bg-[#1e222a] border border-[#3e4555] items-center justify-center shadow-lg">
+          <Text class="text-xs font-bold text-white text-center">{toastMessage()}</Text>
         </View>
       </View>
 
       {seriesModalOpen() && seriesSelectedApp() ? (
-        <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#000000e0] flex-col items-center justify-center z-50">
-          <View class="w-[640px] h-[440px] rounded-[24px] bg-[#1e1a22] border-2 flex-col p-[16px] justify-between" style={{ borderColor: theme().primary }}>
+        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000e0] flex-col items-center justify-center z-50">
+          <View class="w-[320px] h-[220px] rounded-[12px] bg-[#1e1a22] border-2 flex-col p-[8px] justify-between" style={{ borderColor: theme().primary }}>
             {/* Header */}
-            <View class="flex-row items-center gap-[14px] pb-[4px]">
-              <Image src={appCoverSrc(seriesSelectedApp() || undefined)} class="w-[52px] h-[52px]" />
-              <View class="flex-col gap-[2px]">
-                <Text class="text-xl font-bold text-[#e6e0e9]">
+            <View class="flex-row items-center gap-[7px] pb-[2px]">
+              <Image src={appCoverSrc(seriesSelectedApp() || undefined)} class="w-[26px] h-[26px]" />
+              <View class="flex-col gap-[1px]">
+                <Text class="text-2xl font-bold text-[#e6e0e9]">
                   {seriesSelectedApp()?.label || ""}
                 </Text>
                 <Text class="text-xs text-[#cac4d0]">
@@ -1748,10 +1748,10 @@ mount(() => {
                 </Text>
               </View>
             </View>
-            <View class="w-[608px] h-[1px] bg-[#49454f]" />
+            <View class="w-[304px] h-[1px] bg-[#49454f]" />
 
             {/* Version List */}
-            <View class="flex-col gap-[6px]">
+            <View class="flex-col gap-[3px]">
               <Index each={seriesSelectedApp()?.seriesItems || []}>
                 {(item, idx) => {
                   const isCur = () => seriesCursor() === idx;
@@ -1760,25 +1760,25 @@ mount(() => {
                     <TouchTarget
                       onPress={() => launchSeriesItem(item())}
                       class={isCur()
-                        ? "w-[608px] h-[46px] rounded-[12px] border-2 flex-row items-center justify-between px-[14px]"
-                        : "w-[608px] h-[46px] rounded-[12px] bg-[#2b2930] flex-row items-center justify-between px-[14px]"}
+                        ? "w-[304px] h-[23px] rounded-[6px] border-2 flex-row items-center justify-between px-[7px]"
+                        : "w-[304px] h-[23px] rounded-[6px] bg-[#2b2930] flex-row items-center justify-between px-[7px]"}
                       style={isCur()
                         ? { bgColor: theme().container, borderColor: theme().primary }
                         : { bgColor: "#2b2930", borderColor: "#2b2930" }}
                     >
-                      <View class="flex-row items-center gap-[10px]">
-                        <View class="px-[8px] py-[2px] rounded-[6px]" style={{ bgColor: theme().container }}>
+                      <View class="flex-row items-center gap-[5px]">
+                        <View class="px-[4px] py-[1px] rounded-[3px]" style={{ bgColor: theme().container }}>
                           <Text class="text-xs font-bold" style={{ textColor: theme().onContainer }}>
                             {item().romPath.split(".").pop()?.toUpperCase() || "ROM"}
                           </Text>
                         </View>
-                        <Text class={isCur() ? "text-base font-bold text-[#ffffff]" : "text-base font-bold text-[#e6e0e9]"}>
+                        <Text class={isCur() ? "text-xs font-bold text-[#ffffff]" : "text-xs font-bold text-[#e6e0e9]"}>
                           {item().title}
                         </Text>
                       </View>
                       {isMru() ? (
-                        <View class="px-[8px] py-[2px] rounded-[8px]" style={{ bgColor: theme().activeSurface }}>
-                          <Text class="text-2xs font-bold" style={{ textColor: theme().primary }}>
+                        <View class="px-[4px] py-[1px] rounded-[4px]" style={{ bgColor: theme().activeSurface }}>
+                          <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>
                             {t("series.recent")}
                           </Text>
                         </View>
@@ -1789,22 +1789,22 @@ mount(() => {
               </Index>
             </View>
 
-            <View class="w-[608px] h-[1px] bg-[#49454f]" />
+            <View class="w-[304px] h-[1px] bg-[#49454f]" />
             {/* Footer */}
-            <View class="flex-row items-center justify-between pt-[4px]">
+            <View class="flex-row items-center justify-between pt-[2px]">
               <Text class="text-xs text-[#cac4d0]">
                 {language() === "zh" ? "▲ ▼ 选择版本" : "▲ ▼ Select Version"}
               </Text>
-              <View class="flex-row items-center gap-[16px]">
-                <View class="flex-row items-center gap-[6px]">
-                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
-                    <Text class="text-2xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
+              <View class="flex-row items-center gap-[8px]">
+                <View class="flex-row items-center gap-[3px]">
+                  <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
+                    <Text class="text-xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
                   </View>
                   <Text class="text-xs font-bold text-[#e6e0e9]">{language() === "zh" ? "开始游戏" : "Start"}</Text>
                 </View>
-                <View class="flex-row items-center gap-[6px]">
-                  <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
-                    <Text class="text-2xs font-bold text-[#ffffff]">B</Text>
+                <View class="flex-row items-center gap-[3px]">
+                  <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
+                    <Text class="text-xs font-bold text-[#ffffff]">B</Text>
                   </View>
                   <Text class="text-xs font-bold text-[#cac4d0]">{language() === "zh" ? "返回" : "Back"}</Text>
                 </View>
@@ -1815,23 +1815,23 @@ mount(() => {
       ) : null}
 
       {gameOptionsOpen() ? (
-        <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#00000099] flex-col items-center justify-center">
-          <View class="w-[320px] h-[120px] rounded-[16px] bg-[#1c2028] border-2 flex-col items-center justify-center gap-[12px] p-[16px]" style={{ borderColor: theme().primary }}>
-            <Text class="text-base font-bold text-white text-center">
+        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#00000099] flex-col items-center justify-center">
+          <View class="w-[160px] h-[60px] rounded-[8px] bg-[#1c2028] border-2 flex-col items-center justify-center gap-[6px] p-[8px]" style={{ borderColor: theme().primary }}>
+            <Text class="text-xs font-bold text-white text-center">
               {favorites().includes(selectedApp()?.romPath || "")
                 ? (language() === "zh" ? "取消收藏" : language() === "ja" ? "お気に入り解除" : "Remove Favorite")
                 : (language() === "zh" ? "加入收藏" : language() === "ja" ? "お気に入り追加" : "Add Favorite")}
             </Text>
-            <View class="flex-row items-center gap-[16px]">
-              <View class="flex-row items-center gap-[6px]">
-                <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
-                  <Text class="text-2xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
+            <View class="flex-row items-center gap-[8px]">
+              <View class="flex-row items-center gap-[3px]">
+                <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().primary }}>
+                  <Text class="text-xs font-bold" style={{ textColor: theme().switchThumb }}>A</Text>
                 </View>
                 <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "确定" : "OK"}</Text>
               </View>
-              <View class="flex-row items-center gap-[6px]">
-                <View class="w-[20px] h-[20px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
-                  <Text class="text-2xs font-bold text-white">B</Text>
+              <View class="flex-row items-center gap-[3px]">
+                <View class="w-[10px] h-[10px] items-center justify-center rounded-full" style={{ bgColor: theme().activeSurface }}>
+                  <Text class="text-xs font-bold text-white">B</Text>
                 </View>
                 <Text class="text-xs text-[#c0c6d4]">{language() === "zh" ? "返回" : "Back"}</Text>
               </View>
@@ -1855,11 +1855,11 @@ mount(() => {
 
       {/* Floating Volume / Brightness OSD */}
       {osd().visible && (
-        <View class="absolute top-[14px] left-[200px] w-[320px] h-[46px] rounded-[999px] bg-[#211f26] border border-[#49454f] flex-row items-center justify-between px-[18px] shadow-lg">
-          <Text class="text-lg font-bold text-[#e6e0e9]">
+        <View class="absolute top-[7px] left-[100px] w-[160px] h-[23px] rounded-[999px] bg-[#211f26] border border-[#49454f] flex-row items-center justify-between px-[9px] shadow-lg">
+          <Text class="text-2xl font-bold text-[#e6e0e9]">
             {osd().type === "brightness" ? "☼" : "🔊"}
           </Text>
-          <View class="w-[180px] h-[8px] rounded-[999px] bg-[#36343b] overflow-hidden">
+          <View class="w-[90px] h-[4px] rounded-[999px] bg-[#36343b] overflow-hidden">
             <View
               class="h-full rounded-[999px]"
               style={{
@@ -1868,7 +1868,7 @@ mount(() => {
               }}
             />
           </View>
-          <Text class="text-sm font-bold" style={{ textColor: theme().primary }}>
+          <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>
             {`${Math.round(osd().value)}%`}
           </Text>
         </View>
@@ -1877,19 +1877,19 @@ mount(() => {
       {/* Terminal View with Scaled Virtual Keyboard */}
       {terminalOpen() && (
         <View class="absolute inset-0 bg-[#0a0c10] flex-col justify-between z-50">
-          <View class="px-[16px] pt-[12px] pb-[4px] flex-col gap-[8px] flex-1">
+          <View class="px-[8px] pt-[6px] pb-[2px] flex-col gap-[4px] flex-1">
             {/* Terminal Window Header */}
-            <View class="w-[688px] h-[40px] flex-row items-center justify-between px-[14px] bg-[#161a23] rounded-[12px] border border-[#232936]">
-              <View class="flex-row items-center gap-[10px]">
-                <View class="w-[12px] h-[12px] rounded-[999px] bg-[#ff5f56]" />
-                <View class="w-[12px] h-[12px] rounded-[999px] bg-[#ffbd2e]" />
-                <View class="w-[12px] h-[12px] rounded-[999px] bg-[#27c93f]" />
-                <Text class="text-sm font-bold text-[#e6e0e9] ml-[10px]">
+            <View class="w-[344px] h-[20px] flex-row items-center justify-between px-[7px] bg-[#161a23] rounded-[6px] border border-[#232936]">
+              <View class="flex-row items-center gap-[5px]">
+                <View class="w-[6px] h-[6px] rounded-[999px] bg-[#ff5f56]" />
+                <View class="w-[6px] h-[6px] rounded-[999px] bg-[#ffbd2e]" />
+                <View class="w-[6px] h-[6px] rounded-[999px] bg-[#27c93f]" />
+                <Text class="text-xs font-bold text-[#e6e0e9] ml-[5px]">
                   bash - root@rg34xx: ~ (720×480)
                 </Text>
               </View>
-              <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[12px] py-[6px] rounded-[8px] bg-[#262c3a] border border-[#363e52]">
-                <Text class="text-sm font-bold text-[#e6e0e9]">B {language() === "zh" ? "退出" : "Exit"}</Text>
+              <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[6px] py-[3px] rounded-[4px] bg-[#262c3a] border border-[#363e52]">
+                <Text class="text-xs font-bold text-[#e6e0e9]">B {language() === "zh" ? "退出" : "Exit"}</Text>
               </TouchTarget>
             </View>
 
@@ -1897,14 +1897,14 @@ mount(() => {
             <View
               class={
                 terminalOsk.isOpen()
-                  ? "w-[688px] h-[128px] bg-[#10131a] rounded-[12px] border border-[#1e2330] p-[12px] flex-col justify-start gap-[2px] overflow-hidden"
-                  : "w-[688px] flex-1 bg-[#10131a] rounded-[12px] border border-[#1e2330] p-[14px] flex-col justify-start gap-[4px] overflow-hidden"
+                  ? "w-[344px] h-[64px] bg-[#10131a] rounded-[6px] border border-[#1e2330] p-[6px] flex-col justify-start gap-[1px] overflow-hidden"
+                  : "w-[344px] flex-1 bg-[#10131a] rounded-[6px] border border-[#1e2330] p-[7px] flex-col justify-start gap-[2px] overflow-hidden"
               }
             >
               <Index each={terminalLines()}>
                 {(line) => (
                   <Text
-                    class="text-sm font-mono font-bold"
+                    class="text-xs font-mono font-bold"
                     style={{
                       textColor: line().startsWith("root@")
                         ? "#5af78e"
@@ -1937,17 +1937,17 @@ mount(() => {
                   }
                 }
               }}
-              class="w-[688px] h-[44px] px-[14px] bg-[#161a23] rounded-[12px] border border-[#2d3546] flex-row items-center justify-between"
+              class="w-[344px] h-[22px] px-[7px] bg-[#161a23] rounded-[6px] border border-[#2d3546] flex-row items-center justify-between"
             >
-              <View class="flex-row items-center gap-[10px] flex-1 overflow-hidden">
-                <Text class="text-sm font-bold text-[#5af78e]">root@rg34xx:~#</Text>
-                <Text class="text-sm font-mono font-bold text-white">
+              <View class="flex-row items-center gap-[5px] flex-1 overflow-hidden">
+                <Text class="text-xs font-bold text-[#5af78e]">root@rg34xx:~#</Text>
+                <Text class="text-xs font-mono font-bold text-white">
                   {(terminalInput().startsWith("qdate") ? "date" : terminalInput()) || (language() === "zh" ? "点击或按 A 激活键盘输入..." : "Tap or press A to type...")}
                 </Text>
-                <Text class="text-sm font-mono font-bold text-[#5af78e]">_</Text>
+                <Text class="text-xs font-mono font-bold text-[#5af78e]">_</Text>
               </View>
-              <View class="px-[12px] py-[6px] rounded-[8px] bg-[#5af78e2b] border border-[#5af78e55]">
-                <Text class="text-sm font-bold text-[#5af78e]">
+              <View class="px-[6px] py-[3px] rounded-[4px] bg-[#5af78e2b] border border-[#5af78e55]">
+                <Text class="text-xs font-bold text-[#5af78e]">
                   {terminalOsk.isOpen() ? (language() === "zh" ? "↵ 执行 / B 收起" : "↵ Run / B Hide") : (language() === "zh" ? "A 键盘" : "A Keyboard")}
                 </Text>
               </View>

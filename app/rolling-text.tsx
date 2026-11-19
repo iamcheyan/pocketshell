@@ -77,12 +77,12 @@ export function RollingText(props: RollingTextProps) {
   });
 
   return (
-    <View class="h-[12px] overflow-hidden" style={{ width: props.width, overflow: 1 }}>
+    <View class="h-[6px] overflow-hidden" style={{ width: props.width, overflow: 1 }}>
       <Text
         ref={(mirror: NodeMirror) => {
           node = mirror;
         }}
-        class="text-2xs"
+        class="text-xs"
         style={{ textColor: props.color }}
       >
         {props.value}

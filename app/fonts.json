@@ -3,8 +3,7 @@
     "launcher-characters.txt"
   ],
   "fallback": [
-    "fonts/SarasaUiSC-Regular.ttf",
-    "fonts/SarasaUiSC-Bold.ttf",
+    "fonts/FusionPixel-12px-monospaced-zh_hans.ttf",
     "fonts/SymbolsNerdFontMono-Regular.ttf"
   ]
 }

@@ -21,16 +21,14 @@ OSK_THEME_PATCH=${PJOS_OSK_THEME_PATCH:-"$REPO/../PJOS-LINUX/src/apply-pocketjs-
 [ -f "$OSK_THEME_PATCH" ] || { echo "build: PJOS OSK theme patch not found at $OSK_THEME_PATCH" >&2; exit 1; }
 python3 "$OSK_THEME_PATCH" "$SDK/framework/src/osk.tsx"
 
-# The package bakes its glyph atlas from these faces: Sarasa UI SC (更纱黑体) for
-# UI and mono slots, with the bold face and the Nerd symbols as fallbacks via
-# fonts.json — keep that identical or the panel loses glyphs.
-FONT="$REPO/app/fonts/SarasaUiSC-Regular.ttf"
-BOLD="$REPO/app/fonts/SarasaUiSC-Bold.ttf"
-export POCKETJS_FONT_REGULAR="$FONT"
-export POCKETJS_FONT_BOLD="$BOLD"
-export POCKETJS_FONT_MONO="$FONT"
+# Keep every text slot on Fusion Pixel's 12 px grid. The glyph atlas is
+# rasterized at native 12 px, then the complete 360x240 frame is presented at
+# 2x on the 720x480 panel. The Japanese face covers Latin and Japanese; the
+# zh-Hans subset fills missing Chinese glyphs, and Nerd Font supplies symbols.
+FONT="$REPO/app/fonts/fusion-pixel-12px-monospaced-ja.ttf"
 
 mkdir -p "$APP_DIR" "$PROGRAM_DIR" "$REPO/dist"
+python3 "$REPO/scripts/patch-pocketjs-font-args.py" "$SDK"
 rsync -a --delete "$REPO/app/" "$APP_DIR/"
 "$BUN" "$REPO/scripts/stage-library-glyphs.ts" "$APP_DIR"
 cp "$REPO/config/profile.ts" "$PROGRAM_DIR/profile.ts"
@@ -48,6 +46,9 @@ echo "== compile"
   --runtime-config "programs/pocketshell/pocket.runtime-config.ts" \
   --target "$TARGET" \
   --manifest "apps/pocketshell/pocket.json" \
+  --font-regular "$FONT" \
+  --font-bold "$FONT" \
+  --font-mono "$FONT" \
   --output "$OUT"
 
 echo "== package"

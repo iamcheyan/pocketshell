@@ -82,7 +82,7 @@ function LevelMeter(props: {
   return (
     <View
       ref={(node: NodeMirror) => { track = node; }}
-      class="w-[180px] h-[18px] rounded-[999px] bg-[#36343b] overflow-hidden flex-row items-center p-[2px]"
+      class="w-[90px] h-[9px] rounded-[999px] bg-[#36343b] overflow-hidden flex-row items-center p-[1px]"
     >
       <View
         class="h-full rounded-[999px]"
@@ -105,7 +105,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const isHuge = () => props.state.fontSize === "huge";
   const isLarge = () => props.state.fontSize === "large";
 
-  const rowHeight = () => (isHuge() ? 62 : isLarge() ? 56 : 52);
+  const rowHeight = () => (isHuge() ? 31 : isLarge() ? 28 : 26);
 
   const visibleWindow = () => {
     const sel = Math.max(0, Math.min(SETTINGS_COUNT - 1, props.state.selectedIndex));
@@ -130,13 +130,13 @@ export function SettingsPage(props: SettingsPageProps) {
         }}
         class={
           on
-            ? "w-[52px] h-[30px] rounded-[999px] flex-row items-center justify-end px-[3px]"
-            : "w-[52px] h-[30px] rounded-[999px] bg-[#36343b] flex-row items-center justify-start px-[3px]"
+            ? "w-[26px] h-[15px] rounded-[999px] flex-row items-center justify-end px-[2px]"
+            : "w-[26px] h-[15px] rounded-[999px] bg-[#36343b] flex-row items-center justify-start px-[2px]"
         }
         style={on ? { bgColor: theme().primary } : undefined}
       >
         <View
-          class="w-[24px] h-[24px] rounded-[999px]"
+          class="w-[12px] h-[12px] rounded-[999px]"
           style={{ bgColor: on ? theme().switchThumb : "#938f99" }}
         />
       </TouchTarget>
@@ -145,9 +145,9 @@ export function SettingsPage(props: SettingsPageProps) {
 
   // M3 Chip
   const enumPill = (text: string) => (
-    <View class="px-[16px] h-[34px] items-center justify-center bg-[#36343b] rounded-[999px]">
+    <View class="px-[8px] h-[17px] items-center justify-center bg-[#36343b] rounded-[999px]">
       <Text
-        class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
+        class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
         style={{ textColor: theme().onContainer }}
       >
         {text}
@@ -162,7 +162,7 @@ export function SettingsPage(props: SettingsPageProps) {
       const shown =
         level !== null && Number.isFinite(level) ? `${Math.round(level)}%` : t("common.unknown");
       return (
-        <View class="flex-row items-center gap-[14px]">
+        <View class="flex-row items-center gap-[7px]">
           <LevelMeter
             rowKey={row.key as LevelKey}
             value={level !== null && Number.isFinite(level) ? level : null}
@@ -177,9 +177,9 @@ export function SettingsPage(props: SettingsPageProps) {
             }}
             onCancel={() => props.onLevelCancel?.()}
           />
-          <View class="w-[50px] flex-row items-center justify-end">
+          <View class="w-[25px] flex-row items-center justify-end">
             <Text
-              class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
+              class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
               style={{ textColor: theme().primary }}
             >
               {shown}
@@ -191,9 +191,9 @@ export function SettingsPage(props: SettingsPageProps) {
     if (row.kind === "toggle") {
       if (row.key === "wifi") {
         return (
-          <View class="flex-row items-center gap-[12px]">
+          <View class="flex-row items-center gap-[6px]">
             <Text
-              class={isHuge() ? "text-lg text-[#cac4d0]" : "text-base text-[#cac4d0]"}
+              class={isHuge() ? "text-2xl text-[#cac4d0]" : "text-xs text-[#cac4d0]"}
             >
               {props.state.wifiConnected
                 ? props.state.ipAddress && props.state.ipAddress !== "--"
@@ -221,7 +221,7 @@ export function SettingsPage(props: SettingsPageProps) {
           { code: "ja", label: "日本語" },
         ];
         return (
-          <View class="h-[34px] rounded-[999px] bg-[#36343b] flex-row items-center p-[2px]">
+          <View class="h-[17px] rounded-[999px] bg-[#36343b] flex-row items-center p-[1px]">
             <Index each={langs}>
               {(l) => {
                 const active = () => props.state.language === l().code;
@@ -234,13 +234,13 @@ export function SettingsPage(props: SettingsPageProps) {
                     }}
                     class={
                       active()
-                        ? "px-[12px] h-[30px] rounded-[999px] items-center justify-center"
-                        : "px-[10px] h-[30px] rounded-[999px] items-center justify-center bg-transparent"
+                        ? "px-[6px] h-[15px] rounded-[999px] items-center justify-center"
+                        : "px-[5px] h-[15px] rounded-[999px] items-center justify-center bg-transparent"
                     }
                     style={active() ? { bgColor: theme().primary } : undefined}
                   >
                     <Text
-                      class={active() ? "text-sm font-bold" : "text-sm text-[#cac4d0]"}
+                      class={active() ? "text-xs font-bold" : "text-xs text-[#cac4d0]"}
                       style={active() ? { textColor: theme().switchThumb } : undefined}
                     >
                       {l().label}
@@ -259,7 +259,7 @@ export function SettingsPage(props: SettingsPageProps) {
           { key: "huge", label: t("fontSize.huge") },
         ];
         return (
-          <View class="h-[34px] rounded-[999px] bg-[#36343b] flex-row items-center p-[2px]">
+          <View class="h-[17px] rounded-[999px] bg-[#36343b] flex-row items-center p-[1px]">
             <Index each={sizes}>
               {(s) => {
                 const active = () => (props.state.fontSize || "normal") === s().key;
@@ -271,13 +271,13 @@ export function SettingsPage(props: SettingsPageProps) {
                     }}
                     class={
                       active()
-                        ? "px-[12px] h-[30px] rounded-[999px] items-center justify-center"
-                        : "px-[10px] h-[30px] rounded-[999px] items-center justify-center bg-transparent"
+                        ? "px-[6px] h-[15px] rounded-[999px] items-center justify-center"
+                        : "px-[5px] h-[15px] rounded-[999px] items-center justify-center bg-transparent"
                     }
                     style={active() ? { bgColor: theme().primary } : undefined}
                   >
                     <Text
-                      class={active() ? "text-sm font-bold" : "text-sm text-[#cac4d0]"}
+                      class={active() ? "text-xs font-bold" : "text-xs text-[#cac4d0]"}
                       style={active() ? { textColor: theme().switchThumb } : undefined}
                     >
                       {s().label}
@@ -298,11 +298,11 @@ export function SettingsPage(props: SettingsPageProps) {
               props.onSelect?.(realIndex);
               props.onAdjust?.(realIndex, 1);
             }}
-            class="px-[14px] h-[34px] items-center justify-center bg-[#36343b] rounded-[999px] flex-row gap-[8px]"
+            class="px-[7px] h-[17px] items-center justify-center bg-[#36343b] rounded-[999px] flex-row gap-[4px]"
           >
-            <View class="w-[12px] h-[12px] rounded-[999px]" style={{ bgColor: pal.primary }} />
+            <View class="w-[6px] h-[6px] rounded-[999px]" style={{ bgColor: pal.primary }} />
             <Text
-              class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
+              class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
               style={{ textColor: pal.primary }}
             >
               {t(`theme.${key}`)}
@@ -318,9 +318,9 @@ export function SettingsPage(props: SettingsPageProps) {
               props.onSelect?.(realIndex);
               props.onAdjust?.(realIndex, 1);
             }}
-            class="flex-row items-center gap-[10px]"
+            class="flex-row items-center gap-[5px]"
           >
-            <Text class={isHuge() ? "text-lg text-[#cac4d0]" : "text-base text-[#cac4d0]"}>
+            <Text class={isHuge() ? "text-2xl text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>
               {t("settings.autoPoweroffCharger")}
             </Text>
             {enumPill(
@@ -344,7 +344,7 @@ export function SettingsPage(props: SettingsPageProps) {
     if (row.kind === "text") {
       return (
         <Text
-          class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
+          class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
           style={{ textColor: "#e6e0e9" }}
         >
           {raw || t("common.unknown")}
@@ -352,9 +352,9 @@ export function SettingsPage(props: SettingsPageProps) {
       );
     }
     return (
-      <View class="px-[14px] py-[6px] rounded-[999px] bg-[#36343b]">
+      <View class="px-[7px] py-[3px] rounded-[999px] bg-[#36343b]">
         <Text
-          class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
+          class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
           style={{ textColor: theme().primary }}
         >
           {t("settings.pressA")}
@@ -364,22 +364,22 @@ export function SettingsPage(props: SettingsPageProps) {
   };
 
   return (
-    <View class="w-[720px] h-[348px] px-[36px] py-[8px] flex-col justify-between items-center bg-transparent">
+    <View class="w-[360px] h-[174px] px-[18px] py-[4px] flex-col justify-between items-center bg-transparent">
       {/* Category heading (M3 Title Large) */}
-      <View class="w-[660px] h-[30px] flex-row items-center justify-between px-[6px]">
+      <View class="w-[330px] h-[15px] flex-row items-center justify-between px-[3px]">
         <Text
-          class={isHuge() ? "text-2xl font-bold tracking-wide" : "text-xl font-bold tracking-wide"}
+          class={isHuge() ? "text-2xl font-bold tracking-wide" : "text-2xl font-bold tracking-wide"}
           style={{ textColor: theme().primary }}
         >
           {t(`settings.group.${windowGroup()}`)}
         </Text>
-        <Text class={isHuge() ? "text-lg font-bold text-[#cac4d0]" : "text-base font-bold text-[#cac4d0]"}>
+        <Text class={isHuge() ? "text-2xl font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
           {`${props.state.selectedIndex + 1} / ${SETTINGS_COUNT}`}
         </Text>
       </View>
 
       {/* M3 List Container (Borderless, soft surface highlights, dynamic height) */}
-      <View class="flex-col w-[660px] gap-[6px]">
+      <View class="flex-col w-[330px] gap-[3px]">
         <Index each={visibleWindow()}>
           {(entry) => {
             const selected = () => props.state.selectedIndex === entry().realIndex;
@@ -391,17 +391,17 @@ export function SettingsPage(props: SettingsPageProps) {
                 }}
                 class={
                   selected()
-                    ? "w-[660px] px-[16px] flex-row items-center justify-between rounded-[16px]"
-                    : "w-[660px] px-[16px] flex-row items-center justify-between rounded-[16px] bg-transparent"
+                    ? "w-[330px] px-[8px] flex-row items-center justify-between rounded-[8px]"
+                    : "w-[330px] px-[8px] flex-row items-center justify-between rounded-[8px] bg-transparent"
                 }
                 style={{
                   height: rowHeight(),
                   bgColor: selected() ? theme().activeSurface : "#00000000",
                 }}
               >
-                <View class="flex-row items-center gap-[12px]">
+                <View class="flex-row items-center gap-[6px]">
                   <View
-                    class="w-[4px] h-[24px] rounded-[999px]"
+                    class="w-[2px] h-[12px] rounded-[999px]"
                     style={{ bgColor: selected() ? theme().primary : "#00000000" }}
                   />
                   <Text
@@ -409,8 +409,8 @@ export function SettingsPage(props: SettingsPageProps) {
                       isHuge()
                         ? (selected() ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl text-[#cac4d0]")
                         : isLarge()
-                        ? (selected() ? "text-xl font-bold text-[#e6e0e9]" : "text-xl text-[#cac4d0]")
-                        : (selected() ? "text-xl font-bold text-[#e6e0e9]" : "text-lg text-[#cac4d0]")
+                        ? (selected() ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl text-[#cac4d0]")
+                        : (selected() ? "text-2xl font-bold text-[#e6e0e9]" : "text-2xl text-[#cac4d0]")
                     }
                   >
                     {rowLabel(entry().row)}

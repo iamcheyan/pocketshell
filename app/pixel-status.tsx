@@ -30,20 +30,20 @@ export function PixelStatus(props: { kind: keyof typeof MASKS; color: string; sc
     }
     return result;
   });
-  return <View class="relative" style={{ width: (props.kind === "bolt" ? 5 : 9) * (props.scale || 1), height: 9 * (props.scale || 1) }}>
+  return <View class="relative" style={{ width: (props.kind === "bolt" ? 5 : 9) * (props.scale || 1), height: 2 * (props.scale || 1) }}>
     <Index each={runs()}>{(run) => <View class="absolute" style={{ insetL: run().x * (props.scale || 1), insetT: run().y * (props.scale || 1), width: run().width * (props.scale || 1), height: props.scale || 1, bgColor: props.color }} />}</Index>
   </View>;
 }
 export function PixelBattery(props: { level: number; charging: boolean; color: string; outline: string }) {
   const cells = () => props.level < 0 ? 0 : Math.ceil(Math.max(0, Math.min(100, props.level)) / 25);
   return <View class="flex-row items-center">
-    <View class="relative w-[12px] h-[7px]">
-      <View class="absolute left-0 top-0 w-[11px] h-[1px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-0 top-[6px] w-[11px] h-[1px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-0 top-0 w-[1px] h-[7px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-[10px] top-0 w-[1px] h-[7px]" style={{ bgColor: props.outline }} />
-      <View class="absolute left-[11px] top-[2px] w-[1px] h-[3px]" style={{ bgColor: props.outline }} />
-      {props.charging ? <View class="absolute left-[3px] top-0"><PixelStatus kind="bolt" color={props.color} /></View> : <Index each={[0,1,2,3]}>{(cell) => <View class="absolute" style={{ insetL: 2 + cell() * 2, insetT: 2, width: 1, height: 3, bgColor: cell() < cells() ? props.color : "#38334f" }} />}</Index>}
+    <View class="relative w-[6px] h-[4px]">
+      <View class="absolute left-0 top-0 w-[6px] h-[1px]" style={{ bgColor: props.outline }} />
+      <View class="absolute left-0 top-[3px] w-[6px] h-[1px]" style={{ bgColor: props.outline }} />
+      <View class="absolute left-0 top-0 w-[1px] h-[4px]" style={{ bgColor: props.outline }} />
+      <View class="absolute left-[5px] top-0 w-[1px] h-[4px]" style={{ bgColor: props.outline }} />
+      <View class="absolute left-[6px] top-[1px] w-[1px] h-[2px]" style={{ bgColor: props.outline }} />
+      {props.charging ? <View class="absolute left-[2px] top-0"><PixelStatus kind="bolt" color={props.color} /></View> : <Index each={[0,1,2,3]}>{(cell) => <View class="absolute" style={{ insetL: 1 + cell() * 2, insetT: 1, width: 1, height: 2, bgColor: cell() < cells() ? props.color : "#38334f" }} />}</Index>}
     </View>
   </View>;
 }

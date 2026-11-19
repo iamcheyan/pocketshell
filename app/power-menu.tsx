@@ -28,14 +28,14 @@ export function PowerMenu(props: PowerMenuProps) {
   const theme = () => THEME_PALETTES[props.themeColor] || THEME_PALETTES.purple;
   const t = () => translator(props.language);
   return (
-    <View class="absolute left-0 top-0 w-[720px] h-[480px] bg-[#000000bf] flex-col items-center justify-center">
-      <View class="w-[460px] h-[240px] rounded-[16px] bg-[#1a1c24] border border-[#303644] flex-col justify-between p-[24px] shadow-lg">
-        <View class="w-[412px] flex-row items-center justify-between">
-          <Text class="text-lg font-bold text-white">{t()("powerMenu.title")}</Text>
+    <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000bf] flex-col items-center justify-center">
+      <View class="w-[230px] h-[120px] rounded-[8px] bg-[#1a1c24] border border-[#303644] flex-col justify-between p-[12px] shadow-lg">
+        <View class="w-[206px] flex-row items-center justify-between">
+          <Text class="text-2xl font-bold text-white">{t()("powerMenu.title")}</Text>
           <Text class="text-xs text-[#8c94a4]">{t()("powerMenu.hint")}</Text>
         </View>
 
-        <View class="w-[412px] flex-row items-center justify-center gap-[20px]">
+        <View class="w-[206px] flex-row items-center justify-center gap-[10px]">
           <Index each={ITEMS}>
             {(item) => {
               const armed = () => props.selected === item().action;
@@ -46,16 +46,16 @@ export function PowerMenu(props: PowerMenuProps) {
                     props.onConfirm(item().action);
                   }}
                   class={armed()
-                    ? "flex-1 h-[100px] flex-col items-center justify-center rounded-[12px] border-2"
-                    : "flex-1 h-[100px] flex-col items-center justify-center rounded-[12px] border"}
+                    ? "flex-1 h-[50px] flex-col items-center justify-center rounded-[6px] border-2"
+                    : "flex-1 h-[50px] flex-col items-center justify-center rounded-[6px] border"}
                   style={armed()
                     ? { bgColor: theme().activeSurface, borderColor: theme().primary }
                     : { bgColor: "#1e222a", borderColor: "#303644" }}
                 >
-                  <Text class="text-2xl font-bold mb-[6px]" style={{ textColor: armed() ? theme().primary : "#6c7484" }}>
+                  <Text class="text-2xl font-bold mb-[3px]" style={{ textColor: armed() ? theme().primary : "#6c7484" }}>
                     {item().icon}
                   </Text>
-                  <Text class={armed() ? "text-base font-bold text-white" : "text-base text-[#8c94a4]"}>
+                  <Text class={armed() ? "text-xs font-bold text-white" : "text-xs text-[#8c94a4]"}>
                     {t()(item().label)}
                   </Text>
                 </TouchTarget>
@@ -64,7 +64,7 @@ export function PowerMenu(props: PowerMenuProps) {
           </Index>
         </View>
 
-        <View class="w-[412px] flex-row items-center justify-center">
+        <View class="w-[206px] flex-row items-center justify-center">
           <Text class="text-xs" style={{ textColor: props.busy || props.refused ? theme().primary : "#8c94a4" }}>
             {props.busy
               ? t()("powerMenu.working")

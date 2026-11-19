@@ -45,10 +45,10 @@ function InfoRow(props: { label: string; value: string; color?: string; muted?: 
   const isHuge = () => props.fontSize === "huge";
   const isLarge = () => props.fontSize === "large";
   return (
-    <View class="w-[660px] h-[44px] px-[20px] rounded-[16px] bg-[#211f26] flex-row items-center justify-between mb-[6px] border border-[#2d2938]">
-      <Text class={isHuge() ? "text-xl font-bold text-[#cac4d0]" : isLarge() ? "text-lg font-bold text-[#cac4d0]" : "text-base font-bold text-[#cac4d0]"}>{props.label}</Text>
+    <View class="w-[330px] h-[22px] px-[10px] rounded-[8px] bg-[#211f26] flex-row items-center justify-between mb-[3px] border border-[#2d2938]">
+      <Text class={isHuge() ? "text-2xl font-bold text-[#cac4d0]" : isLarge() ? "text-2xl font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>{props.label}</Text>
       <Text
-        class={isHuge() ? "text-xl font-bold" : isLarge() ? "text-lg font-bold" : "text-base font-bold"}
+        class={isHuge() ? "text-2xl font-bold" : isLarge() ? "text-2xl font-bold" : "text-xs font-bold"}
         style={{ textColor: props.muted ? "#938f99" : props.color ?? "#e6e0e9" }}
       >
         {props.value}
@@ -76,127 +76,127 @@ export function SystemPage(props: SystemPageProps) {
   let pageNode: NodeMirror | undefined;
 
   return (
-    <View class="w-[720px] h-[348px] px-[24px] py-[6px] bg-transparent flex-col items-center justify-center">
+    <View class="w-[360px] h-[174px] px-[12px] py-[3px] bg-transparent flex-col items-center justify-center">
       <View
-        class="w-[672px] h-[336px]"
+        class="w-[336px] h-[168px]"
         ref={(node: NodeMirror) => {
           pageNode = node;
         }}
       >
         {props.pageIndex === 0 ? (
-          <View class="w-[672px] h-[336px] flex-row items-center justify-between">
+          <View class="w-[336px] h-[168px] flex-row items-center justify-between">
             {/* Left Column: Device Identity Card */}
-            <View class="w-[230px] h-[336px] rounded-[24px] bg-[#1e1b24] p-[16px] flex-col items-center justify-between border border-[#2d2938]">
+            <View class="w-[115px] h-[168px] rounded-[12px] bg-[#1e1b24] p-[8px] flex-col items-center justify-between border border-[#2d2938]">
               {/* Device Image (Vector Flat Handheld Illustration) */}
-              <View class="w-[124px] h-[124px] items-center justify-center">
-                <Image src="cover-handheld.png" style={{ width: 116, height: 116 }} />
+              <View class="w-[62px] h-[62px] items-center justify-center">
+                <Image src="cover-handheld.png" style={{ width: 58, height: 58 }} />
               </View>
 
               {/* Device Names */}
               <View class="flex-col items-center text-center">
                 <Text class="text-2xl font-bold text-[#e6e0e9]">RG34XX</Text>
-                <Text class={isHuge() ? "text-base font-bold text-[#d0bcff] mt-[2px]" : isLarge() ? "text-sm font-bold text-[#d0bcff] mt-[2px]" : "text-xs font-bold text-[#d0bcff] mt-[2px]"}>{text(snapshot()?.model) || "Allwinner H700"}</Text>
-                <Text class={isHuge() ? "text-base text-[#938f99] mt-[2px]" : isLarge() ? "text-sm text-[#938f99] mt-[2px]" : "text-xs text-[#938f99] mt-[2px]"}>
+                <Text class={isHuge() ? "text-xs font-bold text-[#d0bcff] mt-[1px]" : isLarge() ? "text-xs font-bold text-[#d0bcff] mt-[1px]" : "text-xs font-bold text-[#d0bcff] mt-[1px]"}>{text(snapshot()?.model) || "Allwinner H700"}</Text>
+                <Text class={isHuge() ? "text-xs text-[#938f99] mt-[1px]" : isLarge() ? "text-xs text-[#938f99] mt-[1px]" : "text-xs text-[#938f99] mt-[1px]"}>
                   {snapshot()?.cpu || "4 Cores @ 1.5 GHz"}
                 </Text>
               </View>
 
               {/* OS Badge & Services */}
-              <View class="w-full flex-col gap-[6px]">
-                <View class="w-full h-[32px] px-[12px] rounded-[10px] bg-[#292633] flex-row items-center justify-between">
-                  <Text class={isHuge() ? "text-base text-[#cac4d0]" : isLarge() ? "text-sm text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>PJOS</Text>
-                  <Text class={isHuge() ? "text-base font-bold text-[#a8efff]" : isLarge() ? "text-sm font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{compactOs(snapshot()) || "1.5.3"}</Text>
+              <View class="w-full flex-col gap-[3px]">
+                <View class="w-full h-[16px] px-[6px] rounded-[5px] bg-[#292633] flex-row items-center justify-between">
+                  <Text class={isHuge() ? "text-xs text-[#cac4d0]" : isLarge() ? "text-xs text-[#cac4d0]" : "text-xs text-[#cac4d0]"}>PJOS</Text>
+                  <Text class={isHuge() ? "text-xs font-bold text-[#a8efff]" : isLarge() ? "text-xs font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{compactOs(snapshot()) || "1.5.3"}</Text>
                 </View>
-                <View class="w-full flex-row justify-between gap-[6px]">
+                <View class="w-full flex-row justify-between gap-[3px]">
                   <View
-                    class="flex-1 h-[28px] rounded-[8px] flex-row items-center justify-center gap-[4px]"
+                    class="flex-1 h-[14px] rounded-[4px] flex-row items-center justify-center gap-[2px]"
                     style={{ bgColor: props.status.ssh ? "#1e3a2f" : "#292633" }}
                   >
-                    <View class="w-[6px] h-[6px] rounded-[3px]" style={{ bgColor: props.status.ssh ? "#a8efff" : "#938f99" }} />
-                    <Text class={isHuge() ? "text-sm font-bold" : isLarge() ? "text-xs font-bold" : "text-2xs font-bold"} style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}>SSH</Text>
+                    <View class="w-[3px] h-[3px] rounded-[2px]" style={{ bgColor: props.status.ssh ? "#a8efff" : "#938f99" }} />
+                    <Text class={isHuge() ? "text-xs font-bold" : isLarge() ? "text-xs font-bold" : "text-xs font-bold"} style={{ textColor: props.status.ssh ? "#a8efff" : "#938f99" }}>SSH</Text>
                   </View>
                   <View
-                    class="flex-1 h-[28px] rounded-[8px] flex-row items-center justify-center gap-[4px]"
+                    class="flex-1 h-[14px] rounded-[4px] flex-row items-center justify-center gap-[2px]"
                     style={{ bgColor: props.status.adb ? "#1e3a2f" : "#292633" }}
                   >
-                    <View class="w-[6px] h-[6px] rounded-[3px]" style={{ bgColor: props.status.adb ? "#a8efff" : "#938f99" }} />
-                    <Text class={isHuge() ? "text-sm font-bold" : isLarge() ? "text-xs font-bold" : "text-2xs font-bold"} style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}>ADB</Text>
+                    <View class="w-[3px] h-[3px] rounded-[2px]" style={{ bgColor: props.status.adb ? "#a8efff" : "#938f99" }} />
+                    <Text class={isHuge() ? "text-xs font-bold" : isLarge() ? "text-xs font-bold" : "text-xs font-bold"} style={{ textColor: props.status.adb ? "#a8efff" : "#938f99" }}>ADB</Text>
                   </View>
                 </View>
               </View>
             </View>
 
             {/* Right Column: 3 Large Metric Cards */}
-            <View class="w-[426px] h-[336px] flex-col justify-between">
+            <View class="w-[213px] h-[168px] flex-col justify-between">
               {/* CPU Card */}
-              <View class="w-[426px] h-[104px] p-[16px] rounded-[20px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class="w-[213px] h-[52px] p-[8px] rounded-[10px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
                 <View class="flex-row items-center justify-between">
-                  <View class="flex-row items-center gap-[8px]">
-                    <View class="w-[10px] h-[10px] rounded-[5px] bg-[#d0bcff]" />
-                    <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>{t()("system.cpu")}</Text>
+                  <View class="flex-row items-center gap-[4px]">
+                    <View class="w-[5px] h-[5px] rounded-[2px] bg-[#d0bcff]" />
+                    <Text class={isHuge() ? "text-2xl font-bold text-[#e6e0e9]" : isLarge() ? "text-2xl font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>{t()("system.cpu")}</Text>
                   </View>
-                  <Text class={isHuge() ? "text-base text-[#938f99] font-bold" : isLarge() ? "text-sm text-[#938f99] font-bold" : "text-xs text-[#938f99] font-bold"}>
+                  <Text class={isHuge() ? "text-xs text-[#938f99] font-bold" : isLarge() ? "text-xs text-[#938f99] font-bold" : "text-xs text-[#938f99] font-bold"}>
                     {snapshot()?.frequency ? `${snapshot()!.frequency} · ` : ""}{snapshot()?.temperature || ""}
                   </Text>
                 </View>
                 <View class="flex-row items-end justify-between">
                   <Text class="text-2xl font-bold" style={{ textColor: "#d0bcff" }}>{percentText(cpu())}</Text>
-                  <View class="flex-col items-end gap-[6px]">
-                    <View class="w-[260px] h-[10px] rounded-[5px] bg-[#36343b] overflow-hidden">
+                  <View class="flex-col items-end gap-[3px]">
+                    <View class="w-[130px] h-[5px] rounded-[2px] bg-[#36343b] overflow-hidden">
                       <View
-                        class="h-[10px] rounded-[5px] bg-[#d0bcff]"
+                        class="h-[5px] rounded-[2px] bg-[#d0bcff]"
                         style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, cpu() ?? 0)) / 100) * 260)) }}
                       />
                     </View>
-                    <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{snapshot()?.cpu || "Quad-Core ARM"}</Text>
+                    <Text class={isHuge() ? "text-xs text-[#938f99]" : isLarge() ? "text-xs text-[#938f99]" : "text-xs text-[#938f99]"}>{snapshot()?.cpu || "Quad-Core ARM"}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Memory Card */}
-              <View class="w-[426px] h-[104px] p-[16px] rounded-[20px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class="w-[213px] h-[52px] p-[8px] rounded-[10px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
                 <View class="flex-row items-center justify-between">
-                  <View class="flex-row items-center gap-[8px]">
-                    <View class="w-[10px] h-[10px] rounded-[5px] bg-[#a8efff]" />
-                    <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>{t()("system.memory")}</Text>
+                  <View class="flex-row items-center gap-[4px]">
+                    <View class="w-[5px] h-[5px] rounded-[2px] bg-[#a8efff]" />
+                    <Text class={isHuge() ? "text-2xl font-bold text-[#e6e0e9]" : isLarge() ? "text-2xl font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>{t()("system.memory")}</Text>
                   </View>
-                  <Text class={isHuge() ? "text-base font-bold text-[#a8efff]" : isLarge() ? "text-sm font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{memoryLabel()}</Text>
+                  <Text class={isHuge() ? "text-xs font-bold text-[#a8efff]" : isLarge() ? "text-xs font-bold text-[#a8efff]" : "text-xs font-bold text-[#a8efff]"}>{memoryLabel()}</Text>
                 </View>
                 <View class="flex-row items-end justify-between">
                   <Text class="text-2xl font-bold" style={{ textColor: "#a8efff" }}>{percentText(ram()?.percent)}</Text>
-                  <View class="flex-col items-end gap-[6px]">
-                    <View class="w-[260px] h-[10px] rounded-[5px] bg-[#36343b] overflow-hidden">
+                  <View class="flex-col items-end gap-[3px]">
+                    <View class="w-[130px] h-[5px] rounded-[2px] bg-[#36343b] overflow-hidden">
                       <View
-                        class="h-[10px] rounded-[5px] bg-[#a8efff]"
+                        class="h-[5px] rounded-[2px] bg-[#a8efff]"
                         style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, ram()?.percent ?? 0)) / 100) * 260)) }}
                       />
                     </View>
-                    <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}</Text>
+                    <Text class={isHuge() ? "text-xs text-[#938f99]" : isLarge() ? "text-xs text-[#938f99]" : "text-xs text-[#938f99]"}>{ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Storage Card */}
-              <View class="w-[426px] h-[104px] p-[16px] rounded-[20px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class="w-[213px] h-[52px] p-[8px] rounded-[10px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
                 <View class="flex-row items-center justify-between">
-                  <View class="flex-row items-center gap-[8px]">
-                    <View class="w-[10px] h-[10px] rounded-[5px] bg-[#ffd8e4]" />
-                    <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>{t()("system.storage")}</Text>
+                  <View class="flex-row items-center gap-[4px]">
+                    <View class="w-[5px] h-[5px] rounded-[2px] bg-[#ffd8e4]" />
+                    <Text class={isHuge() ? "text-2xl font-bold text-[#e6e0e9]" : isLarge() ? "text-2xl font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>{t()("system.storage")}</Text>
                   </View>
-                  <Text class={isHuge() ? "text-base font-bold text-[#ffd8e4]" : isLarge() ? "text-sm font-bold text-[#ffd8e4]" : "text-xs font-bold text-[#ffd8e4]"}>
+                  <Text class={isHuge() ? "text-xs font-bold text-[#ffd8e4]" : isLarge() ? "text-xs font-bold text-[#ffd8e4]" : "text-xs font-bold text-[#ffd8e4]"}>
                     {snapshot()?.storageTotal ? `TF / Storage` : ""}
                   </Text>
                 </View>
                 <View class="flex-row items-end justify-between">
                   <Text class="text-2xl font-bold" style={{ textColor: "#ffd8e4" }}>{percentText(storage())}</Text>
-                  <View class="flex-col items-end gap-[6px]">
-                    <View class="w-[260px] h-[10px] rounded-[5px] bg-[#36343b] overflow-hidden">
+                  <View class="flex-col items-end gap-[3px]">
+                    <View class="w-[130px] h-[5px] rounded-[2px] bg-[#36343b] overflow-hidden">
                       <View
-                        class="h-[10px] rounded-[5px] bg-[#ffd8e4]"
+                        class="h-[5px] rounded-[2px] bg-[#ffd8e4]"
                         style={{ width: Math.max(4, Math.round((Math.max(0, Math.min(100, storage() ?? 0)) / 100) * 260)) }}
                       />
                     </View>
-                    <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>
+                    <Text class={isHuge() ? "text-xs text-[#938f99]" : isLarge() ? "text-xs text-[#938f99]" : "text-xs text-[#938f99]"}>
                       {snapshot()?.storageUsed && snapshot()?.storageTotal ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}` : "-- / --"}
                     </Text>
                   </View>
@@ -207,9 +207,9 @@ export function SystemPage(props: SystemPageProps) {
         ) : null}
 
         {props.pageIndex === 1 ? (
-          <View class="w-[672px] h-[336px] flex-col justify-between">
-            <View class="w-[672px] px-[6px] mb-[4px]">
-              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-xl font-bold text-[#d0bcff]" : "text-lg font-bold text-[#d0bcff]"}>{t()("system.hardware")}</Text>
+          <View class="w-[336px] h-[168px] flex-col justify-between">
+            <View class="w-[336px] px-[3px] mb-[2px]">
+              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-2xl font-bold text-[#d0bcff]" : "text-2xl font-bold text-[#d0bcff]"}>{t()("system.hardware")}</Text>
             </View>
             <InfoRow label={t()("system.board")} value={text(snapshot()?.hardware)} fontSize={props.status.fontSize} />
             <InfoRow label={t()("system.cpu")} value={text(snapshot()?.cpu)} fontSize={props.status.fontSize} />
@@ -231,9 +231,9 @@ export function SystemPage(props: SystemPageProps) {
         ) : null}
 
         {props.pageIndex === 2 ? (
-          <View class="w-[672px] h-[336px] flex-col justify-between">
-            <View class="w-[672px] px-[6px] mb-[4px]">
-              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-xl font-bold text-[#d0bcff]" : "text-lg font-bold text-[#d0bcff]"}>{t()("system.link")}</Text>
+          <View class="w-[336px] h-[168px] flex-col justify-between">
+            <View class="w-[336px] px-[3px] mb-[2px]">
+              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-2xl font-bold text-[#d0bcff]" : "text-2xl font-bold text-[#d0bcff]"}>{t()("system.link")}</Text>
             </View>
             <InfoRow
               label={t()("system.status")}
@@ -248,8 +248,8 @@ export function SystemPage(props: SystemPageProps) {
             />
             <InfoRow label={t()("system.address")} value={text(props.network.address)} fontSize={props.status.fontSize} />
 
-            <View class="w-[672px] px-[6px] mt-[4px] mb-[4px]">
-              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-xl font-bold text-[#d0bcff]" : "text-lg font-bold text-[#d0bcff]"}>{t()("system.thisDevice")}</Text>
+            <View class="w-[336px] px-[3px] mt-[2px] mb-[2px]">
+              <Text class={isHuge() ? "text-2xl font-bold text-[#d0bcff]" : isLarge() ? "text-2xl font-bold text-[#d0bcff]" : "text-2xl font-bold text-[#d0bcff]"}>{t()("system.thisDevice")}</Text>
             </View>
             <InfoRow
               label={t()("system.battery")}

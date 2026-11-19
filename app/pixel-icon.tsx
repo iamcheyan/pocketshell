@@ -52,11 +52,11 @@ export function PixelIcon(props: { kind: IconKind; color: string }) {
       [...row].flatMap((cell, x) => (cell === "X" ? [{ x, y }] : [])),
     );
   return (
-    <View class="w-[16px] h-[16px] relative">
+    <View class="w-[8px] h-[8px] relative">
       <For each={pixels()}>
         {(pixel) => (
           <View
-            class="absolute w-[2px] h-[2px]"
+            class="absolute w-[1px] h-[1px]"
             style={{
               translateX: pixel.x * 2,
               translateY: pixel.y * 2,

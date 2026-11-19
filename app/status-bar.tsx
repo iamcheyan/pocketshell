@@ -85,36 +85,36 @@ export function StatusBar(props: StatusBarProps) {
   };
 
   return (
-    <View class="w-[720px] h-[64px] flex-row items-center justify-between px-[24px] bg-transparent shadow-md">
+    <View class="w-[360px] h-[32px] flex-row items-center justify-between px-[12px] bg-transparent shadow-md">
       {/* Left: M3 Navigation Tabs (No L/R badges, borderless pill indicators) */}
-      <View class="flex-row items-center gap-[12px]">
+      <View class="flex-row items-center gap-[6px]">
         {props.title ? (
-          <View class="flex-row items-center gap-[10px]">
-            <View class="w-[4px] h-[24px] rounded-[999px]" style={{ bgColor: theme().primary }} />
-            <Text class="text-xl font-bold text-[#e6e0e9] tracking-wide">
+          <View class="flex-row items-center gap-[5px]">
+            <View class="w-[2px] h-[12px] rounded-[999px]" style={{ bgColor: theme().primary }} />
+            <Text class="text-2xl font-bold text-[#e6e0e9] tracking-wide">
               {props.title}
             </Text>
           </View>
         ) : (
-          <View class="flex-row items-center gap-[8px]">
+          <View class="flex-row items-center gap-[4px]">
             <Index each={TABS}>
               {(tab) => {
                 const isSelected = () => tab().active();
                 return (
                   <TouchTarget
                     onPress={() => props.onSelectTab?.(tab().screen)}
-                    class="h-[40px] items-center justify-center"
+                    class="h-[20px] items-center justify-center"
                   >
                     {isSelected() ? (
                       <View
-                        class="px-[18px] py-[6px] rounded-[999px] items-center justify-center border-2"
+                        class="px-[9px] py-[3px] rounded-[999px] items-center justify-center border-2"
                         style={{
                           bgColor: theme().container,
                           borderColor: theme().primary,
                         }}
                       >
                         <Text
-                          class={isHuge() ? "text-2xl font-bold text-white" : isLarge() ? "text-2xl font-bold text-white" : "text-xl font-bold text-white"}
+                          class={isHuge() ? "text-2xl font-bold text-white" : isLarge() ? "text-2xl font-bold text-white" : "text-2xl font-bold text-white"}
                           style={{ textColor: "#ffffff" }}
                         >
                           {tab().label}
@@ -122,7 +122,7 @@ export function StatusBar(props: StatusBarProps) {
                       </View>
                     ) : (
                       <View
-                        class="px-[14px] py-[6px] items-center justify-center bg-transparent"
+                        class="px-[7px] py-[3px] items-center justify-center bg-transparent"
                         style={{
                           bgColor: "#00000000",
                           borderColor: "#00000000",
@@ -131,7 +131,7 @@ export function StatusBar(props: StatusBarProps) {
                         }}
                       >
                         <Text
-                          class={isHuge() ? "text-xl text-[#938f99]" : isLarge() ? "text-xl text-[#938f99]" : "text-lg text-[#938f99]"}
+                          class={isHuge() ? "text-2xl text-[#938f99]" : isLarge() ? "text-2xl text-[#938f99]" : "text-2xl text-[#938f99]"}
                           style={{ textColor: "#938f99" }}
                         >
                           {tab().label}
@@ -150,7 +150,7 @@ export function StatusBar(props: StatusBarProps) {
       {props.showClock && currentTime() ? (
         <View class="items-center justify-center">
           <Text
-            class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}
+            class={isHuge() ? "text-2xl font-bold text-[#e6e0e9]" : isLarge() ? "text-2xl font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}
           >
             {currentTime()}
           </Text>
@@ -158,7 +158,7 @@ export function StatusBar(props: StatusBarProps) {
       ) : null}
 
       {/* Right: Modern Vector Status Icons (Bright when enabled, dim when disabled) */}
-      <View class="flex-row items-center gap-[12px]">
+      <View class="flex-row items-center gap-[6px]">
         {/* Wi-Fi */}
         <PixelStatus kind="wifi" color={props.wifiConnected ? theme().primary : "#756f7d"} scale={2} />
         <PixelStatus kind="bluetooth" color={props.bluetoothOn ? theme().primary : "#756f7d"} scale={2} />
@@ -167,15 +167,15 @@ export function StatusBar(props: StatusBarProps) {
         <PixelStatus kind="usb" color={props.mtpEnabled ? theme().primary : "#756f7d"} scale={2} />
 
         {/* Battery Level */}
-        <View class="flex-row items-center gap-[8px] ml-[4px]">
+        <View class="flex-row items-center gap-[4px] ml-[2px]">
           {known() && (
-            <Text class={isHuge() ? "text-xl font-bold text-[#e6e0e9]" : isLarge() ? "text-lg font-bold text-[#e6e0e9]" : "text-base font-bold text-[#e6e0e9]"}>
+            <Text class={isHuge() ? "text-2xl font-bold text-[#e6e0e9]" : isLarge() ? "text-2xl font-bold text-[#e6e0e9]" : "text-xs font-bold text-[#e6e0e9]"}>
               {props.batteryLevel}%
             </Text>
           )}
-          <View class="w-[34px] h-[18px] rounded-[4px] bg-[#36343b] p-[2px] flex-row items-center">
+          <View class="w-[17px] h-[9px] rounded-[2px] bg-[#36343b] p-[1px] flex-row items-center">
             <View
-              class="h-full rounded-[2px]"
+              class="h-full rounded-[1px]"
               style={{
                 width: Math.max(2, Math.min(30, Math.round((props.batteryLevel / 100) * 30))),
                 bgColor: batteryColor(),
