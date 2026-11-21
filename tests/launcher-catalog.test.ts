@@ -119,4 +119,50 @@ describe("game library metadata", () => {
     expect(seriesItemTitle(game!.seriesItems![0], "ja")).toBe("簡体字中国語（CGP版）");
     expect(seriesItemTitle(game!.seriesItems![1], "ja")).toBe("日本語版");
   });
+
+  test("places recently played game at index 0 of the carousel", () => {
+    const library = { sections: { games: [{ items: [
+      {
+        kind: "series", id: "fe-binding-blade", title: "FE6",
+        variants: [{ id: "ja", title: "FE6 JA", path: "/storage/games/fe6.gba" }],
+      },
+      {
+        kind: "series", id: "zelda-minish-cap", title: "Zelda",
+        variants: [
+          { id: "zh", title: "Zelda CN", path: "/storage/games/zelda_cn.gba" },
+          { id: "ja", title: "Zelda JA", path: "/storage/games/zelda_ja.gba" },
+        ],
+      },
+    ] }] } };
+    const host = {
+      __launcher: (cmd: string) => {
+        if (cmd === "ROMS") return JSON.stringify(library);
+        if (cmd === "APPS\tlist") return "";
+        if (cmd === "SETTING\tgames.lastPlayed") return encodeURI("/storage/games/zelda_ja.gba");
+        return "";
+      },
+    };
+    const apps = getAppsForScreen(0, host);
+    expect(apps[0]?.id).toBe("series:zelda-minish-cap");
+    expect(apps[0]?.recentlyPlayed).toBe(true);
+  });
+
+  test("identifies translation availability and renders badges", () => {
+    const library = { sections: { games: [{ items: [
+      {
+        kind: "series", id: "zelda-minish-cap", title: "Zelda",
+        variants: [
+          { id: "zh-Hans", title: "Zelda CN", path: "/storage/games/zelda_cn.gba" },
+          { id: "ja", title: "Zelda JA", path: "/storage/games/zelda_ja.gba" },
+        ],
+      },
+    ] }] } };
+    const host = {
+      __launcher: (cmd: string) => cmd === "ROMS" ? JSON.stringify(library) : "",
+    };
+    const apps = getAppsForScreen(0, host);
+    const zelda = apps.find((a) => a.id === "series:zelda-minish-cap");
+    expect(zelda?.hasTranslation).toBe(true);
+    expect(zelda?.seriesItems?.find((v) => v.id === "ja")?.translation).toBe("ja-zh");
+  });
 });

@@ -4,19 +4,22 @@ export interface SeriesItem {
   id: string; title: string; romPath: string; coverPath?: string;
   seriesId: string; default?: boolean;
   titles?: { en?: string; zh?: string; ja?: string };
+  translation?: string;
 }
 export interface LauncherApp {
   id: string; nameKey: string; shortKey: string; descKey: string; tagKey: string;
   kind: "native" | "external" | "series"; category: "home" | "games"; icon: string;
-  romPath?: string; label?: string; coverPath?: string; favorite?: boolean;
+  romPath?: string; label?: string; coverPath?: string; favorite?: boolean; recentlyPlayed?: boolean;
   isSeries?: boolean; seriesItems?: SeriesItem[]; recentVariant?: string;
   titles?: { en?: string; zh?: string; ja?: string };
+  hasTranslation?: boolean;
+  translationBadge?: string;
 }
 
 // Built-in multilingual fallback definitions for popular game series
 export const KNOWN_SERIES_TITLES: Record<string, {
   titles: { en: string; ja: string; zh: string };
-  variants?: Record<string, { en: string; ja: string; zh: string }>;
+  variants?: Record<string, { en: string; ja: string; zh: string; translation?: string }>;
 }> = {
   "fe-binding-blade": {
     titles: {
@@ -58,10 +61,19 @@ export const KNOWN_SERIES_TITLES: Record<string, {
       ja: "黄金の太陽 開かれし封印",
     },
     variants: {
-      "zh-Hans-2024": { zh: "简体中文（2024新汉化版）", en: "Simplified Chinese (2024)", ja: "簡体字中国語（2024年新訳）" },
-      "zh-Hans-cgp": { zh: "简体中文（CGP经典汉化版）", en: "Simplified Chinese (CGP)", ja: "簡体字中国語（CGP版）" },
+      "zh-Hans": { zh: "简体中文版", en: "Simplified Chinese", ja: "簡体字中国語版" },
+      "ja": { zh: "日版", en: "Japanese", ja: "日本語版", translation: "ja-zh" },
+    },
+  },
+  "golden-sun-the-lost-age": {
+    titles: {
+      zh: "黄金太阳：失落的时代",
+      en: "Golden Sun: The Lost Age",
+      ja: "黄金の太陽 失われし時代",
+    },
+    variants: {
+      "zh-Hans": { zh: "简体中文版", en: "Simplified Chinese", ja: "簡体字中国語版" },
       "ja": { zh: "日版", en: "Japanese", ja: "日本語版" },
-      "en-EU": { zh: "欧版（多语言）", en: "Europe (Multi-Language)", ja: "欧州版（多言語）" },
     },
   },
   "zelda-minish-cap": {
@@ -71,11 +83,8 @@ export const KNOWN_SERIES_TITLES: Record<string, {
       ja: "ゼルダの伝説 ふしぎのぼうし",
     },
     variants: {
-      "zh-Hans": { zh: "简体中文版", en: "Simplified Chinese", ja: "簡体字中国語" },
-      "zh-Hant": { zh: "繁体中文版", en: "Traditional Chinese", ja: "繁体字中国語" },
-      "ja": { zh: "日版", en: "Japanese", ja: "日本語版" },
-      "en-US": { zh: "美版", en: "North America (USA)", ja: "北米版（USA）" },
-      "en-EU": { zh: "欧版（多语言）", en: "Europe (Multi-5)", ja: "欧州版（多言語）" },
+      "zh-Hans": { zh: "简体中文版", en: "Simplified Chinese", ja: "簡体字中国語版" },
+      "ja": { zh: "日版", en: "Japanese", ja: "日本語版", translation: "ja-zh" },
     },
   },
 };
@@ -92,6 +101,7 @@ type LibrarySeriesVariant = {
   id: string; title: string; path: string; cover?: string; default?: boolean;
   title_en?: string; title_ja?: string; title_zh?: string;
   titles?: { en?: string; zh?: string; ja?: string };
+  translation?: string;
 };
 type LibrarySeries = {
   kind: "series"; id: string; title: string; cover?: string;
@@ -150,8 +160,34 @@ function gameLibrary(host?: Host): LibraryItem[] {
   } catch { return []; }
 }
 
+function normalizePath(path: string): string {
+  return path.replace(/^\/mnt\/sdcard\//, "/storage/");
+}
+
 function scanRomApps(host?: Host): LauncherApp[] {
   const entries = gameLibrary(host);
+  const storedRecent = host?.__launcher?.("SETTING\tseries.last.lastVariant")?.trim()
+    || host?.__launcher?.("SETTING\tgames.lastPlayed")?.trim()
+    || "";
+  let decodedRecent = "";
+  try { decodedRecent = decodeURIComponent(storedRecent); } catch {}
+  const isRecentId = storedRecent && !storedRecent.includes("/") && !storedRecent.includes("%");
+  const normRecentPath = !isRecentId ? normalizePath(decodedRecent) : "";
+
+  const matchRecent = (app: LauncherApp): boolean => {
+    if (!storedRecent) return false;
+    if (isRecentId) {
+      if (app.id === `series:${storedRecent}` || app.id === storedRecent) return true;
+      if (app.seriesItems?.some((item) => item.seriesId === storedRecent)) return true;
+      return false;
+    }
+    if (normRecentPath && normRecentPath.startsWith("/storage/")) {
+      if (app.romPath && normalizePath(app.romPath) === normRecentPath) return true;
+      if (app.seriesItems?.some((item) => normalizePath(item.romPath) === normRecentPath)) return true;
+    }
+    return false;
+  };
+
   const series = entries.filter((entry): entry is LibrarySeries => "kind" in entry)
     .filter((entry) => /^[a-z0-9][a-z0-9-]{0,63}$/.test(entry.id))
     .map((entry): LauncherApp => {
@@ -171,10 +207,12 @@ function scanRomApps(host?: Host): LauncherApp[] {
             ja: variant.title_ja || variant.titles?.ja || knownVar?.ja,
             zh: variant.title_zh || variant.titles?.zh || knownVar?.zh || variant.title,
           };
+          const translation = variant.translation || knownVar?.translation;
           return {
             id: variant.id, title: variant.title, romPath: variant.path,
             coverPath: variant.cover, seriesId: entry.id, default: variant.default === true,
             titles: variantTitles,
+            translation,
           };
         });
       const saved = host?.__launcher?.(`SETTING\tseries.${entry.id}.lastVariant`)?.trim() ?? "";
@@ -187,10 +225,13 @@ function scanRomApps(host?: Host): LauncherApp[] {
         const defaultIndex = variants.findIndex((variant) => variant.default);
         if (defaultIndex > 0) variants.unshift(...variants.splice(defaultIndex, 1));
       }
+      const hasTranslation = variants.some((v) => !!v.translation);
       return {
         id: `series:${entry.id}`, nameKey: "", shortKey: "", descKey: "", tagKey: "catalog.series",
         kind: "series", category: "games", icon: "\uf11b", isSeries: true, label: entry.title,
         coverPath: entry.cover, seriesItems: variants, recentVariant, titles: entryTitles,
+        hasTranslation,
+        translationBadge: hasTranslation ? "日→中" : undefined,
       };
     })
     .filter((entry) => (entry.seriesItems?.length || 0) > 0);
@@ -203,11 +244,26 @@ function scanRomApps(host?: Host): LauncherApp[] {
       kind: "native", category: "games", icon: "\uf11b", romPath: entry.path,
       label: entry.title || fileTitle(entry.path), coverPath: entry.cover,
     }));
-  return [...series, ...roms];
+  const games = [...series, ...roms];
+  if (storedRecent) {
+    games.sort((a, b) => {
+      const aIsRecent = matchRecent(a);
+      const bIsRecent = matchRecent(b);
+      return Number(bIsRecent) - Number(aIsRecent);
+    });
+    const recent = games.find((app) => matchRecent(app));
+    if (recent) recent.recentlyPlayed = true;
+  }
+  return games;
 }
 
 export function getAppsForScreen(screen: number, host?: Host): LauncherApp[] {
-  return screen === 0 ? [...LAUNCHER_APPS, ...scanInstalledApps(host), ...scanRomApps(host)] : [];
+  if (screen !== 0) return [];
+  const games = scanRomApps(host);
+  const recentIndex = games.findIndex((app) => app.recentlyPlayed);
+  if (recentIndex < 0) return [...LAUNCHER_APPS, ...scanInstalledApps(host), ...games];
+  const [recent] = games.splice(recentIndex, 1);
+  return [recent, ...LAUNCHER_APPS, ...scanInstalledApps(host), ...games];
 }
 
 export function appName(t: Translator, app: LauncherApp | undefined, lang: string = "zh"): string {
@@ -231,4 +287,12 @@ export function categoryLabel(t: Translator, app: LauncherApp | undefined): stri
   if (!app) return "";
   if (app.isSeries) return t("catalog.series");
   return app.category === "games" ? t("catalog.games") : t("catalog.tools");
+}
+
+export function translationBadgeText(translation: string | undefined, lang: string = "zh"): string {
+  if (!translation) return "";
+  if (translation === "ja-zh") {
+    return lang.startsWith("en") ? "JA→ZH" : "日→中";
+  }
+  return translation.toUpperCase();
 }

@@ -2,7 +2,7 @@ import { Image, View, Text, type NodeMirror } from "@pocketjs/framework/solid/co
 import { Index, createEffect } from "solid-js";
 import { getOps } from "@pocketjs/framework/host";
 import { libraryTexture } from "./library-images";
-import type { LauncherApp } from "./launcher-catalog";
+import { type LauncherApp, translationBadgeText } from "./launcher-catalog";
 import type { Translator } from "./i18n";
 import { TouchTarget } from "./touch-target";
 import { createGesture } from "@pocketjs/framework/gesture";
@@ -11,6 +11,7 @@ import { THEME_PALETTES, type ThemeColorKey } from "./theme-model";
 export interface CardCarouselProps {
   apps: LauncherApp[];
   t: Translator;
+  language?: string;
   selectedIndex: number;
   themeColor: ThemeColorKey;
   windowCenter: number;
@@ -76,6 +77,15 @@ export function CardCarousel(props: CardCarouselProps) {
                 {app()?.favorite && (
                   <View class="absolute top-[4px] right-[4px] px-[5px] py-[2px] bg-[#7d5260] items-center justify-center">
                     <Text class="text-xs font-bold text-[#ffd8e4]">★</Text>
+                  </View>
+                )}
+
+                {/* Translation Available Badge (Top-Left) */}
+                {app()?.hasTranslation && (
+                  <View class="absolute top-[4px] left-[4px] px-[4px] py-[1px] bg-[#1a3826] border border-[#2e7d32] items-center justify-center">
+                    <Text class="text-xs font-bold text-[#69f0ae]">
+                      {translationBadgeText(app()?.seriesItems?.find((it) => it.translation)?.translation || "ja-zh", props.language || "zh")}
+                    </Text>
                   </View>
                 )}
               </TouchTarget>

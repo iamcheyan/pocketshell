@@ -17,6 +17,7 @@ import {
   categoryLabel,
   getAppsForScreen,
   seriesItemTitle,
+  translationBadgeText,
   type LauncherApp,
   type SeriesItem,
 } from "./launcher-catalog";
@@ -317,12 +318,10 @@ mount(() => {
   let armed = false;
   let previousButtons = 0;
   let lastHardwarePoll = 0;
+  let lastLevelPoll = 0;
   // The power request is a 4 Hz poll: fast enough to feel immediate, cheap
   // enough to leave the render thread alone.
   let lastPowerPoll = 0;
-  // The volume wheel changes the mixer behind the app's back, so the settings
-  // rows are re-read while that page is visible.
-  let lastSettingsPoll = 0;
   let zlHoldFrames = 0;
   let zrHoldFrames = 0;
 
@@ -394,7 +393,6 @@ mount(() => {
       }
       if (next === 3) {
         syncSettings();
-        lastSettingsPoll = Date.now();
       } else if (next === 4) {
         syncSystemStatus();
       }
@@ -1133,6 +1131,8 @@ mount(() => {
     onClose: () => {},
   });
 
+  const encodeGamePath = (path: string) => encodeURI(path);
+
   const scheduleLaunch = (label: string, dispatch: () => void) => {
     setLaunchingLabel(label);
     setLaunchingPhase(0);
@@ -1142,7 +1142,12 @@ mount(() => {
 
   const launchSeriesItem = (item: SeriesItem) => {
     host?.__launcher?.(`SETTING\tseries.${item.seriesId}.lastVariant\t${item.id}`);
+    host?.__launcher?.(`SETTING\tseries.last.lastVariant\t${item.seriesId}`);
     host?.__launcher?.(`RESUME\tset\trom\t${item.romPath}`);
+    host?.__launcher?.(`SETTING\tgames.lastPlayed\t${encodeGamePath(item.romPath)}`);
+    setLibraryRevision((v) => v + 1);
+    setHomeCardIndex(0);
+    setCarouselCenter(0);
     scheduleLaunch(item.title, () => {
       const answer = host?.__launcher?.(`ROMLAUNCH\t${item.romPath}`) ?? "";
       if (!answer || /unknown/i.test(answer)) {
@@ -1181,6 +1186,12 @@ mount(() => {
       return;
     }
     if (app.romPath) {
+      const appKey = app.id.replace(/^rom:/, "").replace(/[^A-Za-z0-9_-]/g, "");
+      if (appKey) host?.__launcher?.(`SETTING\tseries.last.lastVariant\t${appKey}`);
+      host?.__launcher?.(`SETTING\tgames.lastPlayed\t${encodeGamePath(app.romPath)}`);
+      setLibraryRevision((v) => v + 1);
+      setHomeCardIndex(0);
+      setCarouselCenter(0);
       scheduleLaunch(appShortName(t, app), () => {
         const answer = host?.__launcher?.(`ROMLAUNCH\t${app.romPath}`) ?? "";
         if (!/^(Starting game|launching:)/i.test(answer)) {
@@ -1445,15 +1456,13 @@ mount(() => {
       lastHardwarePoll = now;
       if (currentScreen() === 4) syncSystemStatus();
       syncHardwareStatus();
-      // Volume is a system-wide value: the wheel, the settings row and any
-      // future hotkey all move the same mixer, so the cached signal has to
-      // follow it even while another page is visible.
-      if (currentScreen() === 3) { syncSettings(); lastSettingsPoll = now; }
-      else syncLevels();
+      if (currentScreen() === 3) syncSettings();
     }
 
-    if (currentScreen() === 3 && now - lastSettingsPoll >= 2000) {
-      lastSettingsPoll = now;
+    // Poll only the two mixer/display levels frequently; the full status pass
+    // above would spawn several helpers on every render-thread update.
+    if (now - lastLevelPoll >= 250) {
+      lastLevelPoll = now;
       syncLevels();
     }
 
@@ -1810,6 +1819,7 @@ mount(() => {
               {currentApps().length ? (
                 <CardCarousel
                   t={t}
+                  language={language()}
                   themeColor={themeColor()}
                   apps={currentApps()}
                   selectedIndex={currentCardIndex()}
@@ -1850,7 +1860,7 @@ mount(() => {
                   {selectedApp() ? (
                     <Text class={fontSize() === "huge" ? "text-base font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-sm font-bold text-[#cac4d0] text-center" : "text-xs font-bold text-[#cac4d0] text-center"}>
                       {selectedApp()?.isSeries
-                        ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} ${language() === "zh" ? "个版本" : language() === "ja" ? "バージョン" : "VERSIONS"}`
+                        ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} ${language() === "zh" ? "个版本" : language() === "ja" ? "バージョン" : "VERSIONS"}${selectedApp()?.hasTranslation ? ` · ${translationBadgeText("ja-zh", language())}` : ""}`
                         : selectedApp()?.romPath
                         ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : language() === "ja" ? "ゲーム" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
                         : `${categoryLabel(t, selectedApp()) || "App"} · ${currentCardIndex() + 1} / ${currentApps().length}`}
@@ -2030,6 +2040,13 @@ mount(() => {
                         <Text class={isCur() ? "text-xs font-bold text-[#ffffff]" : "text-xs font-bold text-[#e6e0e9]"}>
                           {seriesItemTitle(item(), language())}
                         </Text>
+                        {item().translation ? (
+                          <View class="px-[4px] py-[1px] bg-[#1a3826] border border-[#2e7d32] items-center justify-center">
+                            <Text class="text-xs font-bold text-[#69f0ae]">
+                              {translationBadgeText(item().translation, language())}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                       {isMru() ? (
                         <View class="px-[4px] py-[1px]" style={{ bgColor: theme().activeSurface }}>
