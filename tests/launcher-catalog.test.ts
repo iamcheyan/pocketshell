@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getAppsForScreen, appName, seriesItemTitle } from "../app/launcher-catalog";
+import { getAppsForScreen, appName, seriesItemTitle, recordRecentApp, getRecentAppIds } from "../app/launcher-catalog";
 
 describe("game library metadata", () => {
   test("discovers an installed app and same-name cover without an app-specific rule", () => {
@@ -164,5 +164,69 @@ describe("game library metadata", () => {
     const zelda = apps.find((a) => a.id === "series:zelda-minish-cap");
     expect(zelda?.hasTranslation).toBe(true);
     expect(zelda?.seriesItems?.find((v) => v.id === "ja")?.translation).toBe("ja-zh");
+  });
+
+  test("dynamically sorts all apps and games in MRU order", () => {
+    const library = { sections: { games: [{ items: [
+      {
+        kind: "series", id: "golden-sun-the-lost-age", title: "Golden Sun 2",
+        variants: [{ id: "ja", title: "GS2 JA", path: "/storage/games/gs2.gba" }],
+      },
+      {
+        kind: "series", id: "zelda-minish-cap", title: "Zelda",
+        variants: [{ id: "ja", title: "Zelda JA", path: "/storage/games/zelda.gba" }],
+      },
+    ] }] } };
+
+    const store: Record<string, string> = {
+      "series.recents.lastVariant": "series:golden-sun-the-lost-age,series:zelda-minish-cap",
+    };
+
+    const host = {
+      __launcher: (cmd: string) => {
+        if (cmd === "ROMS") return JSON.stringify(library);
+        if (cmd === "APPS\tlist") return "";
+        if (cmd.startsWith("SETTING\t")) {
+          const parts = cmd.split("\t");
+          if (parts.length === 2) return store[parts[1]] || "";
+          if (parts.length === 3) {
+            store[parts[1]] = parts[2];
+            return parts[2];
+          }
+        }
+        return "";
+      },
+    };
+
+    // Step 1: Golden Sun was played most recently, Zelda was played before it
+    let apps = getAppsForScreen(0, host);
+    expect(apps[0]?.id).toBe("series:golden-sun-the-lost-age");
+    expect(apps[1]?.id).toBe("series:zelda-minish-cap");
+    expect(apps[2]?.id).toBe("files");
+    expect(apps[3]?.id).toBe("saves");
+
+    // Step 2: User opens File Manager ("files")
+    recordRecentApp("files", host);
+    apps = getAppsForScreen(0, host);
+    expect(apps[0]?.id).toBe("files");
+    expect(apps[1]?.id).toBe("series:golden-sun-the-lost-age");
+    expect(apps[2]?.id).toBe("series:zelda-minish-cap");
+    expect(apps[3]?.id).toBe("saves");
+
+    // Step 3: User opens Save Manager ("saves")
+    recordRecentApp("saves", host);
+    apps = getAppsForScreen(0, host);
+    expect(apps[0]?.id).toBe("saves");
+    expect(apps[1]?.id).toBe("files");
+    expect(apps[2]?.id).toBe("series:golden-sun-the-lost-age");
+    expect(apps[3]?.id).toBe("series:zelda-minish-cap");
+
+    // Step 4: User launches Zelda again
+    recordRecentApp("series:zelda-minish-cap", host);
+    apps = getAppsForScreen(0, host);
+    expect(apps[0]?.id).toBe("series:zelda-minish-cap");
+    expect(apps[1]?.id).toBe("saves");
+    expect(apps[2]?.id).toBe("files");
+    expect(apps[3]?.id).toBe("series:golden-sun-the-lost-age");
   });
 });

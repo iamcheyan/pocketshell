@@ -257,13 +257,98 @@ function scanRomApps(host?: Host): LauncherApp[] {
   return games;
 }
 
+export function getRecentAppIds(host?: Host): string[] {
+  const raw = host?.__launcher?.("SETTING\tseries.recents.lastVariant")?.trim() ?? "";
+  if (raw && !raw.startsWith("error:")) {
+    const list = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (list.length > 0) return list;
+  }
+  // Fallback seed from legacy keys when recents list is not yet saved:
+  const seed: string[] = [];
+  const lastSeries = host?.__launcher?.("SETTING\tseries.last.lastVariant")?.trim() ?? "";
+  if (lastSeries && !lastSeries.startsWith("error:") && !lastSeries.includes("/")) {
+    seed.push(`series:${lastSeries}`);
+  }
+  const lastGame = host?.__launcher?.("SETTING\tgames.lastPlayed")?.trim() ?? "";
+  if (lastGame && !lastGame.startsWith("error:")) {
+    let decoded = "";
+    try { decoded = decodeURIComponent(lastGame); } catch {}
+    const path = normalizePath(decoded || lastGame);
+    if (path.includes("/series/")) {
+      const match = path.match(/\/series\/([^\/]+)/);
+      if (match && match[1]) {
+        const sid = `series:${match[1]}`;
+        if (!seed.includes(sid)) seed.push(sid);
+      }
+    } else if (path) {
+      const romId = `rom:${path}`;
+      if (!seed.includes(romId)) seed.push(romId);
+    }
+  }
+  return seed;
+}
+
+export function recordRecentApp(appId: string, host?: Host): void {
+  if (!appId) return;
+  const current = getRecentAppIds(host);
+  const normId = appId.startsWith("series:")
+    ? appId
+    : (appId === "files" || appId === "saves" || appId === "terminal" || appId.startsWith("rom:") ? appId : `series:${appId}`);
+  const filtered = current.filter((id) => {
+    if (id === normId || id === appId) return false;
+    if (normId.startsWith("series:") && id === normId.slice(7)) return false;
+    if (id.startsWith("series:") && normId === id.slice(7)) return false;
+    return true;
+  });
+  const updated = [normId, ...filtered].slice(0, 50);
+  host?.__launcher?.(`SETTING\tseries.recents.lastVariant\t${updated.join(",")}`);
+}
+
+function matchAppToRecentId(app: LauncherApp, recId: string): boolean {
+  if (app.id === recId) return true;
+  if (app.id === `series:${recId}`) return true;
+  if (recId.startsWith("series:") && app.id === recId.slice(7)) return true;
+  const cleanRec = recId.replace(/^(rom:|series:)/, "");
+  if (app.isSeries && app.seriesItems) {
+    if (app.seriesItems.some((item) => item.seriesId === recId || `series:${item.seriesId}` === recId || item.seriesId === cleanRec)) return true;
+    let decoded = "";
+    try { decoded = decodeURIComponent(cleanRec); } catch {}
+    const targetPath = normalizePath(decoded || cleanRec);
+    if (app.seriesItems.some((item) => normalizePath(item.romPath) === targetPath)) return true;
+  }
+  if (app.romPath) {
+    const norm = normalizePath(app.romPath);
+    if (recId === norm || recId === `rom:${norm}`) return true;
+    let decoded = "";
+    try { decoded = decodeURIComponent(cleanRec); } catch {}
+    const targetPath = normalizePath(decoded || cleanRec);
+    if (norm === targetPath) return true;
+  }
+  return false;
+}
+
 export function getAppsForScreen(screen: number, host?: Host): LauncherApp[] {
   if (screen !== 0) return [];
-  const games = scanRomApps(host);
-  const recentIndex = games.findIndex((app) => app.recentlyPlayed);
-  if (recentIndex < 0) return [...LAUNCHER_APPS, ...scanInstalledApps(host), ...games];
-  const [recent] = games.splice(recentIndex, 1);
-  return [recent, ...LAUNCHER_APPS, ...scanInstalledApps(host), ...games];
+  const baseApps = [...LAUNCHER_APPS, ...scanInstalledApps(host), ...scanRomApps(host)];
+  const recentIds = getRecentAppIds(host);
+  if (recentIds.length === 0) return baseApps;
+
+  const scored = baseApps.map((app, originalIndex) => {
+    const rank = recentIds.findIndex((recId) => matchAppToRecentId(app, recId));
+    if (rank === 0) app.recentlyPlayed = true;
+    return {
+      app,
+      rank: rank >= 0 ? rank : Infinity,
+      originalIndex,
+    };
+  });
+
+  scored.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return a.originalIndex - b.originalIndex;
+  });
+
+  return scored.map((item) => item.app);
 }
 
 export function appName(t: Translator, app: LauncherApp | undefined, lang: string = "zh"): string {

@@ -16,6 +16,7 @@ import {
   appTag,
   categoryLabel,
   getAppsForScreen,
+  recordRecentApp,
   seriesItemTitle,
   translationBadgeText,
   type LauncherApp,
@@ -1141,6 +1142,7 @@ mount(() => {
   };
 
   const launchSeriesItem = (item: SeriesItem) => {
+    recordRecentApp(`series:${item.seriesId}`, host);
     host?.__launcher?.(`SETTING\tseries.${item.seriesId}.lastVariant\t${item.id}`);
     host?.__launcher?.(`SETTING\tseries.last.lastVariant\t${item.seriesId}`);
     host?.__launcher?.(`RESUME\tset\trom\t${item.romPath}`);
@@ -1166,16 +1168,28 @@ mount(() => {
 
   const launchApp = (app: LauncherApp) => {
     if (app.id === "files") {
+      recordRecentApp("files", host);
+      setLibraryRevision((v) => v + 1);
+      setHomeCardIndex(0);
+      setCarouselCenter(0);
       loadDirectory("/storage");
       setFileBrowserOpen(true);
       return;
     }
     if (app.id === "saves") {
+      recordRecentApp("saves", host);
+      setLibraryRevision((v) => v + 1);
+      setHomeCardIndex(0);
+      setCarouselCenter(0);
       loadSaves();
       setSaveManagerOpen(true);
       return;
     }
     if (app.id === "terminal") {
+      recordRecentApp("terminal", host);
+      setLibraryRevision((v) => v + 1);
+      setHomeCardIndex(0);
+      setCarouselCenter(0);
       setTerminalOpen(true);
       return;
     }
@@ -1186,6 +1200,7 @@ mount(() => {
       return;
     }
     if (app.romPath) {
+      recordRecentApp(app.id, host);
       const appKey = app.id.replace(/^rom:/, "").replace(/[^A-Za-z0-9_-]/g, "");
       if (appKey) host?.__launcher?.(`SETTING\tseries.last.lastVariant\t${appKey}`);
       host?.__launcher?.(`SETTING\tgames.lastPlayed\t${encodeGamePath(app.romPath)}`);
@@ -1202,6 +1217,10 @@ mount(() => {
       return;
     }
     if (app.kind === "external") {
+      recordRecentApp(app.id, host);
+      setLibraryRevision((v) => v + 1);
+      setHomeCardIndex(0);
+      setCarouselCenter(0);
       scheduleLaunch(appShortName(t, app), () => {
         const answer = host?.__launcher?.(`LAUNCH\t${app.id}`) ?? "";
         if (!/^launching:/i.test(answer)) {
