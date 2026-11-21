@@ -4,6 +4,7 @@ import { Image, Text, View, type NodeMirror } from "@pocketjs/framework/solid/co
 import { animate } from "@pocketjs/framework/animation";
 import { displaySize, ramUsage, type NetworkSnapshot, type SystemSnapshot } from "../system-status";
 import { translator } from "../i18n";
+import { isWideScreen } from "../card-carousel";
 
 import {
   THEME_PALETTES,
@@ -46,10 +47,10 @@ function InfoRow(props: { label: string; value: string; color?: string; muted?: 
   const isHuge = () => props.fontSize === "huge";
   const isLarge = () => props.fontSize === "large";
   return (
-    <View class="w-[330px] h-[22px] px-[10px] bg-[#211f26] flex-row items-center justify-between mb-[3px] border border-[#2d2938]">
-      <Text class={isHuge() ? "text-base font-bold text-[#cac4d0]" : isLarge() ? "text-sm font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>{props.label}</Text>
+    <View class={isWideScreen() ? "w-full h-[26px] px-[12px] bg-[#211f26] flex-row items-center justify-between mb-[3px] border border-[#2d2938]" : "w-[330px] h-[22px] px-[10px] bg-[#211f26] flex-row items-center justify-between mb-[3px] border border-[#2d2938]"}>
+      <Text class={isWideScreen() ? "text-sm font-bold text-[#cac4d0]" : isHuge() ? "text-base font-bold text-[#cac4d0]" : isLarge() ? "text-sm font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>{props.label}</Text>
       <Text
-        class={isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
+        class={isWideScreen() ? "text-sm font-bold" : isHuge() ? "text-base font-bold" : isLarge() ? "text-sm font-bold" : "text-xs font-bold"}
         style={{ textColor: props.muted ? "#938f99" : props.color ?? "#e6e0e9" }}
       >
         {props.value}
@@ -77,26 +78,26 @@ export function SystemPage(props: SystemPageProps) {
   let pageNode: NodeMirror | undefined;
 
   return (
-    <View class="w-[360px] h-[174px] px-[12px] py-[3px] bg-transparent flex-col items-center justify-center">
+    <View class={isWideScreen() ? "w-full flex-1 px-[24px] py-[8px] bg-transparent flex-col items-center justify-center" : "w-[360px] h-[174px] px-[12px] py-[3px] bg-transparent flex-col items-center justify-center"}>
       <View
-        class="w-[336px] h-[168px]"
+        class={isWideScreen() ? "w-full max-w-[580px] flex-1 flex-col justify-between" : "w-[336px] h-[168px]"}
         ref={(node: NodeMirror) => {
           pageNode = node;
         }}
       >
         {props.pageIndex === 0 ? (
-          <View class="w-[336px] h-[168px] flex-row items-center justify-between">
+          <View class={isWideScreen() ? "w-full flex-1 flex-row items-center justify-between" : "w-[336px] h-[168px] flex-row items-center justify-between"}>
             {/* Left Column: Device Identity Card */}
-            <View class="w-[115px] h-[168px] bg-[#1e1b24] p-[8px] flex-col items-center justify-between border border-[#2d2938]">
+            <View class={isWideScreen() ? "w-[170px] h-full bg-[#1e1b24] p-[10px] flex-col items-center justify-between border border-[#2d2938]" : "w-[115px] h-[168px] bg-[#1e1b24] p-[8px] flex-col items-center justify-between border border-[#2d2938]"}>
               {/* Device Image (Vector Flat Handheld Illustration) */}
-              <View class="w-[62px] h-[62px] items-center justify-center">
-                <Image src="cover-handheld-64.png" style={{ width: 64, height: 64 }} />
+              <View class={isWideScreen() ? "w-[68px] h-[68px] items-center justify-center" : "w-[62px] h-[62px] items-center justify-center"}>
+                <Image src="cover-handheld-64.png" style={{ width: isWideScreen() ? 68 : 64, height: isWideScreen() ? 68 : 64 }} />
               </View>
 
               {/* Device Names */}
               <View class="flex-col items-center text-center w-full overflow-hidden">
-                <Text class="text-xs font-bold text-[#e6e0e9]">RG34XX</Text>
-                <Text class={isHuge() ? "text-base font-bold text-[#d0bcff] mt-[1px]" : isLarge() ? "text-sm font-bold text-[#d0bcff] mt-[1px]" : "text-xs font-bold text-[#d0bcff] mt-[1px]"}>{text(snapshot()?.model) || "Allwinner H700"}</Text>
+                <Text class="text-xs font-bold text-[#e6e0e9]">{isWideScreen() ? "TrimUI Smart Pro" : "RG34XX"}</Text>
+                <Text class={isWideScreen() ? "text-xs font-bold text-[#d0bcff] mt-[1px]" : isHuge() ? "text-base font-bold text-[#d0bcff] mt-[1px]" : isLarge() ? "text-sm font-bold text-[#d0bcff] mt-[1px]" : "text-xs font-bold text-[#d0bcff] mt-[1px]"}>{text(snapshot()?.model) || (isWideScreen() ? "Allwinner A133Plus" : "Allwinner H700")}</Text>
                 <Text class={isHuge() ? "text-base text-[#938f99] mt-[1px]" : isLarge() ? "text-sm text-[#938f99] mt-[1px]" : "text-xs text-[#938f99] mt-[1px]"}>
                   {snapshot()?.cpu || "4 Cores @ 1.5 GHz"}
                 </Text>
@@ -128,9 +129,9 @@ export function SystemPage(props: SystemPageProps) {
             </View>
 
             {/* Right Column: 3 Large Metric Cards */}
-            <View class="w-[213px] h-[168px] flex-col justify-between">
+            <View class={isWideScreen() ? "flex-1 ml-[12px] h-full flex-col justify-between" : "w-[213px] h-[168px] flex-col justify-between"}>
               {/* CPU Card */}
-              <View class="w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class={isWideScreen() ? "w-full flex-1 p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938] mb-[4px]" : "w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]"}>
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[4px]">
                     <View class="w-[5px] h-[5px] bg-[#d0bcff]" />
@@ -142,15 +143,15 @@ export function SystemPage(props: SystemPageProps) {
                 </View>
                 <View class="flex-row items-end justify-between">
                   <Text class="text-xs font-bold" style={{ textColor: "#d0bcff" }}>{percentText(cpu())}</Text>
-                  <View class="flex-col items-end gap-[3px] w-[130px] overflow-hidden">
-                    <SegBar value={cpu() ?? 0} width={130} height={5} segs={26} fill="#d0bcff" />
+                  <View class={isWideScreen() ? "flex-col items-end gap-[3px] w-[220px] overflow-hidden" : "flex-col items-end gap-[3px] w-[130px] overflow-hidden"}>
+                    <SegBar value={cpu() ?? 0} width={isWideScreen() ? 220 : 130} height={5} segs={isWideScreen() ? 44 : 26} fill="#d0bcff" />
                     <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{snapshot()?.cpu || "Quad-Core ARM"}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Memory Card */}
-              <View class="w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class={isWideScreen() ? "w-full flex-1 p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938] mb-[4px]" : "w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]"}>
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[4px]">
                     <View class="w-[5px] h-[5px] bg-[#a8efff]" />
@@ -161,14 +162,14 @@ export function SystemPage(props: SystemPageProps) {
                 <View class="flex-row items-end justify-between">
                   <Text class="text-xs font-bold" style={{ textColor: "#a8efff" }}>{percentText(ram()?.percent)}</Text>
                   <View class="flex-col items-end gap-[3px]">
-                    <SegBar value={ram()?.percent ?? 0} width={130} height={5} segs={26} fill="#a8efff" />
+                    <SegBar value={ram()?.percent ?? 0} width={isWideScreen() ? 220 : 130} height={5} segs={isWideScreen() ? 44 : 26} fill="#a8efff" />
                     <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>{ram() ? `${ram()!.usedMb} / ${ram()!.totalMb} MB` : "-- / -- MB"}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Storage Card */}
-              <View class="w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]">
+              <View class={isWideScreen() ? "w-full flex-1 p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]" : "w-[213px] h-[52px] p-[8px] bg-[#211f26] flex-col justify-between border border-[#2d2938]"}>
                 <View class="flex-row items-center justify-between">
                   <View class="flex-row items-center gap-[4px]">
                     <View class="w-[5px] h-[5px] bg-[#ffd8e4]" />
@@ -181,7 +182,7 @@ export function SystemPage(props: SystemPageProps) {
                 <View class="flex-row items-end justify-between">
                   <Text class="text-xs font-bold" style={{ textColor: "#ffd8e4" }}>{percentText(storage())}</Text>
                   <View class="flex-col items-end gap-[3px]">
-                    <SegBar value={storage() ?? 0} width={130} height={5} segs={26} fill="#ffd8e4" />
+                    <SegBar value={storage() ?? 0} width={isWideScreen() ? 220 : 130} height={5} segs={isWideScreen() ? 44 : 26} fill="#ffd8e4" />
                     <Text class={isHuge() ? "text-base text-[#938f99]" : isLarge() ? "text-sm text-[#938f99]" : "text-xs text-[#938f99]"}>
                       {snapshot()?.storageUsed && snapshot()?.storageTotal ? `${snapshot()!.storageUsed} / ${snapshot()!.storageTotal}` : "-- / --"}
                     </Text>
@@ -193,8 +194,8 @@ export function SystemPage(props: SystemPageProps) {
         ) : null}
 
         {props.pageIndex === 1 ? (
-          <View class="w-[336px] h-[168px] flex-col justify-between">
-            <View class="w-[336px] px-[3px] mb-[2px]">
+          <View class={isWideScreen() ? "w-full flex-1 flex-col justify-between" : "w-[336px] h-[168px] flex-col justify-between"}>
+            <View class={isWideScreen() ? "w-full px-[4px] mb-[2px]" : "w-[336px] px-[3px] mb-[2px]"}>
               <Text class={isHuge() ? "text-base font-bold text-[#d0bcff]" : isLarge() ? "text-sm font-bold text-[#d0bcff]" : "text-xs font-bold text-[#d0bcff]"}>{t()("system.hardware")}</Text>
             </View>
             <InfoRow label={t()("system.board")} value={text(snapshot()?.hardware)} fontSize={props.status.fontSize} />
@@ -217,8 +218,8 @@ export function SystemPage(props: SystemPageProps) {
         ) : null}
 
         {props.pageIndex === 2 ? (
-          <View class="w-[336px] h-[168px] flex-col justify-between">
-            <View class="w-[336px] px-[3px] mb-[2px]">
+          <View class={isWideScreen() ? "w-full flex-1 flex-col justify-between" : "w-[336px] h-[168px] flex-col justify-between"}>
+            <View class={isWideScreen() ? "w-full px-[4px] mb-[2px]" : "w-[336px] px-[3px] mb-[2px]"}>
               <Text class={isHuge() ? "text-base font-bold text-[#d0bcff]" : isLarge() ? "text-sm font-bold text-[#d0bcff]" : "text-xs font-bold text-[#d0bcff]"}>{t()("system.link")}</Text>
             </View>
             <InfoRow
@@ -234,7 +235,7 @@ export function SystemPage(props: SystemPageProps) {
             />
             <InfoRow label={t()("system.address")} value={text(props.network.address)} fontSize={props.status.fontSize} />
 
-            <View class="w-[336px] px-[3px] mt-[2px] mb-[2px]">
+            <View class={isWideScreen() ? "w-full px-[4px] mt-[2px] mb-[2px]" : "w-[336px] px-[3px] mt-[2px] mb-[2px]"}>
               <Text class={isHuge() ? "text-base font-bold text-[#d0bcff]" : isLarge() ? "text-sm font-bold text-[#d0bcff]" : "text-xs font-bold text-[#d0bcff]"}>{t()("system.thisDevice")}</Text>
             </View>
             <InfoRow

@@ -1217,7 +1217,11 @@ mount(() => {
       setHomeCardIndex(0);
       setCarouselCenter(0);
       scheduleLaunch(appShortName(t, app), () => {
-        const answer = host?.__launcher?.(`ROMLAUNCH\t${app.romPath}`) ?? "";
+        let answer = host?.__launcher?.(`ROMLAUNCH\t${app.romPath}`) ?? "";
+        if (!answer || /unknown/i.test(answer) || !/^(Starting game|launching:)/i.test(answer)) {
+          const legacy = host?.__launcher?.(`ROM\tlaunch\t${app.romPath}`) ?? "";
+          if (/^launching:/i.test(legacy)) answer = legacy;
+        }
         if (!/^(Starting game|launching:)/i.test(answer)) {
           setLaunchingLabel("");
           showToast(language() === "zh" ? "游戏启动失败" : "Unable to start game");
@@ -1808,18 +1812,22 @@ mount(() => {
         ref={(node: NodeMirror) => { bgNodeA = node; }}
         class="absolute left-0 top-0 w-full h-full"
         src={bgSrcA()}
-        style={{ opacity: 0.85 }}
+        style={{ opacity: isWideScreen() ? 1 : 0.85 }}
       />
-      <Image
-        ref={(node: NodeMirror) => { bgNodeB = node; }}
-        class="absolute left-0 top-0 w-full h-full"
-        src={bgSrcB()}
-        style={{ opacity: 0 }}
-      />
-      {/* Keep pale cover art visible but force predictable contrast for every label and status icon. */}
-      <View class="absolute inset-0 bg-[#0b0a10a8]" />
-      {/* Ordered-dither stipple: turns the smooth cover-derived glow into visible pixels. */}
-      <Image class="absolute left-0 top-0 w-full h-full" src="pixel-dither-a.png" />
+      {isWideScreen() ? null : (
+        <>
+          <Image
+            ref={(node: NodeMirror) => { bgNodeB = node; }}
+            class="absolute left-0 top-0 w-full h-full"
+            src={bgSrcB()}
+            style={{ opacity: 0 }}
+          />
+          {/* Keep pale cover art visible but force predictable contrast for every label and status icon. */}
+          <View class="absolute inset-0 bg-[#0b0a10a8]" />
+          {/* Ordered-dither stipple: turns the smooth cover-derived glow into visible pixels. */}
+          <Image class="absolute left-0 top-0 w-full h-full" src="pixel-dither-a.png" />
+        </>
+      )}
       {/* The status bar stays readable over light and dark cover art. */}
       <StatusBar
         currentScreen={currentScreen()}

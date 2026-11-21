@@ -6,6 +6,7 @@ import { TouchTarget } from "../touch-target";
 import type { BtDevice } from "../bluetooth-model";
 import { ScanTrack } from "./scan-track";
 import { THEME_PALETTES, type ThemeColorKey } from "../theme-model";
+import { isWideScreen } from "../card-carousel";
 
 export type BtPhase = "scanning" | "list" | "connecting";
 
@@ -67,8 +68,8 @@ export function BtPage(props: BtPageProps) {
   const empty = () => props.devices.length === 0;
 
   return (
-    <View class="w-[360px] h-[174px] flex-col px-[8px] py-[4px]">
-      <View class="w-[344px] h-[22px] flex-row items-center justify-between">
+    <View class={isWideScreen() ? "w-full max-w-[560px] flex-1 flex-col px-[8px] py-[4px]" : "w-[360px] h-[174px] flex-col px-[8px] py-[4px]"}>
+      <View class={isWideScreen() ? "w-full h-[22px] flex-row items-center justify-between" : "w-[344px] h-[22px] flex-row items-center justify-between"}>
         <View class="flex-row items-center gap-[8px]">
           <PixelStatus kind="bluetooth" color={theme().primary} />
           <Text class="text-xs font-bold text-white">{t()("bt.title")}</Text>
@@ -84,20 +85,20 @@ export function BtPage(props: BtPageProps) {
         </Text>
       </View>
 
-      <View class="w-[344px] flex-1 flex-col">
+      <View class={isWideScreen() ? "w-full flex-1 flex-col" : "w-[344px] flex-1 flex-col"}>
         {props.phase === "scanning" || props.phase === "connecting" ? (
-          <View class="w-[344px] h-[70px] flex-col items-center justify-center gap-[8px]">
+          <View class={isWideScreen() ? "w-full h-[70px] flex-col items-center justify-center gap-[8px]" : "w-[344px] h-[70px] flex-col items-center justify-center gap-[8px]"}>
             <ScanTrack active color={theme().primary} />
             <Text class="text-xs" style={{ textColor: "#9893ad" }}>
               {props.phase === "scanning" ? t()("bt.scanning") : t()("bt.connecting")}
             </Text>
           </View>
         ) : props.powered === false ? (
-          <View class="w-[344px] h-[70px] items-center justify-center">
+          <View class={isWideScreen() ? "w-full h-[70px] items-center justify-center" : "w-[344px] h-[70px] items-center justify-center"}>
             <Text class="text-xs" style={{ textColor: "#9893ad" }}>{t()("bt.off")}</Text>
           </View>
         ) : empty() ? (
-          <View class="w-[344px] h-[70px] items-center justify-center">
+          <View class={isWideScreen() ? "w-full h-[70px] items-center justify-center" : "w-[344px] h-[70px] items-center justify-center"}>
             <Text class="text-xs" style={{ textColor: "#9893ad" }}>{t()("bt.empty")}</Text>
           </View>
         ) : (
@@ -108,7 +109,7 @@ export function BtPage(props: BtPageProps) {
                   props.onSelect(row().realIndex);
                   props.onActivate(row().realIndex);
                 }}
-                class="w-[344px] h-[20px] flex-row items-center justify-between px-[8px]"
+                class={isWideScreen() ? "w-full h-[22px] flex-row items-center justify-between px-[8px]" : "w-[344px] h-[20px] flex-row items-center justify-between px-[8px]"}
                 style={{ bgColor: row().realIndex === props.index ? theme().activeSurface : "#00000000" }}
               >
                 <View class="flex-row items-center gap-[8px]">
@@ -139,7 +140,7 @@ export function BtPage(props: BtPageProps) {
         )}
       </View>
 
-      <View class="w-[344px] h-[18px] flex-row items-center justify-between">
+      <View class={isWideScreen() ? "w-full h-[20px] flex-row items-center justify-between" : "w-[344px] h-[18px] flex-row items-center justify-between"}>
         <Text class="text-xs" style={{ textColor: "#9893ad" }}>{props.status}</Text>
         <View class="flex-row items-center gap-[8px]">
           {props.phase === "list" && selected()?.paired ? (

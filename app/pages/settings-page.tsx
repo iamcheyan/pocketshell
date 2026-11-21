@@ -4,6 +4,7 @@ import { Index } from "solid-js";
 import { createGesture } from "@pocketjs/framework/gesture";
 import { translator } from "../i18n";
 import { TouchTarget } from "../touch-target";
+import { isWideScreen } from "../card-carousel";
 import {
   SETTING_ROWS,
   SETTINGS_COUNT,
@@ -83,9 +84,9 @@ function LevelMeter(props: {
   return (
     <View
       ref={(node: NodeMirror) => { track = node; }}
-      class="w-[90px] h-[9px] flex-row items-center"
+      class={isWideScreen() ? "w-[120px] h-[10px] flex-row items-center" : "w-[90px] h-[9px] flex-row items-center"}
     >
-      <SegBar value={percent()} width={90} height={9} segs={18} fill={props.fillColor} />
+      <SegBar value={percent()} width={isWideScreen() ? 120 : 90} height={isWideScreen() ? 10 : 9} segs={isWideScreen() ? 24 : 18} fill={props.fillColor} />
     </View>
   );
 }
@@ -100,12 +101,13 @@ export function SettingsPage(props: SettingsPageProps) {
   const isHuge = () => props.state.fontSize === "huge";
   const isLarge = () => props.state.fontSize === "large";
 
-  const rowHeight = () => (isHuge() ? 31 : isLarge() ? 28 : 26);
+  const rowHeight = () => (isWideScreen() ? (isHuge() ? 36 : isLarge() ? 33 : 30) : (isHuge() ? 31 : isLarge() ? 28 : 26));
 
   const visibleWindow = () => {
+    const rows = isWideScreen() ? 7 : VISIBLE_ROWS;
     const sel = Math.max(0, Math.min(SETTINGS_COUNT - 1, props.state.selectedIndex));
-    const start = Math.max(0, Math.min(Math.max(0, SETTINGS_COUNT - VISIBLE_ROWS), sel - 2));
-    return SETTING_ROWS.slice(start, start + VISIBLE_ROWS).map((row, i) => ({
+    const start = Math.max(0, Math.min(Math.max(0, SETTINGS_COUNT - rows), sel - Math.floor(rows / 2)));
+    return SETTING_ROWS.slice(start, start + rows).map((row, i) => ({
       row,
       realIndex: start + i,
     }));
@@ -359,22 +361,22 @@ export function SettingsPage(props: SettingsPageProps) {
   };
 
   return (
-    <View class="w-[360px] h-[174px] px-[18px] py-[4px] flex-col justify-between items-center bg-transparent">
+    <View class={isWideScreen() ? "w-full flex-1 px-[32px] py-[8px] flex-col justify-between items-center bg-transparent" : "w-[360px] h-[174px] px-[18px] py-[4px] flex-col justify-between items-center bg-transparent"}>
       {/* Category heading (M3 Title Large) */}
-      <View class="w-[330px] h-[15px] flex-row items-center justify-between px-[3px]">
+      <View class={isWideScreen() ? "w-full max-w-[560px] h-[18px] flex-row items-center justify-between px-[4px]" : "w-[330px] h-[15px] flex-row items-center justify-between px-[3px]"}>
         <Text
-          class={isHuge() ? "text-base font-bold tracking-wide" : "text-xs font-bold tracking-wide"}
+          class={isWideScreen() ? "text-sm font-bold tracking-wide" : isHuge() ? "text-base font-bold tracking-wide" : "text-xs font-bold tracking-wide"}
           style={{ textColor: theme().primary }}
         >
           {t(`settings.group.${windowGroup()}`)}
         </Text>
-        <Text class={isHuge() ? "text-base font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
+        <Text class={isWideScreen() ? "text-sm font-bold text-[#cac4d0]" : isHuge() ? "text-base font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
           {`${props.state.selectedIndex + 1} / ${SETTINGS_COUNT}`}
         </Text>
       </View>
 
       {/* M3 List Container (Borderless, soft surface highlights, dynamic height) */}
-      <View class="flex-col w-[330px] gap-[3px]">
+      <View class={isWideScreen() ? "flex-col w-full max-w-[560px] gap-[3px]" : "flex-col w-[330px] gap-[3px]"}>
         <Index each={visibleWindow()}>
           {(entry) => {
             const selected = () => props.state.selectedIndex === entry().realIndex;
@@ -386,8 +388,8 @@ export function SettingsPage(props: SettingsPageProps) {
                 }}
                 class={
                   selected()
-                    ? "w-[330px] px-[8px] flex-row items-center justify-between"
-                    : "w-[330px] px-[8px] flex-row items-center justify-between bg-transparent"
+                    ? (isWideScreen() ? "w-full px-[12px] flex-row items-center justify-between" : "w-[330px] px-[8px] flex-row items-center justify-between")
+                    : (isWideScreen() ? "w-full px-[12px] flex-row items-center justify-between bg-transparent" : "w-[330px] px-[8px] flex-row items-center justify-between bg-transparent")
                 }
                 style={{
                   height: rowHeight(),
@@ -401,10 +403,8 @@ export function SettingsPage(props: SettingsPageProps) {
                   />
                   <Text
                     class={
-                      isHuge()
-                        ? (selected() ? "text-xs font-bold text-[#e6e0e9]" : "text-xs text-[#cac4d0]")
-                        : isLarge()
-                        ? (selected() ? "text-xs font-bold text-[#e6e0e9]" : "text-xs text-[#cac4d0]")
+                      isWideScreen()
+                        ? (selected() ? "text-sm font-bold text-[#e6e0e9]" : "text-sm text-[#cac4d0]")
                         : (selected() ? "text-xs font-bold text-[#e6e0e9]" : "text-xs text-[#cac4d0]")
                     }
                   >
