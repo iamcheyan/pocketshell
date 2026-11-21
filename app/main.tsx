@@ -1800,25 +1800,24 @@ mount(() => {
   });
 
   return (
-    <View class="w-[360px] h-[240px] bg-[#141218] relative flex-col justify-between overflow-hidden">
+    <View class="w-full h-full bg-[#141218] relative flex-col justify-between items-center overflow-hidden">
       {/* Dynamic Gaussian-Blurred Ambient Background with Smooth Cross-fade */}
       <Image
         ref={(node: NodeMirror) => { bgNodeA = node; }}
-        class="absolute left-0 top-0 w-[360px] h-[240px]"
+        class="absolute left-0 top-0 w-full h-full"
         src={bgSrcA()}
         style={{ opacity: 0.85 }}
       />
       <Image
         ref={(node: NodeMirror) => { bgNodeB = node; }}
-        class="absolute left-0 top-0 w-[360px] h-[240px]"
+        class="absolute left-0 top-0 w-full h-full"
         src={bgSrcB()}
         style={{ opacity: 0 }}
       />
       {/* Keep pale cover art visible but force predictable contrast for every label and status icon. */}
       <View class="absolute inset-0 bg-[#0b0a10a8]" />
       {/* Ordered-dither stipple: turns the smooth cover-derived glow into visible pixels. */}
-      <Image class="absolute left-0 top-0 w-[256px] h-[256px]" src="pixel-dither-a.png" />
-      <Image class="absolute left-[256px] top-0 w-[128px] h-[256px]" src="pixel-dither-b.png" />
+      <Image class="absolute left-0 top-0 w-full h-full" src="pixel-dither-a.png" />
       {/* The status bar stays readable over light and dark cover art. */}
       <StatusBar
         currentScreen={currentScreen()}
@@ -1837,7 +1836,7 @@ mount(() => {
         batteryStatus={batteryStatus()}
       />
 
-      <View class="w-[360px] h-[208px] flex-col justify-between">
+      <View class="w-[360px] flex-1 flex-col justify-between">
         {/* Animated Page Container */}
         <View class="w-[360px] flex-1 flex-col justify-between overflow-hidden relative">
           {isCarouselScreen() ? (
@@ -2010,7 +2009,7 @@ mount(() => {
         </View>
 
       {launchingLabel() && (
-        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000e6] flex-col items-center justify-center z-50">
+        <View class="absolute left-0 top-0 w-full h-full bg-[#000000e6] flex-col items-center justify-center z-50">
           <View class="w-[180px] flex-col items-center gap-[7px]">
             <Text class="text-xs font-bold" style={{ textColor: theme().primary }}>
               {language() === "zh" ? "正在载入…" : language() === "ja" ? "読み込み中…" : "Loading…"}
@@ -2027,7 +2026,7 @@ mount(() => {
       </View>
 
       {seriesModalOpen() && seriesSelectedApp() ? (
-        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000e0] flex-col items-center justify-center z-50">
+        <View class="absolute left-0 top-0 w-full h-full bg-[#000000e0] flex-col items-center justify-center z-50">
           <View class="w-[320px] h-[220px] relative flex-col p-[8px] justify-between">
             <PxEdge fill="#181a20" edge={theme().primary} />
             {/* Header */}
@@ -2115,7 +2114,7 @@ mount(() => {
       ) : null}
 
       {gameOptionsOpen() ? (
-        <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#00000099] flex-col items-center justify-center z-50">
+        <View class="absolute left-0 top-0 w-full h-full bg-[#00000099] flex-col items-center justify-center z-50">
           <View class="w-[170px] relative flex-col items-center justify-center gap-[8px] p-[10px]">
             <PxEdge fill="#181a20" edge={theme().primary} />
             <Text class="text-xs font-bold text-white text-center">
