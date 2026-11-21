@@ -22,10 +22,15 @@ export interface CardCarouselProps {
   onMove?: (delta: -1 | 1) => void;
 }
 
+declare const __POCKET_TARGET__: string;
+export const isWideScreen = () =>
+  typeof __POCKET_TARGET__ !== "undefined" && __POCKET_TARGET__.includes("trimui");
+
 export const CARD_WIDTH = 132;
 export const CARD_INACTIVE_WIDTH = 98;
 export const CARD_GAP = 12;
 export const CAROUSEL_STEP = 110; // 98 + 12
+export const CAROUSEL_STEP_WIDE = 140; // 124 + 16
 // Symmetrical center in 720px: active slot 2 starts at 228 + 228 = 456px inside row.
 // Desired active card start: (720 - 260) / 2 = 230px.
 // Row offset = 230 - 456 = -226px.
@@ -47,10 +52,17 @@ export function CardCarousel(props: CardCarouselProps) {
   });
 
   return (
-    <View ref={(node: NodeMirror) => { viewport = node; }} class="w-[360px] h-[135px] overflow-hidden relative items-center justify-center">
+    <View
+      ref={(node: NodeMirror) => { viewport = node; }}
+      class={isWideScreen()
+        ? "w-[640px] h-[190px] overflow-hidden relative items-center justify-center"
+        : "w-[360px] h-[135px] overflow-hidden relative items-center justify-center"}
+    >
       <View
         ref={(node: NodeMirror) => props.onMountCarousel?.(node)}
-        class="flex-row items-center absolute left-0 top-0 h-[135px]"
+        class={isWideScreen()
+          ? "flex-row items-center absolute left-0 top-0 h-[190px]"
+          : "flex-row items-center absolute left-0 top-0 h-[135px]"}
       >
         <Index each={indices()}>
           {(index) => {
@@ -62,15 +74,21 @@ export function CardCarousel(props: CardCarouselProps) {
                 onMount={(node) => props.onMountCard?.(index(), node)}
                 class={
                   isSelected()
-                    ? "w-[132px] h-[132px] mr-[12px] flex-col items-center justify-center overflow-hidden border-2 relative"
-                    : "w-[98px] h-[98px] mr-[12px] flex-col items-center justify-center overflow-hidden opacity-40 relative"
+                    ? (isWideScreen()
+                        ? "w-[184px] h-[184px] mr-[16px] flex-col items-center justify-center overflow-hidden border-2 relative"
+                        : "w-[132px] h-[132px] mr-[12px] flex-col items-center justify-center overflow-hidden border-2 relative")
+                    : (isWideScreen()
+                        ? "w-[124px] h-[124px] mr-[16px] flex-col items-center justify-center overflow-hidden opacity-40 relative"
+                        : "w-[98px] h-[98px] mr-[12px] flex-col items-center justify-center overflow-hidden opacity-40 relative")
                 }
                 style={isSelected()
                   ? { bgColor: theme().container, borderColor: theme().primary }
                   : { bgColor: theme().activeSurface, borderColor: theme().activeSurface }}
               >
                 {/* Modern Material 3 Square Game Tile (Right-Angled / 直角, No harsh borders) */}
-                <View class={isSelected() ? "w-[128px] h-[128px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[96px] h-[96px] items-center justify-center overflow-hidden bg-[#141218]"}>
+                <View class={isSelected()
+                  ? (isWideScreen() ? "w-[180px] h-[180px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[128px] h-[128px] items-center justify-center overflow-hidden bg-[#141218]")
+                  : (isWideScreen() ? "w-[120px] h-[120px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[96px] h-[96px] items-center justify-center overflow-hidden bg-[#141218]")}>
                   <CoverImage app={app} active={() => true} isSelected={isSelected} pixelate={props.pixelateCovers} />
                 </View>
 

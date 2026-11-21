@@ -2,13 +2,9 @@ import { Text, View } from "@pocketjs/framework/solid/components";
 import { Index, createSignal, createEffect } from "solid-js";
 import { onFrame } from "@pocketjs/framework/lifecycle";
 import { TouchTarget } from "./touch-target";
-import {
-  THEME_PALETTES,
-  FONT_SCALE_CONFIGS,
-  type ThemeColorKey,
-  type FontSizeKey,
-} from "./theme-model";
+import { THEME_PALETTES, FONT_SCALE_CONFIGS, type ThemeColorKey, type FontSizeKey } from "./theme-model";
 import { PixelStatus, PixelBattery } from "./pixel-status";
+import { isWideScreen } from "./card-carousel";
 
 export interface StatusBarProps {
   currentScreen?: number;
@@ -85,7 +81,9 @@ export function StatusBar(props: StatusBarProps) {
   };
 
   return (
-    <View class="w-[360px] h-[32px] flex-row items-center justify-between px-[12px] bg-transparent">
+    <View class={isWideScreen()
+      ? "w-full h-[36px] flex-row items-center justify-between px-[20px] bg-transparent"
+      : "w-[360px] h-[32px] flex-row items-center justify-between px-[12px] bg-transparent"}>
       {/* Left: M3 Navigation Tabs (No L/R badges, borderless pill indicators) */}
       <View class="flex-row items-center gap-[6px]">
         {props.title ? (

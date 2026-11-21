@@ -24,7 +24,7 @@ import {
 } from "./launcher-catalog";
 import { translator } from "./i18n";
 import { StatusBar } from "./status-bar";
-import { CardCarousel, CAROUSEL_OFFSET_5, CAROUSEL_OFFSET_LESS, CAROUSEL_STEP, appCoverSrc, appBlurBgSrc } from "./card-carousel";
+import { CardCarousel, CAROUSEL_OFFSET_5, CAROUSEL_OFFSET_LESS, CAROUSEL_STEP, CAROUSEL_STEP_WIDE, isWideScreen, appCoverSrc, appBlurBgSrc } from "./card-carousel";
 import { libraryTexture } from "./library-images";
 import { PixelStatus } from "./pixel-status";
 import { TouchTarget } from "./touch-target";
@@ -359,7 +359,9 @@ mount(() => {
 
   const updateCardPosition = (idx: number, smooth = true) => {
     try {
-      const targetX = 114 - idx * CAROUSEL_STEP;
+      const base = isWideScreen() ? 228 : 114;
+      const step = isWideScreen() ? CAROUSEL_STEP_WIDE : CAROUSEL_STEP;
+      const targetX = base - idx * step;
       if (carouselNode) {
         if (smooth) {
           safeAnimate(carouselNode, "translateX", targetX, { dur: 220, easing: "out" });
@@ -1836,11 +1838,11 @@ mount(() => {
         batteryStatus={batteryStatus()}
       />
 
-      <View class="w-[360px] flex-1 flex-col justify-between">
+      <View class={isWideScreen() ? "w-full flex-1 flex-col justify-between" : "w-[360px] flex-1 flex-col justify-between"}>
         {/* Animated Page Container */}
-        <View class="w-[360px] flex-1 flex-col justify-between overflow-hidden relative">
+        <View class={isWideScreen() ? "w-full flex-1 flex-col justify-between overflow-hidden relative" : "w-[360px] flex-1 flex-col justify-between overflow-hidden relative"}>
           {isCarouselScreen() ? (
-            <View class="w-[360px] h-[174px] flex-col justify-between items-center py-[1px]">
+            <View class={isWideScreen() ? "w-full flex-1 flex-col justify-between items-center py-[2px]" : "w-[360px] h-[174px] flex-col justify-between items-center py-[1px]"}>
               {/* Horizontal Switch-Style Card Carousel */}
               {currentApps().length ? (
                 <CardCarousel
@@ -1880,8 +1882,8 @@ mount(() => {
               )}
 
                 {/* Modern Game Title & Metadata Plaque (Material Design 3 typography) */}
-                <View class="w-[320px] flex-col items-center justify-center gap-[2px] mb-[3px]">
-                  <Text class="text-xs font-bold text-[#e6e0e9] text-center tracking-wide">
+                <View class={isWideScreen() ? "w-[600px] flex-col items-center justify-center gap-[4px] mb-[6px]" : "w-[320px] flex-col items-center justify-center gap-[2px] mb-[3px]"}>
+                  <Text class={isWideScreen() ? "text-base font-bold text-[#e6e0e9] text-center tracking-wide" : "text-xs font-bold text-[#e6e0e9] text-center tracking-wide"}>
                     {appName(t, selectedApp(), language()) || "Nintendo Switch"}
                   </Text>
                   {selectedApp() ? (
@@ -1971,7 +1973,7 @@ mount(() => {
           </View>
 
           {/* Bottom Action Footer Bar (Material Design 3 borderless, seamless transparent background) */}
-          <View class="w-[360px] h-[32px] bg-transparent flex-row items-center justify-between px-[16px]">
+          <View class={isWideScreen() ? "w-full h-[36px] bg-transparent flex-row items-center justify-between px-[24px]" : "w-[360px] h-[32px] bg-transparent flex-row items-center justify-between px-[16px]"}>
             <View class="flex-row items-center gap-[5px]">
               <Text class="text-xs text-[#938f99]">◀ ▶</Text>
               <Text class={fontSize() === "huge" ? "text-base font-bold text-[#cac4d0]" : fontSize() === "large" ? "text-sm font-bold text-[#cac4d0]" : "text-xs font-bold text-[#cac4d0]"}>
