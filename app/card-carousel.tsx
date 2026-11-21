@@ -79,15 +79,6 @@ export function CardCarousel(props: CardCarouselProps) {
                     <Text class="text-xs font-bold text-[#ffd8e4]">★</Text>
                   </View>
                 )}
-
-                {/* Translation Available Badge (Top-Left) */}
-                {app()?.hasTranslation && (
-                  <View class="absolute top-[4px] left-[4px] px-[4px] py-[1px] bg-[#1a3826] border border-[#2e7d32] items-center justify-center">
-                    <Text class="text-xs font-bold text-[#69f0ae]">
-                      {translationBadgeText(app()?.seriesItems?.find((it) => it.translation)?.translation || "ja-zh", props.language || "zh")}
-                    </Text>
-                  </View>
-                )}
               </TouchTarget>
             );
           }}

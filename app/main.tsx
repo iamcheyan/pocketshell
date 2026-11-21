@@ -1860,7 +1860,7 @@ mount(() => {
                   {selectedApp() ? (
                     <Text class={fontSize() === "huge" ? "text-base font-bold text-[#cac4d0] text-center" : fontSize() === "large" ? "text-sm font-bold text-[#cac4d0] text-center" : "text-xs font-bold text-[#cac4d0] text-center"}>
                       {selectedApp()?.isSeries
-                        ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} ${language() === "zh" ? "个版本" : language() === "ja" ? "バージョン" : "VERSIONS"}${selectedApp()?.hasTranslation ? ` · ${translationBadgeText("ja-zh", language())}` : ""}`
+                        ? `${categoryLabel(t, selectedApp()) || t("catalog.series")} · ${selectedApp()?.seriesItems?.length || 0} ${language() === "zh" ? "个版本" : language() === "ja" ? "バージョン" : "VERSIONS"}`
                         : selectedApp()?.romPath
                         ? `${categoryLabel(t, selectedApp()) || (language() === "zh" ? "游戏" : language() === "ja" ? "ゲーム" : "Game")} · ${currentCardIndex() + 1} / ${currentApps().length}`
                         : `${categoryLabel(t, selectedApp()) || "App"} · ${currentCardIndex() + 1} / ${currentApps().length}`}
