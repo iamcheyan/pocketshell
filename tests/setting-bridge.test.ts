@@ -46,4 +46,23 @@ describe("device setting responses", () => {
     const host = { __launcher: () => "error:unsupported" };
     expect(readSetting(host, "hostname")).toBeNull();
   });
+  test("persists pixelateCovers and falls back to series.pixelatecovers.lastVariant on legacy runtime", () => {
+    let stored = "off";
+    const host = {
+      __launcher: (command: string) => {
+        const fields = command.split("\t");
+        if (fields[0] !== "SETTING") return "Unknown launcher action";
+        // Simulate older runtime rejecting bare pixelateCovers, but accepting series.pixelatecovers.lastVariant
+        if (fields[1] === "pixelateCovers") return "Unknown launcher action";
+        if (fields[1] === "series.pixelatecovers.lastVariant") {
+          if (fields[2]) stored = fields[2];
+          return stored;
+        }
+        return "Unknown launcher action";
+      },
+    };
+    expect(readSetting(host, "pixelateCovers")).toBe("off");
+    expect(writeSetting(host, "pixelateCovers", "on")).toBe("on");
+    expect(readSetting(host, "pixelateCovers")).toBe("on");
+  });
 });

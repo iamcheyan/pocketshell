@@ -26,6 +26,7 @@ export const SETTING_ROWS: readonly SettingRow[] = [
   { key: "themeColor", label: "themeColor", kind: "enum", group: "display", values: ["purple", "blue", "green", "pink", "amber", "teal", "coral", "ice", "mono"] },
   { key: "showClock", label: "showClock", kind: "toggle", group: "display" },
   { key: "animations", label: "animations", kind: "toggle", group: "display" },
+  { key: "pixelateCovers", label: "pixelateCovers", kind: "toggle", group: "display" },
   { key: "bluetooth", label: "bluetooth", kind: "toggle", group: "connectivity" },
   { key: "wifi", label: "wifi", kind: "toggle", group: "connectivity" },
   { key: "ssh", label: "ssh", kind: "toggle", group: "connectivity" },

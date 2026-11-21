@@ -298,6 +298,11 @@ mount(() => {
     return val === "true" || val === "on";
   };
 
+  const pixelateCoversEnabled = () => {
+    const val = settingValues().pixelateCovers;
+    return val === "true" || val === "on";
+  };
+
   const safeAnimate = (
     node: NodeMirror | undefined | null,
     prop: any,
@@ -519,10 +524,12 @@ mount(() => {
     value: 50,
   });
   let osdFrames = 0;
+  let osdUntil = 0;
 
   const showOsd = (type: "brightness" | "volume", value: number) => {
     setOsd({ visible: true, type, value: Math.max(0, Math.min(100, Math.round(value))) });
-    osdFrames = 90; // ~1.5s at 60fps
+    osdFrames = 35;
+    osdUntil = Date.now() + 650; // quick dismiss after 650ms
   };
 
   // Brightness and volume can change through hardware controls. Poll just
@@ -1498,10 +1505,11 @@ mount(() => {
         safeAnimate(toastNode, "translateY", 6, { dur: 250, easing: "out" });
       }
     }
-    if (osdFrames > 0) {
-      osdFrames--;
-      if (osdFrames === 0) {
-        setOsd((curr) => ({ ...curr, visible: false }));
+    if (osdFrames > 0 || osd().visible) {
+      if (osdFrames > 0) osdFrames--;
+      if (Date.now() >= osdUntil || osdFrames === 0) {
+        setOsd((curr) => (curr.visible ? { ...curr, visible: false } : curr));
+        osdFrames = 0;
       }
     }
 
@@ -1843,6 +1851,7 @@ mount(() => {
                   apps={currentApps()}
                   selectedIndex={currentCardIndex()}
                   windowCenter={carouselCenter()}
+                  pixelateCovers={pixelateCoversEnabled}
                   onMountCarousel={(node) => {
                     carouselNode = node;
                     updateCardPosition(currentCardIndex(), false);

@@ -15,6 +15,7 @@ export interface CardCarouselProps {
   selectedIndex: number;
   themeColor: ThemeColorKey;
   windowCenter: number;
+  pixelateCovers?: () => boolean;
   onMountCarousel?: (node: NodeMirror) => void;
   onMountCard?: (index: number, node: NodeMirror) => void;
   onCardPress?: (index: number) => void;
@@ -70,7 +71,7 @@ export function CardCarousel(props: CardCarouselProps) {
               >
                 {/* Modern Material 3 Square Game Tile (Right-Angled / 直角, No harsh borders) */}
                 <View class={isSelected() ? "w-[128px] h-[128px] items-center justify-center overflow-hidden bg-[#141218]" : "w-[96px] h-[96px] items-center justify-center overflow-hidden bg-[#141218]"}>
-                  <CoverImage app={app} active={() => true} isSelected={isSelected} />
+                  <CoverImage app={app} active={() => true} isSelected={isSelected} pixelate={props.pixelateCovers} />
                 </View>
 
                 {/* Favorite Badge if pinned */}
@@ -104,13 +105,19 @@ export function appBlurBgSrc(app: LauncherApp | undefined): string {
   return "bg-blur-default.png";
 }
 
-function CoverImage(props: { app: () => LauncherApp; active: () => boolean; isSelected: () => boolean }) {
+function CoverImage(props: {
+  app: () => LauncherApp;
+  active: () => boolean;
+  isSelected: () => boolean;
+  pixelate?: () => boolean;
+}) {
   let node: NodeMirror | undefined;
   createEffect(() => {
     const path = props.app()?.coverPath;
     if (!props.active() || !path || !node) return;
     const host = (globalThis as typeof globalThis & { ui?: { __launcher?: (command: string) => string } }).ui;
-    const handle = libraryTexture(host, path, "cover");
+    const pixelate = props.pixelate ? props.pixelate() : false;
+    const handle = libraryTexture(host, path, "cover", pixelate);
     if (handle !== undefined) getOps().setImage(node.id, handle);
   });
 

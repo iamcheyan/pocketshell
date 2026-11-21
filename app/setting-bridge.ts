@@ -125,10 +125,14 @@ export const localFallbackSettings: Record<string, string> = {
   animations: "off",
   fontSize: "normal",
   themeColor: "purple",
+  pixelateCovers: "off",
 };
 
 export const readSetting = (host: LauncherHost | undefined, key: string): string | null => {
-  const unified = host?.__launcher?.(`SETTING\t${key}`)?.trim() ?? "";
+  let unified = host?.__launcher?.(`SETTING\t${key}`)?.trim() ?? "";
+  if ((!unified || isUnknownArm(unified) || /^error:/i.test(unified)) && key === "pixelateCovers") {
+    unified = host?.__launcher?.("SETTING\tseries.pixelatecovers.lastVariant")?.trim() ?? "";
+  }
   if (unified && !isUnknownArm(unified) && !/^error:/i.test(unified)) {
     if (key in localFallbackSettings) localFallbackSettings[key] = unified;
     return unified;
@@ -153,7 +157,10 @@ export const writeSetting = (host: LauncherHost | undefined, key: string, value:
       localFallbackSettings[key] = value;
       return value;
     }
-    const reply = host.__launcher(`SETTING\t${key}\t${value}`)?.trim() ?? "";
+    let reply = host.__launcher(`SETTING\t${key}\t${value}`)?.trim() ?? "";
+    if ((!reply || isUnknownArm(reply) || /^error:/i.test(reply)) && key === "pixelateCovers") {
+      reply = host.__launcher(`SETTING\tseries.pixelatecovers.lastVariant\t${value}`)?.trim() ?? "";
+    }
     if (!reply || isUnknownArm(reply) || /^error:/i.test(reply)) return null;
     const persisted = readSetting(host, key);
     if (persisted !== value) return null;

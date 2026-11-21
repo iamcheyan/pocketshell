@@ -7,7 +7,26 @@
 //! Everything here is a file read, an `rfkill`/`timedatectl` query or a short
 //! child process on the guest's render thread: bounded, and never a daemon.
 
+use std::collections::HashMap;
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
+
+static DESKTOP_SETTINGS: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+fn desktop_get(key: &str) -> Option<String> {
+    let guard = DESKTOP_SETTINGS.lock().ok()?;
+    guard.as_ref()?.get(key).cloned()
+}
+
+fn desktop_set(key: &str, value: &str) -> String {
+    if let Ok(mut guard) = DESKTOP_SETTINGS.lock() {
+        let map = guard.get_or_insert_with(HashMap::new);
+        map.insert(key.to_string(), value.to_string());
+        value.to_string()
+    } else {
+        "error:unavailable".into()
+    }
+}
 
 fn read(path: &str) -> Option<String> {
     std::fs::read_to_string(path)
@@ -150,6 +169,16 @@ pub fn command(value: &str) -> String {
         ("timeout", _) => String::new(),
         ("hostname", None) => hostname(),
         ("hostname", Some(_)) => "error:unsupported".into(),
+        ("showClock" | "animations" | "fontSize" | "themeColor" | "pixelateCovers", None) => {
+            desktop_get(key).unwrap_or_else(|| match key {
+                "fontSize" => "normal".into(),
+                "themeColor" => "purple".into(),
+                _ => "off".into(),
+            })
+        }
+        ("showClock" | "animations" | "fontSize" | "themeColor" | "pixelateCovers", Some(val)) => {
+            desktop_set(key, val)
+        }
         // Power requests are handled by the early return above: a preview must
         // never power the developer's machine off or reboot it.
         _ => String::new(),
