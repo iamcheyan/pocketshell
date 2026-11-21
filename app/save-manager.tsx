@@ -8,6 +8,7 @@ import {
   formatSaveProgress,
   type SaveEntry,
 } from "./save-manager-model";
+import { isWideScreen } from "./card-carousel";
 
 export type { SaveEntry };
 
@@ -29,13 +30,14 @@ export function SaveManager(props: SaveManagerProps) {
   const isHuge = () => props.fontSize === "huge";
   const isLarge = () => props.fontSize === "large";
 
-  const PAGE_SIZE = 4;
+  const PAGE_SIZE = isWideScreen() ? 6 : 4;
   const scrollOffset = () => {
     const total = props.entries.length;
     if (total <= PAGE_SIZE) return 0;
-    if (props.selectedIndex < 2) return 0;
-    if (props.selectedIndex >= total - 2) return total - PAGE_SIZE;
-    return props.selectedIndex - 1;
+    const half = Math.floor(PAGE_SIZE / 2);
+    if (props.selectedIndex < half) return 0;
+    if (props.selectedIndex >= total - half) return total - PAGE_SIZE;
+    return props.selectedIndex - half;
   };
 
   const visibleEntries = () => {
@@ -51,9 +53,9 @@ export function SaveManager(props: SaveManagerProps) {
   };
 
   return (
-    <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000f2] flex-col items-center justify-center z-50">
+    <View class={isWideScreen() ? "absolute inset-0 w-full h-full bg-[#000000f2] flex-col items-center justify-center z-50" : "absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000f2] flex-col items-center justify-center z-50"}>
       <View
-        class="w-[332px] h-[218px] relative flex-col p-[8px] justify-between"
+        class={isWideScreen() ? "w-full max-w-[560px] h-full max-h-[320px] relative flex-col p-[10px] justify-between" : "w-[332px] h-[218px] relative flex-col p-[8px] justify-between"}
       >
         <PxEdge fill="#181a20" edge={theme().primary} />
         {/* Header */}

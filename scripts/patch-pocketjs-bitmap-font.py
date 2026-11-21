@@ -14,15 +14,14 @@ It is idempotent and fails loudly if the compiler anchor moves.
 from pathlib import Path
 import sys
 
-MARKER = "const coverage = Math.round((counts[x] * 255) / samplesPerPixel);"
+MARKER = "const antialias = typeof process !== \"undefined\" && process.env.POCKETJS_FONT_ANTIALIAS === \"1\";"
 ANCHOR = """    for (let x = 0; x < cellW; x++) {
       out[row * cellW + x] = Math.round((counts[x] * 255) / samplesPerPixel);
     }"""
-REPLACEMENT = """    for (let x = 0; x < cellW; x++) {
-      // 1-bit atlas: PJOS presents the canvas at integer scale, so gray coverage
-      // would be magnified into visible 2x2 blocks instead of pixel-art edges.
+REPLACEMENT = """    const antialias = typeof process !== "undefined" && process.env.POCKETJS_FONT_ANTIALIAS === "1";
+    for (let x = 0; x < cellW; x++) {
       const coverage = Math.round((counts[x] * 255) / samplesPerPixel);
-      out[row * cellW + x] = coverage > 127 ? 255 : 0;
+      out[row * cellW + x] = antialias ? coverage : (coverage > 127 ? 255 : 0);
     }"""
 
 if len(sys.argv) != 2:

@@ -68,6 +68,22 @@ export function SystemPage(props: SystemPageProps) {
   const isHuge = () => props.status.fontSize === "huge";
   const isLarge = () => props.status.fontSize === "large";
 
+  const friendlyModel = () => {
+    const raw = snapshot()?.model;
+    if (!raw || raw.toLowerCase().includes("sun50iw10")) {
+      return isWideScreen() ? "Allwinner A133Plus" : "Allwinner H700";
+    }
+    return raw;
+  };
+
+  const friendlyHardware = () => {
+    const raw = snapshot()?.hardware;
+    if (!raw) return isWideScreen() ? "Allwinner A133" : "Allwinner H700";
+    if (raw.includes("a133") || raw.includes("sun50iw10")) return "Allwinner A133Plus";
+    if (raw.includes("h700")) return "Allwinner H700";
+    return raw;
+  };
+
   const memoryLabel = () =>
     text(snapshot()?.ramVariant) === "--"
       ? ram()
@@ -97,7 +113,7 @@ export function SystemPage(props: SystemPageProps) {
               {/* Device Names */}
               <View class="flex-col items-center text-center w-full overflow-hidden">
                 <Text class="text-xs font-bold text-[#e6e0e9]">{isWideScreen() ? "TrimUI Smart Pro" : "RG34XX"}</Text>
-                <Text class={isWideScreen() ? "text-xs font-bold text-[#d0bcff] mt-[1px]" : isHuge() ? "text-base font-bold text-[#d0bcff] mt-[1px]" : isLarge() ? "text-sm font-bold text-[#d0bcff] mt-[1px]" : "text-xs font-bold text-[#d0bcff] mt-[1px]"}>{text(snapshot()?.model) || (isWideScreen() ? "Allwinner A133Plus" : "Allwinner H700")}</Text>
+                <Text class={isWideScreen() ? "text-xs font-bold text-[#d0bcff] mt-[1px]" : isHuge() ? "text-base font-bold text-[#d0bcff] mt-[1px]" : isLarge() ? "text-sm font-bold text-[#d0bcff] mt-[1px]" : "text-xs font-bold text-[#d0bcff] mt-[1px]"}>{friendlyModel()}</Text>
                 <Text class={isHuge() ? "text-base text-[#938f99] mt-[1px]" : isLarge() ? "text-sm text-[#938f99] mt-[1px]" : "text-xs text-[#938f99] mt-[1px]"}>
                   {snapshot()?.cpu || "4 Cores @ 1.5 GHz"}
                 </Text>
@@ -198,7 +214,7 @@ export function SystemPage(props: SystemPageProps) {
             <View class={isWideScreen() ? "w-full px-[4px] mb-[2px]" : "w-[336px] px-[3px] mb-[2px]"}>
               <Text class={isHuge() ? "text-base font-bold text-[#d0bcff]" : isLarge() ? "text-sm font-bold text-[#d0bcff]" : "text-xs font-bold text-[#d0bcff]"}>{t()("system.hardware")}</Text>
             </View>
-            <InfoRow label={t()("system.board")} value={text(snapshot()?.hardware)} fontSize={props.status.fontSize} />
+            <InfoRow label={t()("system.board")} value={friendlyHardware()} fontSize={props.status.fontSize} />
             <InfoRow label={t()("system.cpu")} value={text(snapshot()?.cpu)} fontSize={props.status.fontSize} />
             <InfoRow label={t()("system.frequency")} value={text(snapshot()?.frequency)} fontSize={props.status.fontSize} />
             <InfoRow

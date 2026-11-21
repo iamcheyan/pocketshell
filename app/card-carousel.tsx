@@ -142,7 +142,7 @@ function CoverImage(props: {
   return (
     <Image
       ref={(value: NodeMirror) => { node = value; }}
-      class={props.isSelected() ? "w-[128px] h-[128px]" : "w-[96px] h-[96px]"}
+      class="w-full h-full"
       src={appCoverSrc(props.app())}
     />
   );

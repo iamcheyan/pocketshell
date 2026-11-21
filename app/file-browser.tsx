@@ -3,6 +3,7 @@ import { PxEdge, SegBar } from "./pixel-ui";
 import { Index } from "solid-js";
 import { THEME_PALETTES, type ThemeColorKey, type FontSizeKey } from "./theme-model";
 import { formatFileSize, type FileItem } from "./file-browser-model";
+import { isWideScreen } from "./card-carousel";
 
 export type { FileItem };
 export { formatFileSize };
@@ -28,7 +29,7 @@ export function FileBrowser(props: FileBrowserProps) {
   const isHuge = () => props.fontSize === "huge";
   const isLarge = () => props.fontSize === "large";
 
-  const PAGE_SIZE = 6;
+  const PAGE_SIZE = isWideScreen() ? 8 : 6;
   const scrollOffset = () => {
     const total = props.entries.length;
     if (total <= PAGE_SIZE) return 0;
@@ -49,7 +50,7 @@ export function FileBrowser(props: FileBrowserProps) {
     return props.previewContent.split("\n");
   };
 
-  const PREVIEW_PAGE_SIZE = 11;
+  const PREVIEW_PAGE_SIZE = isWideScreen() ? 15 : 11;
   const visiblePreviewLines = () => {
     const lines = previewLines();
     const start = props.previewScroll;
@@ -57,9 +58,9 @@ export function FileBrowser(props: FileBrowserProps) {
   };
 
   return (
-    <View class="absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000f2] flex-col items-center justify-center z-50">
+    <View class={isWideScreen() ? "absolute inset-0 w-full h-full bg-[#000000f2] flex-col items-center justify-center z-50" : "absolute left-0 top-0 w-[360px] h-[240px] bg-[#000000f2] flex-col items-center justify-center z-50"}>
       <View
-        class="w-[332px] h-[218px] relative flex-col p-[8px] justify-between"
+        class={isWideScreen() ? "w-full max-w-[560px] h-full max-h-[320px] relative flex-col p-[10px] justify-between" : "w-[332px] h-[218px] relative flex-col p-[8px] justify-between"}
       >
         <PxEdge fill="#181a20" edge={theme().primary} />
         {/* Header */}

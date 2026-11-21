@@ -2210,15 +2210,15 @@ mount(() => {
       {/* Terminal View with Scaled Virtual Keyboard */}
       {terminalOpen() && (
         <View class="absolute inset-0 bg-[#0a0c10] flex-col justify-between z-50">
-          <View class="px-[8px] pt-[6px] pb-[2px] flex-col gap-[4px] flex-1">
+          <View class={isWideScreen() ? "px-[12px] pt-[8px] pb-[4px] flex-col gap-[4px] flex-1 max-w-[580px] w-full" : "px-[8px] pt-[6px] pb-[2px] flex-col gap-[4px] flex-1"}>
             {/* Terminal Window Header */}
-            <View class="w-[344px] h-[20px] flex-row items-center justify-between px-[7px] bg-[#161a23] border border-[#232936]">
+            <View class={isWideScreen() ? "w-full h-[22px] flex-row items-center justify-between px-[8px] bg-[#161a23] border border-[#232936]" : "w-[344px] h-[20px] flex-row items-center justify-between px-[7px] bg-[#161a23] border border-[#232936]"}>
               <View class="flex-row items-center gap-[5px]">
                 <View class="w-[6px] h-[6px] bg-[#ff5f56]" />
                 <View class="w-[6px] h-[6px] bg-[#ffbd2e]" />
                 <View class="w-[6px] h-[6px] bg-[#27c93f]" />
                 <Text class="text-xs font-bold text-[#e6e0e9] ml-[5px]">
-                  bash - root@rg34xx: ~ (720×480)
+                  {isWideScreen() ? "bash - root@trimui: ~ (1280×720)" : "bash - root@rg34xx: ~ (720×480)"}
                 </Text>
               </View>
               <TouchTarget onPress={() => setTerminalOpen(false)} class="px-[6px] py-[3px] bg-[#262c3a] border border-[#363e52]">
